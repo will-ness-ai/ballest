@@ -1,35 +1,51 @@
 // `pnpm --silent qa`: looking at the site, for agents (AXI style: live state when run bare,
 // compact rows, only what is wrong, a next step after every answer, errors on stdout with
-// exit code 1). `check` draws every page at several sizes on a target and a reference,
+// exit code 1). `check` draws the pages a branch's changes reach (qa/reach.mjs), or every
+// page, at several sizes on a target and a reference,
 // reports layout faults, errors and changed pixels, and writes one picture per changed view
 // to read in place of the screenshots. What it looks at: scripts/qa/catalogue.mjs.
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { basename, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
+import { landsElsewhere } from "./qa/landing.mjs";
+import { changedFiles, reach } from "./qa/reach.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
 import { signIn } from "./qa/session.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const SIZES = "320/20,390,820,1280";
 const HELP = {
   "": `usage: pnpm --silent qa [command] [flags]
   (none)    targets and what there is to check
-  check     every page at every size on a target, against a reference
+  check     the pages this branch reaches (or every page) at every size, against a reference
   shot      one view's screenshot
   piece     an editor piece's stand-in against the game mesh's render
+  render    a Prefab file or a Generator's output drawn to a picture, no page or deploy
 views are page[+state][@width[/text]], e.g. player+compare@320/20 (text in px, 16 by default);
   a page is a catalogue name or any path, e.g. /campaign/solar-trials@390
 targets are prod, preview (this branch's), local[:port] or a URL
 run \`pnpm --silent qa <command> --help\` for a command's flags`,
-  check: `usage: pnpm --silent qa check [--at preview] [--against prod] [--pages a,b] [--sizes ${SIZES}] [--no-states] [--assert] [--jobs 4]
+  check: `usage: pnpm --silent qa check [--at preview] [--against prod] [--pages a,b | --all] [--sizes ${SIZES}] [--no-states] [--assert] [--jobs 4]
   --at        the target (default preview)
   --against   the reference, or "none" to look for faults only (default prod)
-  --pages     page or page+state names to keep (default all)
+  --pages     page or page+state names to keep (default: the pages this branch's changes
+              reach from main, or every page when a change can show on any)
+  --all       every page, whatever the branch changes
   --sizes     width[/text] list (default ${SIZES})
   --no-states skip the states a click opens (dialogs, sheets)
   --assert    exit 1 when any fault is found; the CI form, with --against none
@@ -47,6 +63,19 @@ fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or place
   --eval  print the value of this expression, run in the page
   --prefab  a Prefab file the page's viewer draws in place of the real one (prefab@1280
           --prefab sign.json): the viewer as that target builds it, on any file`,
+  render: `usage: pnpm --silent qa render <file.json | generator> [--set key=value]... [--items 0-5,9] [--from top|front|side|x,y,z] [--size 1200x800]
+  draws a Prefab file, or what a Generator (its key, e.g. sign) makes, with the share images'
+  rasterizer, writes it to scratch/qa/ and prints its path, its pieces and how far it reaches
+  (Unreal x, y, z in cm)
+  --set    a Generator's value over its default, once per key (e.g. --set font=Leker --set
+           "text=Hi there"); a font the browser draws letters in Pixel here
+  --items  only the pieces at these places in the file, to see which pieces make what
+  --from   where the camera looks from: top, front (a sign's face, from -X), side, or a
+           direction in three's axes (y up); default the Generator's angle or the Prefab's
+  --size   the picture in px (default 1200x800)
+examples:
+  pnpm --silent qa render sign --set font=Graduate --set "text=Welcome!"
+  pnpm --silent qa render ~/alphabet.json --from top --items 7-12`,
   piece: `usage: pnpm --silent qa piece <mesh> | --all [--match <regex>] [--montage] [--refs <dir>]
   draws the viewer's stand-in for a mesh (its asset name, e.g. SM_1000_90turn) from the top,
   front and side, orthographic, and scores each view's outline against the game mesh's
@@ -89,12 +118,14 @@ const FLAGS = {
   check: ["at", "against", "pages", "sizes", "jobs"],
   shot: ["at", "el", "box", "eval", "prefab"],
   piece: ["refs", "match"],
+  render: ["set", "items", "from", "size"],
   "": [],
 };
 const SWITCHES = {
-  check: ["no-states", "assert"],
+  check: ["no-states", "assert", "all"],
   shot: ["full"],
   piece: ["all", "montage"],
+  render: [],
   "": [],
 };
 const flags = {};
@@ -106,6 +137,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (!FLAGS[command].includes(a.slice(2))) fail(`unknown flag ${a}`, HELP[command]);
   else if (argv[i + 1] === undefined || argv[i + 1].startsWith("--"))
     fail(`${a} needs a value`, HELP[command]);
+  else if (a === "--set") (flags.set ??= []).push(argv[++i]);
   else flags[a.slice(2)] = argv[++i];
 }
 const jobs = Number(flags.jobs ?? 4);
@@ -120,13 +152,15 @@ const pageOf = (page, ids = "real") => {
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
 const UNSIGNED =
-  "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
+  "signed in: only a local target, under its SESSION_SECRET (env or web/.env*) or else qa-only, which pnpm serve, pnpm dev:up and CI serve under";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
   list.length > 4
     ? `${list.slice(0, 3).join(" ")} +${String(list.length - 3)} more`
     : list.join(" ");
+/* "1 fault", "3 faults" */
+const plural = (n, noun) => `${String(n)} ${noun}${n === 1 ? "" : "s"}`;
 const rel = (p) => p.replace(fileURLToPath(new URL("../../", import.meta.url)), "");
 const describe = (t) =>
   t.name === "preview"
@@ -146,6 +180,7 @@ const rows = (name, fields, list) =>
 if (command === "") await home();
 else if (command === "shot") await shot();
 else if (command === "piece") await piece();
+else if (command === "render") renderFile();
 else await check();
 
 async function home() {
@@ -160,7 +195,8 @@ async function home() {
     `states[${String(STATES.length)}]: ${STATES.map((x) => `${x.page}+${x.name}`).join(", ")}`,
     `sizes: ${SIZES} (width/text px)`,
     "next:",
-    "  pnpm --silent qa check                      # preview against prod, every page and size",
+    "  pnpm --silent qa check                      # preview against prod, the pages this branch reaches",
+    "  pnpm --silent qa check --all                # every page and size",
     "  pnpm --silent qa check --pages vs,player    # just those",
     "  pnpm --silent qa shot vs@320/20             # one view, to read",
   ]);
@@ -192,7 +228,12 @@ async function shot() {
     });
     // a refused session is the first thing wrong: the page was drawn signed out
     if (r.me !== signed.as)
-      fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
+      fail(
+        `${t.url} didn't take the browser as signed in`,
+        t.fallback
+          ? "serve it with pnpm serve or pnpm dev:up, or give it and qa a SESSION_SECRET"
+          : "give qa the server's SESSION_SECRET",
+      );
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
@@ -294,6 +335,52 @@ async function piece() {
   }
 }
 
+function renderFile() {
+  const what = positional[0];
+  if (!what) fail("name a Prefab file or a Generator", HELP.render);
+  mkdirSync(OUT, { recursive: true });
+  const variant = [flags.from, flags.items]
+    .filter(Boolean)
+    .join("-")
+    .replace(/[^\w-]/g, "_");
+  const out = `${OUT}render-${basename(what, ".json")}${variant ? "-" + variant : ""}.png`;
+  /* node itself with tsx's loader, which runs the same on Windows as anywhere */
+  const run = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      fileURLToPath(new URL("./qa/render.ts", import.meta.url)),
+      JSON.stringify({
+        ...flags,
+        set: flags.set ?? [],
+        what: existsSync(what) ? resolvePath(what) : what,
+        out,
+      }),
+    ],
+    { encoding: "utf8", cwd: fileURLToPath(new URL("../", import.meta.url)) },
+  );
+  if (run.error) fail(`the render didn't start: ${run.error.message}`);
+  let r;
+  try {
+    r = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
+  } catch {
+    /* an exception's own line, not the source line tsx prints over it */
+    const lines = `${run.stderr}\n${run.stdout}`.split("\n");
+    return fail(`the render failed: ${lines.find((l) => /Error\b/.test(l)) ?? lines[0]}`);
+  }
+  if (r.error) fail(r.error, HELP.render);
+  const [x, y, z] = r.reach.map(([lo, hi]) => `${String(lo)}..${String(hi)}`);
+  say([
+    `image: ${rel(out)}`,
+    `pieces: ${String(r.pieces)}${r.pieces === r.of ? "" : ` of ${String(r.of)}`}`,
+    `reach: x ${x}, y ${y}, z ${z} (cm)`,
+    ...r.notes.map((n) => `note: ${n}`),
+    "next:",
+    `  read ${rel(out)}`,
+  ]);
+}
+
 /* a Prefab file's text for --prefab, or the error that names the path */
 function readPrefab(file) {
   try {
@@ -330,9 +417,42 @@ async function check() {
     if (!w) fail(`not a size: "${s}"`, HELP.check);
     return { width: w, text: t || 16 };
   });
-  const keep = flags.pages?.split(",");
+  if (flags.pages && flags.all)
+    fail("--pages and --all choose the pages two ways: pass one", HELP.check);
+  /* this branch's own build is narrowed to what its changes reach; any other target is all */
+  let scope = null;
+  if ((at.name === "preview" || at.ids === "stress") && !flags.pages && !flags.all) {
+    let changed;
+    try {
+      /* a preview holds the commit it was built from; a local build may hold the working tree */
+      changed = changedFiles(ROOT, { at: at.name === "preview" ? at.commit : undefined });
+    } catch (e) {
+      fail(
+        `git can't tell what this branch changes: ${String(e instanceof Error ? e.message : e).split("\n")[0]}`,
+        "git fetch origin main, or pass --all or --pages",
+      );
+    }
+    scope = reach(changed, ROOT);
+  }
+  const gaps = scope?.routes.length
+    ? [
+        `uncatalogued[${String(scope.routes.length)}] pages it reaches, not checked: ${scope.routes.join(", ")}`,
+      ]
+    : [];
+  if (scope && !scope.all && !scope.pages.length) {
+    say([
+      "checked 0 views: nothing this branch changes from main shows on a catalogue page",
+      ...gaps,
+      "next:",
+      "  pnpm --silent qa check --all   # every page anyway",
+    ]);
+    return;
+  }
+  const keep =
+    flags.pages?.split(",") ?? (scope?.all ? undefined : scope?.pages.map((p) => p.name));
   const views = [];
-  for (const { name } of PAGES) for (const s of sizes) views.push({ page: name, ...s });
+  for (const { name, minWidth = 0 } of PAGES)
+    for (const s of sizes) if (s.width >= minWidth) views.push({ page: name, ...s });
   if (!flags["no-states"])
     for (const { name, page } of STATES)
       for (const s of sizes) views.push({ page, state: name, ...s });
@@ -385,6 +505,9 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
+        // refused under qa's fallback secret: a server started without pnpm serve or dev:up
+        // and no secret of its own, which can't sign anyone in; unsigned, not a fault
+        else if (r.me !== r.as && t.fallback) (t === at ? unsigned : uncompared).push(name);
         else if (r.me !== r.as)
           found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
@@ -418,17 +541,9 @@ async function check() {
         });
       }
       if (!before) return;
-      // the page lands somewhere else on load, which the screenshot from the top can't show;
-      // a few rows either way is the content above it changing height
-      const [was, is] = [before.probes.scrolled, a.probes.scrolled];
-      if (Math.abs(was - is) > 40)
-        found.push({
-          view: name,
-          kind: "scroll",
-          where: "page",
-          detail: `lands at ${String(is)}px, was ${String(was)}px`,
-          ref: "new",
-        });
+      const landed = landsElsewhere(before.probes, a.probes);
+      if (landed)
+        found.push({ view: name, kind: "scroll", where: "page", detail: landed, ref: "new" });
       const d = await compare(browser, before.shot, a.shot, [ref.name, at.name, "changed"]);
       if (!d.changed) return;
       const file = OUT + name.replaceAll("/", "-") + ".png";
@@ -489,6 +604,13 @@ async function check() {
   const secs = Math.round((Date.now() - started) / 1000);
   const report = [
     `checked ${String(chosen.length - skipped.length - unsigned.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
+    ...(scope?.all ? [`pages: all, as ${scope.all} can show on any`] : []),
+    ...(scope && !scope.all
+      ? [
+          `pages[${String(scope.pages.length)}] this branch reaches (--all for every page): ${few(scope.pages.map((p) => p.name))}`,
+        ]
+      : []),
+    ...gaps,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
       ? rows("changed", ["view", "px", "box", "height", "shows", "image", "alike"], diffRows)
@@ -512,6 +634,8 @@ async function check() {
       ? ["  pnpm --silent qa shot <view> --el <where>   # look at a fault"]
       : []),
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
+    /* last, so the end of a long report still says whether anything is wrong */
+    `summary: ${plural(faultRows.filter((f) => f.ref !== "also").length, ref ? "new fault" : "fault")}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length, "picture")} to read)` : ""}${gaps.length + uncompared.length ? ", and gaps above" : ""}`,
   ];
   say(report);
   // in CI, the job's summary for people, and a notice a cloud session can read, since it

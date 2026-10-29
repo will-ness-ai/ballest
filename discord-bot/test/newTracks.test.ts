@@ -10,7 +10,7 @@ import {
   addMapsLive,
   newTracksLoop,
 } from "../src/newTracks.js";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 
 /** The loop over a #new-tracks channel fed by `post`, an AddMaps that counts its runs (or fails
  * while `failing`), and the ops channel's messages. */
@@ -32,10 +32,12 @@ const setup = Effect.gen(function* () {
     ),
     Layer.succeed(
       OpsAlerts,
-      OpsAlerts.make({
-        configured: true,
-        post: (content) => Ref.update(alerts, (a) => [...a, content]),
-      }),
+      OpsAlerts.make(
+        opsAlertsOf({
+          configured: true,
+          post: (content) => Ref.update(alerts, (a) => [...a, content]),
+        }),
+      ),
     ),
   );
   const fiber = yield* Effect.fork(

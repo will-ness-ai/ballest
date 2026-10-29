@@ -40,7 +40,7 @@ test("a new Map's panel has its Medals and Workshop link, no record, and says it
   const t = text(renderToStaticMarkup(<MapPanel m={fresh()} scores={[]} asOf={0} />));
   expect(t).toContain("|by |DanielProp|");
   expect(t).toContain("|Author|0:35.000|");
-  expect(t).toContain("|Open in Steam Workshop|");
+  expect(t).toContain("|Get it in Ballest ↗|");
   expect(t).not.toContain("Record");
   expect(t).toContain("|No runs yet.|");
 });

@@ -689,16 +689,10 @@
     justify-self: center;
     width: 100%;
   }
-  /* the panel stays put while the board scrolls past it, like the rail; if it is taller
-     than the window it scrolls on its own */
+  /* the panel scrolls with the page: a scroll of its own buried its foot on a short
+     screen (spec #359) */
   .mpanel {
     margin: 0;
-    position: sticky;
-    inset-block-start: 16px;
-    max-height: calc(100dvh - 32px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
   }
   /* a Map in 3D: the record and Medals in a card under the bar, which names the Map; it
      follows the bar in .m3d-top's flow, so it never overlaps it */

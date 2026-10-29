@@ -136,6 +136,10 @@ const ROUTES = [
   ["/og/daily/2026-08-30", 200, null, "PNG"],
   ["/og/daily/2026-07-01", 404],
   ["/og/nope/1", 404],
+  // a player's Stat Card (lib/stat-card.ts), which Multiballs fetches
+  ["/og/stats/" + P1 + "?v=1", 200, null, "PNG"],
+  ["/og/stats/76561199000000099", 404],
+  ["/og/stats/nope", 404],
   [
     "/player/" + P1 + "/circuit",
     200,
@@ -187,9 +191,9 @@ const ROUTES = [
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: Make your own, a Generator, and one that isn't
+  // the Generators: Make your own, a Generator, and one that isn't (a key no Generator will
+  // ever take: a real word fails here the day a Generator is named it)
   ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
-  ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],
   ["/prefabs/make/bush", 200, null, "Bush"],
@@ -213,7 +217,8 @@ const ROUTES = [
   ["/prefabs/make/trophy", 200, null, "Trophy"],
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
-  ["/prefabs/make/windmill", 404],
+  ["/prefabs/make/no-such-generator", 404],
+  ["/prefabs/make/qr", 308, "/prefabs/make"],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],
   ["/api/prefabs", 200, null, '"signedIn":false'],
@@ -237,6 +242,12 @@ const ROUTES = [
   ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
   ["/api/prefabs/nope/favorite", 404],
   ["/api/prefabs/twin-cubes", 405],
+  // the Stats Link's page (tiny's link request, signed out) and its confirm, which only POSTs
+  ["/discord/link?t=5eed0000000000000000000000000001", 200, null, "rae.disc"],
+  ["/discord/link?t=nope", 200, null, "This link doesn&#x27;t work"],
+  ["/discord/link", 200, null, "See my stats"],
+  ["/api/discord/link?t=nope", 405],
+  ["/robots.txt", 200, null, "Disallow: /discord/"],
   ["/no-such-page", 404],
 ];
 

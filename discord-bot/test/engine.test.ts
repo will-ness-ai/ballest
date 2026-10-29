@@ -8,9 +8,11 @@ import {
   BOB,
   CARA,
   DAN,
+  HOME,
   makeHarness,
   makeMap,
   PROFILES,
+  RACING,
   ticks,
   UNLINKED,
 } from "./harness.js";
@@ -46,7 +48,7 @@ describe("linking", () => {
   it.scoped("won't re-link a Player mid-Match", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       const preview = PROFILES["https://steamcommunity.com/id/alice"]!;
       expect((yield* Effect.flip(h.engine.confirmLink(ALICE.discordId, preview)))._tag).toBe(
         "Busy",
@@ -59,7 +61,7 @@ describe("opening an Invite", () => {
   it.scoped("needs a Link", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      expect(yield* Effect.flip(h.engine.openInvite(UNLINKED, public1v1))).toMatchObject({
+      expect(yield* Effect.flip(h.engine.openInvite(HOME, UNLINKED, public1v1))).toMatchObject({
         _tag: "NotLinked",
       });
     }),
@@ -68,7 +70,7 @@ describe("opening an Invite", () => {
   it.scoped("shows an Invite Card with its expiry and posts Opened", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       const card = Option.getOrThrow(yield* h.surface.card(id));
       expect(card).toMatchObject({
         state: "invite",
@@ -83,12 +85,95 @@ describe("opening an Invite", () => {
   it.scoped("allows one open Invite or live Match per Player", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
-      expect((yield* Effect.flip(h.engine.openInvite(ALICE.discordId, public1v1)))._tag).toBe(
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, ALICE.discordId, public1v1)))._tag).toBe(
         "Busy",
       );
       yield* h.engine.accept(BOB.discordId, id);
-      expect((yield* Effect.flip(h.engine.openInvite(BOB.discordId, public1v1)))._tag).toBe("Busy");
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, BOB.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
+    }),
+  );
+});
+
+describe("Venues", () => {
+  it.scoped("opens an Invite in its Venue, whose Card and Match stay there as it goes live", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(RACING, ALICE.discordId, public1v1);
+      expect(Option.getOrThrow(yield* h.surface.card(id)).venue).toBe(RACING);
+      yield* h.engine.accept(BOB.discordId, id);
+      const live = Option.getOrThrow(yield* h.surface.card(id));
+      expect(live).toMatchObject({ state: "live", venue: RACING });
+      expect(Option.getOrThrow(yield* h.store.getMatch(id)).venue).toBe(RACING);
+      const home = yield* h.engine.openInvite(HOME, CARA.discordId, public1v1);
+      expect(Option.getOrThrow(yield* h.surface.card(home)).venue).toBe(HOME);
+    }),
+  );
+
+  it.scoped("keeps a Player to one Match at a time across every Venue", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(RACING, ALICE.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, ALICE.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
+      yield* h.engine.accept(BOB.discordId, id);
+      const home = yield* h.engine.openInvite(HOME, CARA.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.accept(BOB.discordId, home)))._tag).toBe("Busy");
+      expect(
+        (yield* Effect.flip(
+          h.engine.openInvite(HOME, DAN.discordId, {
+            type: "challenge",
+            minutes: 5,
+            target: ALICE.discordId,
+          }),
+        ))._tag,
+      ).toBe("Busy");
+    }),
+  );
+
+  it.scoped("redraws a live Match in its own Venue after a restart", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(RACING, ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.restart("1 minute");
+      const cards = (yield* h.surface.all).flatMap((e) =>
+        e._tag === "Card" && e.view.matchId === id ? [e.view.venue] : [],
+      );
+      expect(new Set(cards)).toEqual(new Set([RACING]));
+    }),
+  );
+
+  it.scoped("keeps nobody Busy in a Venue left out at startup, and still stores its Result", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(RACING, ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.setTime(1, ALICE.steamId, 27);
+      h.surface.leaveOut(RACING);
+      yield* h.restart("1 minute");
+      const home = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, home);
+      yield* advance("5 minutes");
+      expect(Option.getOrThrow(yield* h.store.getMatch(id)).state).toBe("finished");
+      expect(tags(yield* h.surface.posts(id))).toContain("Result");
+    }),
+  );
+
+  it.scoped("offers each Venue's ping role once, whatever was answered in another", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      expect(yield* h.pings.offerAfter(HOME, "join", BOB.discordId)).toBe(true);
+      yield* h.pings.decline(HOME, BOB.discordId);
+      expect(yield* h.pings.offerAfter(HOME, "join", BOB.discordId)).toBe(false);
+      expect(yield* h.pings.offerAfter(RACING, "join", BOB.discordId)).toBe(true);
+      yield* h.pings.set(RACING, BOB.discordId, true);
+      expect(yield* h.role.has(BOB.discordId, RACING)).toBe(true);
+      expect(yield* h.role.has(BOB.discordId, HOME)).toBe(false);
+      expect(yield* h.pings.offerAfter(RACING, "join", BOB.discordId)).toBe(false);
     }),
   );
 });
@@ -97,7 +182,7 @@ describe("Public 1v1", () => {
   it.scoped("starts on the first Accept with a drawn Map and a live clock", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* advance("1 minute");
       yield* h.engine.accept(BOB.discordId, id);
       const card = Option.getOrThrow(yield* h.surface.card(id));
@@ -114,14 +199,16 @@ describe("Public 1v1", () => {
   it.scoped("is closed to everyone else while its Map is being drawn", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.steam.setReadDelay("150 millis");
       const accepting = yield* Effect.fork(h.engine.accept(BOB.discordId, id));
       yield* Effect.yieldNow();
       // the engine isn't blocked while Steam is read: other actions answer at once
       expect((yield* Effect.flip(h.engine.accept(CARA.discordId, id)))._tag).toBe("NotOpen");
       expect((yield* Effect.flip(h.engine.cancel(ALICE.discordId, id)))._tag).toBe("NotOpen");
-      expect((yield* Effect.flip(h.engine.openInvite(BOB.discordId, public1v1)))._tag).toBe("Busy");
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, BOB.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
       yield* advance("150 millis");
       yield* Fiber.join(accepting);
       expect(Option.getOrThrow(yield* h.surface.card(id)).state).toBe("live");
@@ -131,7 +218,7 @@ describe("Public 1v1", () => {
   it.scoped("can't be accepted by its creator, or twice", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       expect((yield* Effect.flip(h.engine.accept(ALICE.discordId, id)))._tag).toBe("NotAllowed");
       yield* h.engine.accept(BOB.discordId, id);
       expect((yield* Effect.flip(h.engine.accept(CARA.discordId, id)))._tag).toBe("NotOpen");
@@ -146,14 +233,15 @@ describe("Challenge", () => {
   it.scoped("needs a linked opponent other than yourself", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      expect((yield* Effect.flip(h.engine.openInvite(ALICE.discordId, challenge(null))))._tag).toBe(
-        "NotAllowed",
-      );
       expect(
-        (yield* Effect.flip(h.engine.openInvite(ALICE.discordId, challenge(ALICE.discordId))))._tag,
+        (yield* Effect.flip(h.engine.openInvite(HOME, ALICE.discordId, challenge(null))))._tag,
       ).toBe("NotAllowed");
       expect(
-        yield* Effect.flip(h.engine.openInvite(ALICE.discordId, challenge(UNLINKED))),
+        (yield* Effect.flip(h.engine.openInvite(HOME, ALICE.discordId, challenge(ALICE.discordId))))
+          ._tag,
+      ).toBe("NotAllowed");
+      expect(
+        yield* Effect.flip(h.engine.openInvite(HOME, ALICE.discordId, challenge(UNLINKED))),
       ).toMatchObject({
         _tag: "NotLinked",
         discordId: UNLINKED,
@@ -164,7 +252,7 @@ describe("Challenge", () => {
   it.scoped("pings the challenged Player, who alone can accept", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, challenge(BOB.discordId));
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, challenge(BOB.discordId));
       expect(tags(yield* h.surface.posts(id))).toEqual(["Opened", "Challenged"]);
       // The ping says how long the Match is and when the answer is due
       const ping = (yield* h.surface.posts(id)).at(-1);
@@ -182,10 +270,13 @@ describe("Challenge", () => {
   it.scoped("keeps the challenged Player busy until they answer", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      yield* h.engine.openInvite(ALICE.discordId, challenge(BOB.discordId));
-      expect((yield* Effect.flip(h.engine.openInvite(BOB.discordId, public1v1)))._tag).toBe("Busy");
+      yield* h.engine.openInvite(HOME, ALICE.discordId, challenge(BOB.discordId));
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, BOB.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
       expect(
-        (yield* Effect.flip(h.engine.openInvite(CARA.discordId, challenge(BOB.discordId))))._tag,
+        (yield* Effect.flip(h.engine.openInvite(HOME, CARA.discordId, challenge(BOB.discordId))))
+          ._tag,
       ).toBe("Busy");
     }),
   );
@@ -193,7 +284,7 @@ describe("Challenge", () => {
   it.scoped("disappears when declined", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, challenge(BOB.discordId));
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, challenge(BOB.discordId));
       expect((yield* Effect.flip(h.engine.decline(CARA.discordId, id)))._tag).toBe("NotAllowed");
       yield* h.engine.decline(BOB.discordId, id);
       expect(yield* h.surface.removed(id)).toEqual(Option.some("declined"));
@@ -208,7 +299,7 @@ describe("Lobby", () => {
   it.scoped("takes joins and leaves, and starts only by its creator", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
       yield* h.engine.join(BOB.discordId, id);
       yield* h.engine.join(CARA.discordId, id);
       yield* h.engine.leave(CARA.discordId, id);
@@ -231,7 +322,7 @@ describe("Lobby", () => {
   it.scoped("takes joins while live, with a joiner's PB on the Map as their bar", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
       yield* h.engine.join(BOB.discordId, id);
       yield* h.engine.start(ALICE.discordId, id);
       yield* h.steam.setTime(1, CARA.steamId, 20); // held before she joined
@@ -268,7 +359,7 @@ describe("Lobby", () => {
   it.scoped("turns a late join down when Steam can't read the joiner's PB", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
       yield* h.engine.join(BOB.discordId, id);
       yield* h.engine.start(ALICE.discordId, id);
       yield* h.steam.failNextReads(3);
@@ -280,14 +371,14 @@ describe("Lobby", () => {
   it.scoped("checks a late joiner again after the PB read", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
       yield* h.engine.join(BOB.discordId, id);
       yield* h.engine.start(ALICE.discordId, id);
       yield* h.steam.setReadDelay("150 millis");
       const joining = yield* Effect.fork(h.engine.join(CARA.discordId, id));
       yield* Effect.yieldNow();
       // Cara opens an Invite of her own while her PB is being read
-      yield* h.engine.openInvite(CARA.discordId, public1v1);
+      yield* h.engine.openInvite(HOME, CARA.discordId, public1v1);
       yield* advance("150 millis");
       expect((yield* Effect.flip(Fiber.join(joining)))._tag).toBe("Busy");
       expect(Option.getOrThrow(yield* h.surface.card(id)).players).toHaveLength(2);
@@ -297,7 +388,7 @@ describe("Lobby", () => {
   it.scoped("a 1v1 can't be joined once live", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       expect((yield* Effect.flip(h.engine.join(CARA.discordId, id)))._tag).toBe("NotAllowed");
     }),
@@ -308,7 +399,7 @@ describe("Invite lifetime", () => {
   it.scoped("expires five minutes after it opens", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* advance("4 minutes");
       expect(Option.isNone(yield* h.surface.removed(id))).toBe(true);
       yield* advance("1 minute");
@@ -320,7 +411,7 @@ describe("Invite lifetime", () => {
   it.scoped("can be cancelled only by its creator", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       expect((yield* Effect.flip(h.engine.cancel(BOB.discordId, id)))._tag).toBe("NotAllowed");
       yield* h.engine.cancel(ALICE.discordId, id);
       expect(yield* h.surface.removed(id)).toEqual(Option.some("cancelled"));
@@ -337,7 +428,7 @@ describe("Eligible Map", () => {
       const played = makeMap(2);
       const h = yield* makeHarness({ maps: [played, MAP] });
       yield* h.steam.setTime(2, BOB.steamId, 30);
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       expect(Option.getOrThrow(yield* h.surface.card(id)).map?.boardId).toBe(1);
     }),
@@ -349,7 +440,7 @@ describe("Eligible Map", () => {
       Effect.gen(function* () {
         const h = yield* makeHarness({ maps: [makeMap(2)] });
         yield* h.steam.setTime(2, BOB.steamId, 20);
-        const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+        const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
         yield* h.engine.accept(BOB.discordId, id);
         expect(Option.getOrThrow(yield* h.surface.card(id)).map).toMatchObject({
           boardId: 2,
@@ -369,7 +460,7 @@ describe("Eligible Map", () => {
       Effect.gen(function* () {
         const h = yield* makeHarness({ maps: [makeMap(2)] });
         yield* h.steam.setTime(2, BOB.steamId, 20);
-        const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+        const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
         yield* h.engine.accept(BOB.discordId, id);
         // Bob's board entry is still his old PB: it doesn't count
         yield* advance("10 seconds");
@@ -391,7 +482,7 @@ describe("Eligible Map", () => {
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [makeMap(2)] });
       yield* h.steam.setTime(2, BOB.steamId, 20);
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.setTime(2, BOB.steamId, 19);
       yield* advance("10 seconds");
@@ -407,7 +498,7 @@ describe("Eligible Map", () => {
       const h = yield* makeHarness({ maps });
       for (const map of maps)
         if (map.boardId !== null) yield* h.steam.setTime(map.boardId, BOB.steamId, 20);
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       expect(yield* h.steam.reads).toBe(60);
       expect(Option.getOrThrow(yield* h.surface.card(id)).state).toBe("live");
@@ -419,7 +510,7 @@ describe("Eligible Map", () => {
       const h = yield* makeHarness({
         maps: Array.from({ length: 50 }, (_, i) => makeMap(100 + i)),
       });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       expect(yield* h.steam.reads).toBe(1);
     }),
@@ -429,7 +520,7 @@ describe("Eligible Map", () => {
     Effect.gen(function* () {
       const five = makeMap(6, { worldRecordTicks: ticks(5) });
       const h = yield* makeHarness({ maps: [five] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       expect(Option.getOrThrow(yield* h.surface.card(id)).map?.boardId).toBe(6);
     }),
@@ -448,7 +539,7 @@ describe("Eligible Map", () => {
         });
         const h = yield* makeHarness({ maps: [tooShort, tooLong, noBoard, slow] });
         // 5 minutes allows an author time of 30 s at most: nothing fits
-        const short = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+        const short = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
         expect((yield* Effect.flip(h.engine.accept(BOB.discordId, short)))._tag).toBe(
           "NoEligibleMap",
         );
@@ -458,7 +549,10 @@ describe("Eligible Map", () => {
           ThreadPost.NoMap({ players: [ALICE, BOB] }),
         );
         // 15 minutes allows 90 s: the slow Map fits
-        const long = yield* h.engine.openInvite(ALICE.discordId, { ...public1v1, minutes: 15 });
+        const long = yield* h.engine.openInvite(HOME, ALICE.discordId, {
+          ...public1v1,
+          minutes: 15,
+        });
         yield* h.engine.accept(BOB.discordId, long);
         expect(Option.getOrThrow(yield* h.surface.card(long)).map?.boardId).toBe(5);
       }),
@@ -468,7 +562,7 @@ describe("Eligible Map", () => {
 describe("during the Match", () => {
   const live1v1 = Effect.gen(function* () {
     const h = yield* makeHarness({ maps: [MAP] });
-    const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+    const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
     yield* h.engine.accept(BOB.discordId, id);
     return { h, id };
   });
@@ -556,7 +650,7 @@ describe("world records", () => {
   it.scoped("marks each PB that beats the WR as it stands, measured against the WR it beat", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] }); // WR 15 s at the start
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "lobby",
         minutes: 5,
         target: null,
@@ -588,7 +682,7 @@ describe("world records", () => {
   it.scoped("measures two breaks in one poll each against the WR it beat", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "lobby",
         minutes: 5,
         target: null,
@@ -613,7 +707,7 @@ describe("the progression graph", () => {
   it.scoped("follows the Result with every PB of the Match and when it was set", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.setTime(1, BOB.steamId, 22);
       yield* advance("30 seconds");
@@ -634,7 +728,7 @@ describe("the progression graph", () => {
   it.scoped("isn't posted when nobody set a time", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* advance("5 minutes");
       expect(tags(yield* h.surface.posts(id)).at(-1)).toBe("Result");
@@ -645,7 +739,7 @@ describe("the progression graph", () => {
 describe("leaving a live Match", () => {
   const live1v1 = Effect.gen(function* () {
     const h = yield* makeHarness({ maps: [MAP] });
-    const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+    const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
     yield* h.engine.accept(BOB.discordId, id);
     return { h, id };
   });
@@ -697,7 +791,7 @@ describe("leaving a live Match", () => {
       expect(tags(yield* h.surface.posts(id)).slice(-3)).toEqual(["Left", "Left", "Abandoned"]);
       expect(yield* h.surface.removed(id)).toEqual(Option.some("abandoned"));
       expect(yield* h.store.activeMatches).toEqual([]);
-      yield* h.engine.openInvite(ALICE.discordId, public1v1); // free again
+      yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1); // free again
     }),
   );
 
@@ -710,14 +804,14 @@ describe("leaving a live Match", () => {
       const again = yield* Effect.flip(h.engine.leave(ALICE.discordId, id));
       const stranger = yield* Effect.flip(h.engine.leave(CARA.discordId, id));
       expect([again._tag, stranger._tag]).toEqual(["NotAllowed", "NotAllowed"]);
-      yield* h.engine.openInvite(ALICE.discordId, public1v1); // free to play again while Bob races on
+      yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1); // free to play again while Bob races on
     }),
   );
 
   it.scoped("in a live Lobby, lets a late joiner leave, but not a leaver back in", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "lobby",
         minutes: 5,
         target: null,
@@ -750,7 +844,7 @@ describe("the Result", () => {
   it.scoped("is read the moment the Match ends, ranked, with DNF last", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "lobby",
         minutes: 5,
         target: null,
@@ -785,7 +879,7 @@ describe("the Result", () => {
   it.scoped("gives equal times a shared rank", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.setTime(1, ALICE.steamId, 23);
       yield* h.steam.setTime(1, BOB.steamId, 23);
@@ -799,7 +893,7 @@ describe("the Result", () => {
   it.scoped("with no finishers, ranks nobody", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* advance("5 minutes");
       const result = (yield* h.surface.posts(id)).at(-1);
@@ -811,7 +905,7 @@ describe("the Result", () => {
   it.scoped("keeps the last polled times if Steam stays down for the whole wait", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.setTime(1, ALICE.steamId, 28);
       yield* advance("290 seconds");
@@ -835,7 +929,7 @@ describe("the Result", () => {
   it.scoped("waits for Steam at the end, then posts the Result with the end read", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* advance("295 seconds");
       yield* h.steam.setTime(1, BOB.steamId, 21); // set just before the end
@@ -859,7 +953,7 @@ describe("the Result", () => {
   it.scoped("shows the Card as time's up, with no Join or Leave, while it waits", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.failNextReads(1_000);
       yield* advance("5 minutes");
@@ -873,7 +967,7 @@ describe("the Result", () => {
   it.scoped("picks the wait up after a restart, without telling the thread twice", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.failNextReads(1_000);
       yield* advance("5 minutes");
@@ -893,7 +987,7 @@ describe("the Result", () => {
   it.scoped("reads nothing late once the wait is over, even if the bot was down for it", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* h.steam.setTime(1, ALICE.steamId, 28);
       yield* advance("1 minute");
@@ -915,7 +1009,7 @@ describe("the Result", () => {
   it.scoped("retries the final read when Steam drops it", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* advance("295 seconds");
       yield* h.steam.setTime(1, BOB.steamId, 25);
@@ -932,7 +1026,7 @@ describe("restart", () => {
   it.scoped("resumes a live Match, and finishes one that ended while the bot was down", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.engine.accept(BOB.discordId, id);
       yield* advance("1 minute");
       const cardsBefore = (yield* h.surface.all).filter((e) => e._tag === "Card").length;
@@ -953,13 +1047,13 @@ describe("restart", () => {
   it.scoped("keeps an Invite's expiry across a restart, and drops one that lapsed while down", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const kept = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      const kept = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
       yield* h.restart("3 minutes");
       expect(Option.isNone(yield* h.surface.removed(kept))).toBe(true);
       yield* advance("2 minutes");
       expect(yield* h.surface.removed(kept)).toEqual(Option.some("expired"));
 
-      const lapsed = yield* h.engine.openInvite(BOB.discordId, public1v1);
+      const lapsed = yield* h.engine.openInvite(HOME, BOB.discordId, public1v1);
       yield* h.restart("6 minutes");
       expect(yield* h.surface.removed(lapsed)).toEqual(Option.some("expired"));
     }),
@@ -978,7 +1072,7 @@ describe("Chosen Skins", () => {
         const h = yield* makeHarness({ maps: [MAP] });
         yield* h.chosenSkins.pick(ALICE.steamId, PINK);
         yield* h.chosenSkins.pick(DAN.steamId, GOLD);
-        const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+        const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
         yield* h.engine.join(BOB.discordId, id);
         expect(Option.getOrThrow(yield* h.surface.card(id)).skins).toEqual({
           [ALICE.steamId]: PINK,
@@ -1016,7 +1110,7 @@ describe("Chosen Skins", () => {
       const h = yield* makeHarness({ maps: [MAP] });
       yield* h.chosenSkins.pick(ALICE.steamId, PINK);
       yield* h.chosenSkins.pick(BOB.steamId, GOLD);
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "challenge",
         minutes: 5,
         target: BOB.discordId,
@@ -1038,7 +1132,7 @@ describe("Chosen Skins", () => {
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
       yield* h.chosenSkins.pick(ALICE.steamId, PINK);
-      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, lobby);
       yield* h.engine.join(BOB.discordId, id);
       yield* h.chosenSkins.pick(BOB.steamId, GOLD);
       yield* h.engine.leave(BOB.discordId, id);
@@ -1050,15 +1144,17 @@ describe("Chosen Skins", () => {
 });
 
 describe("Play again", () => {
-  /** A finished Public 1v1 of Alice and Bob, 10 minutes long. */
-  const finishedMatch = Effect.gen(function* () {
-    const h = yield* makeHarness({ maps: [MAP] });
-    const id = yield* h.engine.openInvite(ALICE.discordId, { ...public1v1, minutes: 10 });
-    yield* h.engine.accept(BOB.discordId, id);
-    yield* h.steam.setTime(1, ALICE.steamId, 21);
-    yield* advance("10 minutes");
-    return { h, id };
-  });
+  /** A finished Public 1v1 of Alice and Bob in `venue`, 10 minutes long. */
+  const finishedMatchIn = (venue: string) =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(venue, ALICE.discordId, { ...public1v1, minutes: 10 });
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.setTime(1, ALICE.steamId, 21);
+      yield* advance("10 minutes");
+      return { h, id };
+    });
+  const finishedMatch = finishedMatchIn(HOME);
 
   it.scoped("the first press opens a Lobby of the same length; later presses join it", () =>
     Effect.gen(function* () {
@@ -1084,6 +1180,19 @@ describe("Play again", () => {
     }),
   );
 
+  it.scoped("in a guest Venue opens the Lobby in that Venue, Busy counting it there too", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatchIn(RACING);
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      expect(Option.getOrThrow(yield* h.surface.card(lobbyId)).venue).toBe(RACING);
+      expect(Option.getOrThrow(yield* h.store.getMatch(lobbyId)).venue).toBe(RACING);
+      // Bob is in it now: he can't open another Invite in any Venue.
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, BOB.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
+    }),
+  );
+
   it.scoped("tells the finished Match's thread who opened it, pinging its other Players", () =>
     Effect.gen(function* () {
       const { h, id } = yield* finishedMatch;
@@ -1100,7 +1209,7 @@ describe("Play again", () => {
   it.scoped("is for a finished Match only, and for a Player free to play", () =>
     Effect.gen(function* () {
       const { h, id } = yield* finishedMatch;
-      const live = yield* h.engine.openInvite(CARA.discordId, public1v1);
+      const live = yield* h.engine.openInvite(HOME, CARA.discordId, public1v1);
       expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe("NotAllowed");
       // Cara is in her own Invite: she can neither open the Lobby nor join it.
       expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
@@ -1161,7 +1270,7 @@ describe("Play again", () => {
   it.scoped("doesn't ping a Player who left the finished Match", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
-      const id = yield* h.engine.openInvite(ALICE.discordId, {
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
         type: "lobby",
         minutes: 5,
         target: null,

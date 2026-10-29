@@ -343,3 +343,24 @@ export const chosenSkinSaves = pgTable(
   },
   (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
 );
+
+// A Stats Link (CONTEXT.md): the Steam ID a Discord account signed in as on the site, written
+// only by the site's link page (db/stats-link.ts) and read by Multiballs for See my stats.
+// Pairing again replaces it.
+export const statsLinks = pgTable("stats_links", {
+  discordId: text("discord_id").primaryKey(),
+  steamId: text("steam_id").notNull(),
+  linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A link request: one press of See my stats with no Stats Link, written by Multiballs
+// (ADR 0014), which sends its token to the link page. It lives 15 minutes and is used once;
+// Multiballs prunes the old ones as it writes, and so does the page's confirm.
+export const statsLinkRequests = pgTable("stats_link_requests", {
+  token: text("token").primaryKey(),
+  discordId: text("discord_id").notNull(),
+  // the Discord name the confirm page asks about
+  discordName: text("discord_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});

@@ -119,7 +119,6 @@ export const newPrefabHref = () => "/prefabs/new";
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */
 export const GENERATOR_KEYS = [
-  "qr",
   "sign",
   "arrow",
   "pixel-art",
@@ -212,6 +211,11 @@ export const sitemapHref = () => "/sitemap.xml";
 export const signInHref = (next: string) => "/api/auth/steam?next=" + encodeURIComponent(next);
 /* sign out (a POST), coming back to the path `next` */
 export const signOutHref = (next: string) => "/api/auth/signout?next=" + encodeURIComponent(next);
+
+/* the link page for a link request Multiballs wrote (ADR 0014), and its confirm (a POST) */
+export const statsLinkHref = (token: string) => "/discord/link?t=" + encodeURIComponent(token);
+export const statsLinkConfirmHref = (token: string) =>
+  "/api/discord/link?t=" + encodeURIComponent(token);
 
 /* The single-page site's #/ routes, each to the path that replaces it, or null for a hash
    that named nothing (the page then stays where it is). */

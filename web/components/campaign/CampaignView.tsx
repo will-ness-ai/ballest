@@ -4,10 +4,12 @@
 // the plates and the list. `slot` is what follows the slug in the path: one of its Maps,
 // opened inside the Campaign's frame as a Track opens inside its season; "podiums" for the
 // podium order; or a Steam ID whose row to find and mark, on its own or after an Event's id.
+// Every slot floats Get the Maps (GetMaps), the checklist of its Workshop Maps.
 import { notFound } from "next/navigation";
 
 import { CampaignRailItems } from "./CampaignRail";
 import { CampaignChip } from "./CampaignSwitch";
+import { GetMaps } from "./GetMaps";
 import { DocTitle } from "../Behaviours";
 import { PageHead } from "../PageHead";
 import { Remember } from "../Trail";
@@ -34,7 +36,7 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, eventOf, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, eventOf, getMapRows, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref, campaignSlot, mapHref } from "../../lib/routes";
@@ -64,7 +66,7 @@ export async function CampaignView({
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([
-    getBoardPage(name, 0, BOARD_CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK),
     m ? getBoardScores(name) : Promise.resolve([]),
     podiums
       ? getPlacesOf(
@@ -151,7 +153,7 @@ export async function CampaignView({
               sortsw={m ? undefined : <SortSwitch name={name} podiums={false} />}
               history={history && <HistoryCard h={history} />}
               leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
-              initial={page.total >= 3 ? rows.slice(3) : rows}
+              initial={rows}
               lead={rows[0]?.score ?? null}
               pods={
                 m
@@ -168,6 +170,7 @@ export async function CampaignView({
           )}
         </section>
         {!m && <PointsDialog board={name} tracks={maps.length} />}
+        <GetMaps c={c} rows={getMapRows(c, maps)} />
         <Remember trail="board" href={here} label={c.title + " " + title} />
         <Remember
           trail="maps"

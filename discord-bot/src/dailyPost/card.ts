@@ -2,7 +2,8 @@
 // header, the podium with ties, the Medal times, and the thread's name. Pure, so the schedule and
 // `pnpm daily-post` say exactly the same, and the tests read it without Discord.
 import { type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js";
-import { bold, escape } from "../report/messages.js";
+import { escape } from "../links.js";
+import { bold } from "../report/messages.js";
 import { DAY, dayStart } from "./date.js";
 
 /** One Daily, as the developers' API names it. Times in ms. */

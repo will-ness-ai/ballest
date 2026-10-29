@@ -1,5 +1,5 @@
 {
-  "id": "60d1cc7c-b51c-4fcc-8123-aa77097783a8",
+  "id": "9feaed85-8ba8-4e47-9d82-7fa70841f480",
   "prevId": "051b142d-2516-4db2-bc9e-6cc83d589d7e",
   "version": "7",
   "dialect": "postgresql",
@@ -510,69 +510,6 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.map_activity": {
-      "name": "map_activity",
-      "schema": "",
-      "columns": {
-        "pfid": {
-          "name": "pfid",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "week_plays": {
-          "name": "week_plays",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "votes_up": {
-          "name": "votes_up",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "votes_down": {
-          "name": "votes_down",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "vote_score": {
-          "name": "vote_score",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "refresh_id": {
-          "name": "refresh_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "map_activity_refresh_id_refreshes_id_fk": {
-          "name": "map_activity_refresh_id_refreshes_id_fk",
-          "tableFrom": "map_activity",
-          "tableTo": "refreshes",
-          "columnsFrom": [
-            "refresh_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1291,6 +1228,82 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stats_link_requests": {
+      "name": "stats_link_requests",
+      "schema": "",
+      "columns": {
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "discord_id": {
+          "name": "discord_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "discord_name": {
+          "name": "discord_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stats_links": {
+      "name": "stats_links",
+      "schema": "",
+      "columns": {
+        "discord_id": {
+          "name": "discord_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "steam_id": {
+          "name": "steam_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linked_at": {
+          "name": "linked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},

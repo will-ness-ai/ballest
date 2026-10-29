@@ -1425,3 +1425,125 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     ),
   );
 };
+
+// ---------------------------------------------------------------- the Weekly Cup's standings
+// A row per Entrant with their place, points and wins, and each Cup Map's place: live, the place
+// alone (times stay secret until the Cup ends), in the results with the time beside it.
+
+export const CUP_STANDINGS_WIDTH = 720;
+
+export interface CupStandingsImage {
+  readonly title: string;
+  readonly subtitle: string;
+  /** The Cup Maps' names, in order. */
+  readonly maps: ReadonlyArray<string>;
+  readonly rows: ReadonlyArray<{
+    readonly place: number;
+    readonly name: string;
+    readonly total: number;
+    readonly wins: number;
+    /**
+     * Each Cup Map's place, with its time once the Cup is over (null while live: times stay
+     * secret until the end), or null for no time.
+     */
+    readonly cells: ReadonlyArray<{ readonly time: string | null; readonly rank: number } | null>;
+  }>;
+}
+
+export const cupStandingsScene = ({ title, subtitle, maps, rows }: CupStandingsImage): El => {
+  const COL = { place: 26, name: 140, total: 80, map: 120 } as const;
+  const headCell = (text: string, width: number, align = "flex-start") =>
+    box(
+      { width, flexShrink: 0, overflow: "hidden", justifyContent: align },
+      label(text, { fontSize: 10, letterSpacing: 0.8 }),
+    );
+  const rankBadge = (rank: number) =>
+    box(
+      {
+        fontFamily: F.hud,
+        fontWeight: 700,
+        fontSize: 10,
+        padding: "0 5px",
+        borderRadius: 4,
+        color: rank <= 3 ? C.bg : C.dim,
+        backgroundColor: rank <= 3 ? placeColour(rank) : C.line2,
+      },
+      String(rank),
+    );
+  return backdrop(
+    { padding: 24, gap: 14, width: CUP_STANDINGS_WIDTH },
+    box(
+      { justifyContent: "space-between", alignItems: "flex-end" },
+      box(
+        { flexDirection: "column", gap: 2 },
+        box({ fontFamily: F.marquee, fontSize: 26 }, title),
+        box({ color: C.dim, fontSize: 13 }, subtitle),
+      ),
+      logo(),
+    ),
+    box(
+      { flexDirection: "column", gap: 4 },
+      box(
+        { padding: "0 10px", gap: 8 },
+        headCell("#", COL.place),
+        headCell("Player", COL.name),
+        headCell("Points", COL.total, "flex-end"),
+        ...maps.map((m) => headCell(m.length > 13 ? `${m.slice(0, 12)}…` : m, COL.map, "flex-end")),
+      ),
+      ...rows.map((r, i) =>
+        box(
+          {
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 10px",
+            borderRadius: 6,
+            fontSize: 15,
+            backgroundColor: i === 0 ? C.upTint : C.surface,
+          },
+          box(
+            {
+              width: COL.place,
+              fontFamily: F.hud,
+              fontWeight: 700,
+              color: r.place <= 3 ? placeColour(r.place) : C.faint,
+            },
+            String(r.place),
+          ),
+          box(
+            { width: COL.name, flexDirection: "column" },
+            box({ fontWeight: 600 }, r.name.length > 16 ? `${r.name.slice(0, 15)}…` : r.name),
+            r.wins > 0
+              ? box({ fontSize: 11, color: C.gold }, `${r.wins} ${r.wins === 1 ? "win" : "wins"}`)
+              : null,
+          ),
+          box(
+            { width: COL.total, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
+            r.total.toLocaleString("en-US"),
+          ),
+          ...r.cells.map((c) =>
+            box(
+              { width: COL.map, justifyContent: "flex-end", alignItems: "center", gap: 6 },
+              c === null
+                ? box({ color: C.faint }, "—")
+                : c.time === null
+                  ? box(
+                      {
+                        fontFamily: F.hud,
+                        fontWeight: 700,
+                        fontSize: 16,
+                        color: c.rank <= 3 ? placeColour(c.rank) : C.text,
+                      },
+                      `#${c.rank}`,
+                    )
+                  : box(
+                      { alignItems: "center", gap: 6 },
+                      box({ fontFamily: F.hud, fontWeight: 600, color: C.text }, c.time),
+                      rankBadge(c.rank),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+};

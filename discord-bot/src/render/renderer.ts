@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
+import type { ReactNode } from "react";
 import satori, { type Font } from "satori";
 import type { ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { marbleSvg, type SkinPictureUris } from "./art.js";
@@ -38,6 +39,9 @@ import {
   STANDINGS_WIDTH,
   type StandingsImage,
   standingsScene,
+  CUP_STANDINGS_WIDTH,
+  type CupStandingsImage,
+  cupStandingsScene,
 } from "./scenes.js";
 
 /** An image that couldn't be drawn: a font, layout or rasterising failure. */
@@ -181,7 +185,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     yield* rasterise(marbleSvg(0, 8)).pipe(Effect.orDie);
     const draw = Effect.fn("draw")(function* (scene: El, width: number) {
       const svg = yield* Effect.tryPromise({
-        try: () => satori(scene, { width, fonts }),
+        // A scene is the plain { type, props } shape satori reads, which React's types don't name.
+        try: () => satori(scene as unknown as ReactNode, { width, fonts }),
         catch: (cause) => new RenderError({ cause }),
       });
       return yield* rasterise(svg);
@@ -218,6 +223,9 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
       /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
       standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
+      /** The Weekly Cup's live standings or results. */
+      cupStandings: (image: CupStandingsImage) =>
+        draw(cupStandingsScene(image), CUP_STANDINGS_WIDTH),
       /** A Daily Post's lead through the day. */
       leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
         return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);
