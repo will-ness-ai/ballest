@@ -294,7 +294,8 @@ URL Mapping pointing there.
 
 `src/report/` posts the Daily Report (spec #126, design on branch
 `claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
-Since yesterday in the channel with the four Workshop standings as an image and one link button under it,
+Since yesterday in the channel with the four Workshop standings as an image, the overall standing
+over them drawn above the four (spec #373), and one link button under it,
 "Where do I stand?", to the site's `/you` (spec #221), and the map lists and longest-standing
 records in a thread on it. The button and the message's Map links go to the live site whatever
 `SITE_URL` says, so a sandbox post's button opens the real `/you`; the bot never hears a press
