@@ -1,4 +1,4 @@
-// The sandbox's clock: real time plus an offset the driver can move forward (`discord clock`), so a
+// The sandbox's clock: real time plus an offset the driver can move forward (`devserver clock`), so a
 // week of the Weekly Cup plays out in minutes. A sleep wakes once the shifted time reaches its
 // end, checked every half second, so a jump past a boundary acts at once. The offset is kept in
 // .logs/sandbox-clock.json, so a restart with `--keep` resumes at the same moment.

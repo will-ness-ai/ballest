@@ -191,7 +191,7 @@ the template, so write all four sections yourself.
   production (`docs/site.md`, "Checking a change"). A picture shows in the PR only from a URL,
   so from a cloud session link the changed page on the PR's preview and quote qa's `summary:`
   line; attach the screenshot itself when the session can upload one. For a bot change, the
-  sandbox post `discord-sandbox` made, read back with `discord show`. For the collector, the test
+  sandbox post `discord-sandbox` made, read back with `devserver show`. For the collector, the test
   that went red then green, or what a `--dev` run wrote.
 - **Merge Danger** one-way doors here: a migration applied to production, anything that rewrites
   or deletes `entries` (the database is the only copy of the scores), a message the bot posts in

@@ -1,4 +1,4 @@
-// The test server's channels for `pnpm discord` (AXI style: names in, compact rows out): finding a
+// The test server's channels for `pnpm devserver` (AXI style: names in, compact rows out): finding a
 // channel by name, listing them, and reading the arguments of `variants` and `ops --since`.
 
 /** The parts of Discord's channel object this reads. */

@@ -17,7 +17,7 @@ import { DriverInteractions } from "../../src/discord/interactions.js";
 import { Store } from "../../src/ports.js";
 import type { FakeSteamControl } from "../../test/harness.js";
 import type { DevClock } from "./clock.js";
-import { type ApiMessage, filesOf, fromPayload } from "../discord/describe.js";
+import { type ApiMessage, filesOf, fromPayload } from "../devserver/describe.js";
 import { LOGS } from "./config.js";
 
 export type Kind = "button" | "select" | "modal";
@@ -127,7 +127,7 @@ export interface Answer {
   readonly files: Readonly<Record<string, string>>;
 }
 
-const REPLIES = posix.join(LOGS, "discord", "replies");
+const REPLIES = posix.join(LOGS, "devserver", "replies");
 let saved = 0;
 
 const answerOf = (call: Call): Answer => {

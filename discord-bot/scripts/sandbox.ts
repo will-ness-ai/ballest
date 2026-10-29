@@ -1,10 +1,10 @@
 // `pnpm sandbox`: a copy of the bot for agents to drive, in its own channel on the test server
-// (made by `pnpm discord sandbox create`). It is the real bot on the dev app, with two swaps: the
+// (made by `pnpm devserver sandbox create`). It is the real bot on the dev app, with two swaps: the
 // tests' fake Steam, so any Player can link and set times on demand, and the driver
 // (scripts/sandbox/driver.ts), which clicks buttons as any member. A fresh database each start;
-// log in .logs/sandbox.log. Drive it with `pnpm discord`.
+// log in .logs/sandbox.log. Drive it with `pnpm devserver`.
 //
-// `--cup` switches the Weekly Cup on in the sandbox's server, on a clock `discord clock` moves forward
+// `--cup` switches the Weekly Cup on in the sandbox's server, on a clock `devserver clock` moves forward
 // (scripts/sandbox/clock.ts); `--keep` keeps the database and the clock from the last run, to
 // check a restart.
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -22,7 +22,7 @@ import { DRIVER_PORT, LOGS, readSandbox, SANDBOX_HTTP_PORT } from "./sandbox/con
 
 const sandbox = readSandbox();
 if (sandbox === null) {
-  console.log("error: no sandbox channel yet. Make one with: pnpm discord sandbox create");
+  console.log("error: no sandbox channel yet. Make one with: pnpm devserver sandbox create");
   process.exit(1);
 }
 

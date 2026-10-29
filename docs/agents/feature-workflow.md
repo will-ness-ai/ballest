@@ -25,7 +25,7 @@ throwaway worktree on `claude/prototype-<slug>`, served locally, with the varian
 picker built into the real page (give the worktree its own `pnpm install --prefer-offline`:
 Turbopack rejects a symlinked `node_modules`). Five variants a round, walking from the overall layout
 down to single components. Skip this step for collector, data and bot-engine work with no
-visible surface. A bot post's variants go to the test server instead: `pnpm --silent discord variants
+visible surface. A bot post's variants go to the test server instead: `pnpm --silent devserver variants
 <channel> A=a.png B=b.png --title "Round 1"` in `discord-bot/` posts a round and prints one link per variant.
 
 ## 3. Spec: `/to-spec`, then `/to-tickets`

@@ -1,4 +1,4 @@
-// What `pnpm discord` makes of the test server itself: finding a channel by name, listing channels,
+// What `pnpm devserver` makes of the test server itself: finding a channel by name, listing channels,
 // and reading the arguments of `variants` and `ops --since`.
 import { describe, expect, it } from "vitest";
 import {
@@ -8,7 +8,7 @@ import {
   findChannel,
   parseSince,
   parseVariants,
-} from "../scripts/discord/server.js";
+} from "../scripts/devserver/server.js";
 
 const OPS = { id: "1552729777029259470", name: "ops", type: 0, parent_id: "1552729777029259466" };
 const CUP = { id: "1564575214484983829", name: "cup-check", type: 0 };

@@ -1,7 +1,7 @@
-// What `pnpm discord` shows of a message, from either source: Discord's own message object, and a
+// What `pnpm devserver` shows of a message, from either source: Discord's own message object, and a
 // payload the bot answered privately (read back through fromPayload).
 import { describe, expect, it } from "vitest";
-import { detail, fromPayload, summary, table } from "../scripts/discord/describe.js";
+import { detail, fromPayload, summary, table } from "../scripts/devserver/describe.js";
 import {
   linkForm,
   pickDurationMessage,
@@ -13,7 +13,7 @@ import { ALICE, BOB } from "./harness.js";
 
 const NO_MARBLES = { marbles: { forHue: () => "", forPlayer: () => "" }, png: null };
 
-describe("the discord tool's message reader", () => {
+describe("the devserver tool's message reader", () => {
   it("lists a Card in one line: its clock, its image and its buttons", () => {
     const card = {
       id: "1",
@@ -67,7 +67,7 @@ describe("the discord tool's message reader", () => {
   });
 });
 
-describe("the discord tool's markup reader", () => {
+describe("the devserver tool's markup reader", () => {
   it("shows mentions, emojis and timestamps as a person reads them", () => {
     const m = {
       id: "1",
@@ -85,7 +85,7 @@ describe("the discord tool's markup reader", () => {
   });
 });
 
-describe("the discord tool's private answers", () => {
+describe("the devserver tool's private answers", () => {
   it("reads an acknowledgement with nothing in it as such, not as hidden text", () => {
     expect(summary(fromPayload("deferReply", { flags: 64 }))).toBe(
       "(nothing: an acknowledgement, the answer follows)",
