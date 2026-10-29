@@ -57,6 +57,7 @@ describe("the Section a path is in", () => {
       "/prefabs/new": "prefabs",
       "/prefabs/make": "prefabs",
       "/prefabs/make/sign": "prefabs",
+      "/prefabs/guide": "prefabs",
       "/no-such-page": null,
     };
     for (const [path, section] of Object.entries(at)) expect(nav(path).section, path).toBe(section);
@@ -140,6 +141,7 @@ describe("a Section's sub-tabs", () => {
       ["Shared", "/prefabs"],
       ["Make your own", "/prefabs/make"],
       ["Upload", "/prefabs/new"],
+      ["How to", "/prefabs/guide"],
     ]);
     expect(subs("/no-such-page")).toEqual([]);
   });
@@ -182,6 +184,7 @@ describe("a Section's sub-tabs", () => {
       "/prefabs/new": ["Upload"],
       "/prefabs/make": ["Make your own"],
       "/prefabs/make/sign": ["Make your own"],
+      "/prefabs/guide": ["How to"],
       "/no-such-page": [],
     };
     for (const [path, on] of Object.entries(at)) expect(lit(path), path).toEqual(on);
@@ -229,6 +232,7 @@ describe("the kind of page", () => {
       "/prefabs/new": "Upload",
       "/prefabs/make": "Generators",
       "/prefabs/make/sign": "Generator",
+      "/prefabs/guide": "How to",
       "/no-such-page": null,
     };
     for (const [path, kind] of Object.entries(at)) expect(nav(path).kind, path).toBe(kind);

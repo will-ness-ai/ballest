@@ -194,6 +194,8 @@ const ROUTES = [
   // the Generators: Make your own, a Generator, and one that isn't (a key no Generator will
   // ever take: a real word fails here the day a Generator is named it)
   ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
+  ["/prefabs/guide", 200, null, "ballest.editor.saveprefab my_prefab"],
+  ["/prefabs/guide", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs/guide"'],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],
   ["/prefabs/make/bush", 200, null, "Bush"],

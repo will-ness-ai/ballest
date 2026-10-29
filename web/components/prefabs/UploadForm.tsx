@@ -11,6 +11,7 @@ import { AnglePicker } from "./AnglePicker";
 import { stillOf } from "./scene";
 import { PillButton, Pills } from "../Controls";
 import type { PrefabFile } from "../../lib/prefab";
+import { FOLDER } from "../../lib/prefab-console";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
 import {
   DESCRIPTION_MAX,
@@ -272,7 +273,7 @@ function Drop({
       ) : (
         <span>
           <b>Drop your prefab here</b> or choose a file
-          <small>From %LOCALAPPDATA%\Ballest\Saved\SaveGames\Prefabs · .json, up to 4 MB</small>
+          <small>From {FOLDER} · .json, up to 4 MB</small>
         </span>
       )}
     </label>
