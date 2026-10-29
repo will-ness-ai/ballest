@@ -2,8 +2,10 @@
 // One Daily's panel: its date, the Map's title, how many players set a time, a countdown
 // while it is live or "Final" with its close in the reader's time zone, a link to the
 // Map's all-time board, the top three on podium steps over the dimmed picture, then the
-// rest of the board with each time's Medal. Live or final is the reader's clock against
-// the close (isLive), so a page cached before the close flips at it without a fresh read.
+// whole board from 1st with each time's Medal (a reader skimming the list for a name
+// shouldn't have to know the steps hold the first three). Live or final is the reader's
+// clock against the close (isLive), so a page cached before the close flips at it without
+// a fresh read.
 import Link from "next/link";
 import { Fragment, useState } from "react";
 
@@ -20,8 +22,8 @@ import { mapHref } from "../../lib/routes";
 import type { BoardRow, DailyDay } from "../../lib/rows";
 import { fmtN, fmtTime, hueFor, personaOf, timeMedal } from "../../lib/rules";
 
-/* rows under the podium before "Show all" */
-const SHOWN = 17;
+/* rows in the list before "Show all" */
+const SHOWN = 20;
 
 const clockTime = (iso: string, withDay: boolean) =>
   new Date(iso).toLocaleString("en-US", {
@@ -106,8 +108,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
   const [all, setAll] = useState(false);
   const race = useRaceOpen(d.board, "list");
   const podium = useRaceOpen(d.board, "podium");
-  const rest = rows.slice(3);
-  const shown = all ? rest : rest.slice(0, SHOWN);
+  const shown = all ? rows : rows.slice(0, SHOWN);
   const lead = rows.at(0)?.score ?? 0;
   const mark = (r: BoardRow) =>
     d.medals.length ? <Medal t={timeMedal(d.medals, r.score)} size={14} mini /> : undefined;
@@ -144,7 +145,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
         )}
       </section>
       <PodiumRace board={d.board} />
-      {rest.length > 0 && (
+      {rows.length > 0 && (
         <div className="board" id="board">
           <div className="head">
             <span>#</span>
@@ -170,7 +171,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
           ))}
         </div>
       )}
-      {rest.length > SHOWN && (
+      {rows.length > SHOWN && (
         <button
           type="button"
           className="dp-more"
@@ -178,7 +179,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
             setAll(!all);
           }}
         >
-          {all ? `Show the top ${String(SHOWN + 3)}` : `Show all ${fmtN(rows.length)} times`}
+          {all ? `Show the top ${String(SHOWN)}` : `Show all ${fmtN(rows.length)} times`}
         </button>
       )}
     </>

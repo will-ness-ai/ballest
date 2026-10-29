@@ -231,6 +231,22 @@ export const mapFiles = pgTable("map_files", {
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 
+// A Map's plays over the last 7 days and its Workshop votes, as of the latest catalogue that
+// listed it (spec #348): the homepage's Trending chart ranks by them. One row per Map,
+// overwritten by each Refresh that writes a Workshop result, never history: the plays move
+// every Refresh. `voteScore` is Steam's own score, discounted for few votes (0 with none). No
+// foreign key to `maps`, as `map_files` has none.
+export const mapActivity = pgTable("map_activity", {
+  pfid: text("pfid").primaryKey(),
+  weekPlays: integer("week_plays").notNull(),
+  votesUp: integer("votes_up").notNull(),
+  votesDown: integer("votes_down").notNull(),
+  voteScore: doublePrecision("vote_score").notNull(),
+  refreshId: integer("refresh_id")
+    .notNull()
+    .references(() => refreshes.id),
+});
+
 // A Map's spinning 3D GIF for its Daily Post (spec #268): one full turn of the Map's 3D view on
 // the site, drawn by daily-spin.yml (scripts/map-spin.ts) when Multiballs asks, and read by the
 // bot. Only the latest drawing is kept; `version` is the map_files version it was drawn from,

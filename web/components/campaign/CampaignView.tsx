@@ -66,7 +66,7 @@ export async function CampaignView({
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([
-    getBoardPage(name, 0, BOARD_CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK),
     m ? getBoardScores(name) : Promise.resolve([]),
     podiums
       ? getPlacesOf(
@@ -153,7 +153,7 @@ export async function CampaignView({
               sortsw={m ? undefined : <SortSwitch name={name} podiums={false} />}
               history={history && <HistoryCard h={history} />}
               leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
-              initial={page.total >= 3 ? rows.slice(3) : rows}
+              initial={rows}
               lead={rows[0]?.score ?? null}
               pods={
                 m
