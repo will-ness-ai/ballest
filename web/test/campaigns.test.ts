@@ -88,17 +88,10 @@ describe("Event boards in a Campaign", () => {
     ]);
   });
 
-  test("the Leth Trials holds Leth Trial #1, by Lethamyr, pinned", () => {
-    const leth = curated("leth-trials");
-    expect(leth).toMatchObject({
-      title: "Leth Trials",
-      creator: "Lethamyr",
-      creatorId: "76561198184322235",
-      maps: ["leth-trial-1"],
-      pinned: true,
-    });
+  test("Leth Trial #1 is a Trial now, in no Campaign", () => {
+    expect(CAMPAIGNS.find((c) => c.slug === "leth-trials")).toBeUndefined();
+    expect(campaignOfMap("leth-trial-1")).toBeNull();
     expect(eventOf("leth-trial-1")).toMatchObject({ board: "Map_LethTrial_01", viewer: "leth" });
-    expect(mapLabel(leth, "leth-trial-1", "Leth Trial #1")).toBe("01 Leth Trial #1");
   });
 });
 

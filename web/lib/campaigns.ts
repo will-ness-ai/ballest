@@ -281,14 +281,6 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     ],
   },
   {
-    slug: "leth-trials",
-    title: "Leth Trials",
-    creator: "Lethamyr",
-    creatorId: "76561198184322235",
-    maps: ["leth-trial-1"],
-    pinned: true,
-  },
-  {
     slug: "ball-heaven-hell",
     title: "Ball Heaven and Hell",
     creator: "Mountain Dude",

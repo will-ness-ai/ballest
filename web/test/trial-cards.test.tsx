@@ -28,7 +28,7 @@ describe("TrialCards", () => {
     expect(cards.map((a) => [a.querySelector("h2")?.textContent, a.getAttribute("href")])).toEqual([
       ["The Tower", "/board/Map_TheTower"],
       ["The Tower (Checkpoints)", "/board/Map_TheTowerCP"],
-      ["Leth Trial #1", "/campaign/leth-trials/leth-trial-1"],
+      ["Leth Trial #1", "/board/Map_LethTrial_01"],
     ]);
   });
 

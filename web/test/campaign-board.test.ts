@@ -19,15 +19,18 @@ import { freshDb } from "./pg";
 /* Map A (Marble Run), then Map B (Loop de Loop), then Map C (Gone Gully), which has left the
    Workshop. Added to the curated list for this file only, so the board resolves by name,
    with three more for the lists: Map B alone twice, and Map C alone; and one of an Event
-   board no Refresh has read yet. The curated Leth Trials, pinned, is read for real: this
-   file gives its Event board two Entries. */
-const TEST = vi.hoisted((): Campaign => ({
-  slug: "test-run",
-  title: "Test Run",
-  creator: "Tenpin",
-  creatorId: "76561199000000010",
-  maps: ["9000000001", "9000000002", "9000000003"],
-}));
+   board no Refresh has read yet; and a pinned one of Leth Trial #1's Event board, to which
+   this file gives two Entries. No curated Campaign holds an Event board since Leth Trial #1
+   became a Trial, so these stand in for one that might. */
+const TEST = vi.hoisted(
+  (): Campaign => ({
+    slug: "test-run",
+    title: "Test Run",
+    creator: "Tenpin",
+    creatorId: "76561199000000010",
+    maps: ["9000000001", "9000000002", "9000000003"],
+  }),
+);
 vi.mock("../lib/campaigns", async (original) => {
   const m = await original<typeof import("../lib/campaigns")>();
   const one = (slug: string, maps: Array<string>): Campaign => ({ ...TEST, slug, maps });
@@ -44,6 +47,7 @@ vi.mock("../lib/campaigns", async (original) => {
     TEST,
     one("test-same", ["9000000002"]),
     one("test-unread", ["test-event"]),
+    { ...one("test-leth", ["leth-trial-1"]), pinned: true },
   );
   return m;
 });
@@ -176,9 +180,9 @@ describe("the Campaigns to list", () => {
     // The curated Campaigns' Maps are none of tiny's, and Map C alone has left the
     // Workshop, so "test-gone" is left out with them. Map B alone has p10, p5 and p2; the
     // test Campaign has those and Map A's p9 and p1.
-    // The Leth Trials is pinned, so it leads with its 2 players.
+    // The test Campaign of Leth Trial #1 is pinned, so it leads with its 2 players.
     expect((await getCampaigns()).map((k) => [k.c.slug, k.players])).toEqual([
-      ["leth-trials", 2],
+      ["test-leth", 2],
       ["test-run", 5],
       ["test-small", 3],
       ["test-same", 3],
@@ -210,7 +214,7 @@ describe("a player's Campaigns", () => {
         k.players,
       ]),
     ).toEqual([
-      ["leth-trials", 2, 20000, 1, 2],
+      ["test-leth", 2, 20000, 1, 2],
       ["test-run", 1, 60000, 2, 5],
       ["test-small", 1, 40000, 1, 3],
       ["test-same", 1, 40000, 1, 3],
@@ -232,7 +236,7 @@ describe("a player's Campaigns", () => {
 
 describe("a Campaign of an Event board", () => {
   test("ranks the Event board's Entries by the Circuit's place points", async () => {
-    const page = await boardPage(t.db, "OverallCampaign_leth-trials", { count: 100 });
+    const page = await boardPage(t.db, "OverallCampaign_test-leth", { count: 100 });
     expect(page.rows.map((r) => [r.rank, r.steamId, r.score])).toEqual([
       [1, p(4), 40000],
       [2, p(10), 20000],
@@ -240,7 +244,7 @@ describe("a Campaign of an Event board", () => {
   });
 
   test("shows the Event as one of its Maps, with its picture, runs and record", async () => {
-    const data = await getCampaign("leth-trials");
+    const data = await getCampaign("test-leth");
     expect(data?.maps.map((m) => [m.pfid, m.name, m.title, m.entryCount, m.top3[0]])).toEqual([
       ["leth-trial-1", LETH, "Leth Trial #1", 2, [p(4), "Slowpoke", 2_373_600]],
     ]);

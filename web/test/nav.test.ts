@@ -18,7 +18,6 @@ const FACTS: NavFacts = {
     { group: "All Seasons", overall: "OverallLeaderboard_AllSeasons" },
   ],
   campaigns: [
-    { slug: "leth-trials", title: "Leth Trials" },
     { slug: "solar-trials", title: "Solar Trials" },
     { slug: "velocity-trials", title: "Velocity Trials" },
   ],
@@ -37,7 +36,6 @@ describe("the Section a path is in", () => {
       "/campaign/solar-trials": "campaigns",
       "/campaign/solar-trials/podiums": "campaigns",
       "/campaign/solar-trials/3805413302": "campaigns",
-      "/campaign/leth-trials/leth-trial-1": "campaigns",
       "/daily": "daily",
       "/daily/2026-09-05": "daily",
       "/daily/standings": "daily",
@@ -49,6 +47,8 @@ describe("the Section a path is in", () => {
       "/trials": "circuit",
       "/board/Map_TheTower": "circuit",
       [`/board/Map_TheTowerCP/${ID}`]: "circuit",
+      "/board/Map_LethTrial_01": "circuit",
+      [`/board/Map_LethTrial_01/${ID}`]: "circuit",
       [`/player/${ID}`]: "players",
       [`/player/${ID}/workshop`]: "players",
       [`/vs/${ID}/${RIVAL}`]: "players",
@@ -122,7 +122,6 @@ describe("a Section's sub-tabs", () => {
     /* All Campaigns, then the most-played ones by name */
     expect(subs("/campaigns")).toEqual([
       ["All Campaigns", "/campaigns"],
-      ["Leth Trials", "/campaign/leth-trials"],
       ["Solar Trials", "/campaign/solar-trials"],
       ["Velocity Trials", "/campaign/velocity-trials"],
     ]);
@@ -162,7 +161,6 @@ describe("a Section's sub-tabs", () => {
       "/campaign/solar-trials/podiums": ["Solar Trials"],
       /* a Campaign Map sits under its Campaign */
       "/campaign/solar-trials/3805413302": ["Solar Trials"],
-      "/campaign/leth-trials/leth-trial-1": ["Leth Trials"],
       /* a Campaign the sub-tabs don't name is one of All Campaigns */
       "/campaign/miniblack": ["All Campaigns"],
       "/daily": ["Today"],
@@ -180,6 +178,8 @@ describe("a Section's sub-tabs", () => {
       "/trials": ["Trials"],
       "/board/Map_TheTower": ["Trials"],
       [`/board/Map_TheTowerCP/${ID}`]: ["Trials"],
+      /* Leth Trial #1, an Event board, is a Trial too */
+      "/board/Map_LethTrial_01": ["Trials"],
       /* a player's page and a head to head are the Rankings' */
       [`/player/${ID}`]: ["Rankings"],
       [`/player/${ID}/workshop`]: ["Rankings"],
@@ -221,7 +221,6 @@ describe("the kind of page", () => {
       "/campaign/solar-trials/podiums": "Campaign",
       [`/campaign/solar-trials/${ID}`]: "Campaign",
       "/campaign/solar-trials/3805413302": "Campaign Map",
-      "/campaign/leth-trials/leth-trial-1": "Event board",
       "/daily": "Daily",
       "/daily/2026-09-05": "Daily",
       "/daily/standings": "Daily standings",
@@ -232,6 +231,7 @@ describe("the kind of page", () => {
       "/trials": "Trials",
       "/board/Map_TheTower": "Trial",
       [`/board/Map_TheTowerCP/${ID}`]: "Trial",
+      "/board/Map_LethTrial_01": "Trial",
       [`/player/${ID}`]: "Player",
       [`/player/${ID}/circuit`]: "Player",
       [`/vs/${ID}/${RIVAL}`]: "Head to head",
@@ -279,6 +279,7 @@ describe("the breadcrumb trail", () => {
       "/trials": ["Official"],
       "/board/Map_TheTower": ["Official", "Trials"],
       "/board/Map_TheTowerCP": ["Official", "Trials"],
+      "/board/Map_LethTrial_01": ["Official", "Trials"],
       "/players": [],
       "/players/workshop/maps": ["Players", "Rankings"],
       "/you": ["Players"],
@@ -297,7 +298,6 @@ describe("the breadcrumb trail", () => {
       { label: "Campaigns", href: "/campaigns" },
       { label: "Solar Trials", href: "/campaign/solar-trials" },
     ]);
-    expect(trail("/campaign/leth-trials/leth-trial-1")).toEqual(["Campaigns", "Leth Trials"]);
     /* one the sub-tabs don't name sits under All Campaigns */
     expect(trail("/campaign/miniblack")).toEqual(["Campaigns", "All Campaigns"]);
     expect(nav("/campaign/miniblack/3811078255").trail.at(-1)).toEqual({

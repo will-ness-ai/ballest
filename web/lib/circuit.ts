@@ -94,6 +94,15 @@ export const CIRCUIT: ReadonlyArray<CircuitBoard> = [
     display: "The Tower (Checkpoints)",
     origin: "steam",
   },
+  /* and Leth Trial #1, an Event board (lib/campaigns.ts) the collector read once, after the
+     event closed; its page is drawn as the Towers' are */
+  {
+    name: "Map_LethTrial_01",
+    group: TRIALS_GROUP,
+    tier: null,
+    display: "Leth Trial #1",
+    origin: "steam",
+  },
 ];
 
 /* A Trial (GLOSSARY.md): one of the game's own one-off challenge boards outside the
@@ -110,9 +119,9 @@ export interface Trial {
   page: string;
 }
 
-/* the Trials in the order the Trials sub-tab and rail list them. The Towers are Circuit
-   boards above; Leth Trial #1 is an Event board (lib/campaigns.ts), read once, and keeps
-   its Campaign Map page for now. */
+/* the Trials in the order the Trials sub-tab and rail list them, each one of the Trials
+   group above: the Towers, read every Refresh, and Leth Trial #1, an Event board
+   (lib/campaigns.ts) read once */
 export const TRIALS: ReadonlyArray<Trial> = [
   {
     board: "Map_TheTower",
@@ -133,7 +142,7 @@ export const TRIALS: ReadonlyArray<Trial> = [
     title: "Leth Trial #1",
     blurb: "Lethamyr's one-off event board.",
     picture: "/leth/screenshot.jpg",
-    page: "/campaign/leth-trials/leth-trial-1",
+    page: "/board/Map_LethTrial_01",
   },
 ];
 
