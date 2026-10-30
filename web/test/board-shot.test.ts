@@ -15,7 +15,7 @@ afterEach(() => {
 
 function site() {
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
-    asked.push(String(input));
+    asked.push(input instanceof Request ? input.url : String(input));
     return Promise.resolve(new Response(JPEG, { headers: { "content-type": "image/jpeg" } }));
   });
 }
