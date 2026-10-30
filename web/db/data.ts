@@ -46,7 +46,9 @@ import { mapCard, timed, trendCard, trending, type MapCard, type TrendCard } fro
 import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
+import type { AuthEnv } from "../lib/auth";
 import type { ChosenSkinDeps } from "./chosen-skin-api";
+import { addressOf, spendGameSignIn } from "./game-sign-in";
 import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
@@ -58,6 +60,9 @@ export { DATA_TAG } from "./tags";
 /* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
    persona comes from the boards, by a Refresh too) */
 export const PREFAB_TAG = "prefabs";
+/* what is read from a Prefab's file alone, which never changes after upload, so no write
+   expires it: a burst of writes can't make the game's list read every file again (ADR 0016) */
+export const PREFAB_FILE_TAG = "prefab-files";
 
 /* every player's Chosen Skin, expired only by a save (PUT or DELETE /api/me/skin) */
 export const CHOSEN_SKIN_TAG = "chosen-skins";
@@ -593,6 +598,31 @@ async function prefabPageOf(slug: string): Promise<PrefabPage | null> {
   };
 }
 
+/* a Prefab's size in metres (wide, deep, tall) as its page shows it, or null for a slug
+   nobody uploaded; whether it is live is the caller's to know */
+export async function getPrefabSize(slug: string): Promise<PrefabPage["size"] | null> {
+  "use cache: remote";
+  cacheTag(PREFAB_FILE_TAG);
+  cacheLife("max");
+  if (!isPrefabSlug(slug)) return null;
+  const p = await prefabOf(db(), slug);
+  if (!p) return null;
+  /* a file that can't be read leaves its entry without a size rather than its whole page */
+  try {
+    return footprintOf(shapesOf(JSON.parse(p.file) as PrefabFile));
+  } catch {
+    return null;
+  }
+}
+
+/* a Prefab's file read fresh, whatever its state, or null for a slug nobody uploaded: for a
+   cached drawing of it, which mustn't read through getPrefabFile, since a "use cache" inside
+   another passes its tags out, and every Prefab write would then throw the drawing away */
+export async function prefabFileText(slug: string): Promise<string | null> {
+  if (!isPrefabSlug(slug)) return null;
+  return (await prefabOf(db(), slug))?.file ?? null;
+}
+
 /* a file bigger than this is read fresh, not cached: a cache entry has a size limit */
 const CACHED_FILE_BYTES = 1_000_000;
 
@@ -625,6 +655,13 @@ export function prefabDeps(): PrefabDeps {
 
 /* what the Chosen Skin API writes with: this server's database, and the cached picks expired
    after a save, so every page draws it on its next load without reading the boards again */
+/* the game's sign-in limit on this server's database: each address so many an hour */
+export function gameSignInDeps(): Pick<AuthEnv, "allowGameSignIn"> {
+  return {
+    allowGameSignIn: (request) => spendGameSignIn(db(), addressOf(request), Date.now()),
+  };
+}
+
 export function chosenSkinDeps(): ChosenSkinDeps {
   return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
 }
