@@ -606,6 +606,10 @@
   .call {
     grid-template-columns: 1fr 1fr;
   }
+  /* the Trials: three cards across on /trials */
+  .trcs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .mgrid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }

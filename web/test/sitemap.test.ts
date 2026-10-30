@@ -46,6 +46,7 @@ describe("sitemapOf", () => {
         "/daily/2026-10-10",
         "/campaigns",
         "/campaign/solar-trials",
+        "/trials",
         ...CIRCUIT.map((b) => "/board/" + b.name),
         /* the Towers' pages, as Trials */
         "/board/Map_TheTower",

@@ -18,6 +18,7 @@ import {
   mapsHref,
   playerHref,
   playersHref,
+  trialsHref,
 } from "./routes";
 import type { DailyCell, StandingsRow } from "./rows";
 
@@ -56,6 +57,7 @@ export function sitemapOf(d: SitemapData): Array<SitemapEntry> {
     at(dailyHref()),
     at(dailyStandingsHref()),
     at(campaignsHref()),
+    at(trialsHref()),
     ...CIRCUIT.map((b) => at(boardHref(b.name))),
     ...d.campaigns.map((slug) => at(campaignHref(slug))),
     ...d.maps.map((pfid) => at(mapHref(pfid))),

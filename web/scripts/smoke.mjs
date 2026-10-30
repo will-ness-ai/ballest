@@ -39,6 +39,10 @@ const ROUTES = [
   // a Trial's board: tiny's Tower record is Slowpoke's, and the rail names every Trial
   ["/board/Map_TheTower", 200, null, "Slowpoke"],
   ["/board/Map_TheTowerCP", 200, null, "Leth Trial #1"],
+  // /trials: a card per Trial, each with its record's holder and runs
+  ["/trials", 200, null, "Slowpoke"],
+  ["/trials", 200, null, 'href="/board/Map_TheTowerCP"'],
+  ["/trials", 200, null, "Closed · 0 runs"],
   ["/api/search?q=the%20tower", 200, null, "Map_TheTowerCP"],
   ["/board/Map_Nope", 404],
   ["/board/Map_Track13/nope", 404],

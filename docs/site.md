@@ -294,6 +294,11 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
   and one on a phone. Prerendered; lights the Campaigns Section.
+- `/trials`: the Trials sub-tab, a card per Trial in `TRIALS` order (`TrialCards`), picture
+  on top (a striped placeholder for a Tower until its picture is extracted), title, open or
+  closed, runs, and the record with its holder (`trialTops`), three across on a desktop and
+  one under another on a phone. Each card links its Trial's page. Prerendered; lights the
+  Official Section and its Trials sub-tab.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
