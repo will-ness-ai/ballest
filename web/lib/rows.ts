@@ -55,6 +55,15 @@ export interface Placing {
   score: number;
 }
 
+/* a Trial's runs, record and the record's holder (db/site.ts, trialTops): what the Trials
+   rail and /trials show. A Trial nobody has run has no record and no holder. */
+export interface TrialTop {
+  board: string;
+  runs: number;
+  record: number | null;
+  holder: { steamId: string; persona: string; avatar: string | null } | null;
+}
+
 /* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
 export interface PlayerCampaignRow {
   slug: string;

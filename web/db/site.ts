@@ -40,6 +40,7 @@ import type {
   RunRace,
   Standings,
   StandingsRow,
+  TrialTop,
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
@@ -109,22 +110,38 @@ export async function trackBoards(db: Db): Promise<Array<{ name: string; leaderb
   });
 }
 
-/* Each Trial's runs and record, in the Trials' order (lib/circuit.ts): what the Trials rail
-   lists. A Trial is a time board, so its record is its lowest open score; one no Refresh
-   has read yet has no runs and no record. */
-export async function trialTops(
-  db: Db,
-): Promise<Array<{ board: string; runs: number; record: number | null }>> {
+/* Each Trial's runs, record and the record's holder, in the Trials' order (lib/circuit.ts):
+   what the Trials rail and /trials list. A Trial is a time board, ranked as its board
+   ranks it; one no Refresh has read yet has no runs, no record and no holder. */
+export async function trialTops(db: Db): Promise<Array<TrialTop>> {
   const names = TRIALS.map((t) => t.board);
-  const found = await rows<{ board: string; runs: number; record: string }>(
+  const found = await rows<{
+    board: string;
+    runs: number;
+    record: number;
+    steamId: string;
+    persona: string;
+    avatar: string | null;
+  }>(
     db,
-    sql`select board, count(*)::int as runs, min(score)::text as record from entries
-      where closed_refresh is null and board = any(${array(names)}) group by board`,
+    sql`select r.board, r.runs, r.score::float8 as record, r.steam_id as "steamId",
+        ${personaSql} as persona, nullif(p.avatar, '') as avatar
+      from (select x.*, (count(*) over (partition by x.board))::int as runs
+            from (${rankedSql(sql`e.board = any(${array(names)})`)}) x) r
+      join players p on p.steam_id = r.steam_id
+      where r.rank = 1`,
   );
   const by = new Map(found.map((r) => [r.board, r]));
   return names.map((board) => {
     const r = by.get(board);
-    return { board, runs: r?.runs ?? 0, record: r ? Number(r.record) : null };
+    return r
+      ? {
+          board,
+          runs: r.runs,
+          record: r.record,
+          holder: { steamId: r.steamId, persona: r.persona, avatar: r.avatar },
+        }
+      : { board, runs: 0, record: null, holder: null };
   });
 }
 

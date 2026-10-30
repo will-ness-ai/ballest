@@ -5,13 +5,14 @@ import Link from "next/link";
 
 import { eventOfBoard } from "../../lib/campaigns";
 import { TRIALS } from "../../lib/circuit";
+import type { TrialTop } from "../../lib/rows";
 import { fmtTime, plural } from "../../lib/rules";
 
 export function TrialRailItems({
   tops,
   current,
 }: {
-  tops: ReadonlyArray<{ board: string; runs: number; record: number | null }>;
+  tops: ReadonlyArray<TrialTop>;
   current: string;
 }) {
   return TRIALS.map((t) => {

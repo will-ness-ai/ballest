@@ -49,12 +49,17 @@ describe("the Track boards Multiballs reads", () => {
   });
 });
 
-describe("the Trials rail", () => {
-  test("each Trial's runs and record, in the Trials' order; one with no runs has none", async () => {
+describe("the Trials rail and /trials", () => {
+  test("each Trial's runs, record and its holder, in the Trials' order; one with no runs has none", async () => {
+    const slowpoke = {
+      steamId: p(4),
+      persona: "Slowpoke",
+      avatar: "https://avatars.example.invalid/4_medium.jpg",
+    };
     expect(await trialTops(t.db)).toEqual([
-      { board: "Map_TheTower", runs: 3, record: 42_514_900 },
-      { board: "Map_TheTowerCP", runs: 1, record: 44_502_500 },
-      { board: "Map_LethTrial_01", runs: 0, record: null },
+      { board: "Map_TheTower", runs: 3, record: 42_514_900, holder: slowpoke },
+      { board: "Map_TheTowerCP", runs: 1, record: 44_502_500, holder: slowpoke },
+      { board: "Map_LethTrial_01", runs: 0, record: null, holder: null },
     ]);
   });
 });
