@@ -186,7 +186,12 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>Ballest of Them All Leaderboards &amp; Records · BALLESTRECORDS</title>"],
+  [
+    "/",
+    200,
+    null,
+    "<title>Ballest of Them All Leaderboards &amp; Records · BALLESTRECORDS</title>",
+  ],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
