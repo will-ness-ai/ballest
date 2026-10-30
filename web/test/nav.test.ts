@@ -46,6 +46,9 @@ describe("the Section a path is in", () => {
       "/board/OverallLeaderboard_S1Current": "circuit",
       "/board/OverallLeaderboard_AllSeasons": "circuit",
       "/board/OverallLeaderboard_EASeason2/podiums": "circuit",
+      "/trials": "circuit",
+      "/board/Map_TheTower": "circuit",
+      [`/board/Map_TheTowerCP/${ID}`]: "circuit",
       [`/player/${ID}`]: "players",
       [`/player/${ID}/workshop`]: "players",
       [`/vs/${ID}/${RIVAL}`]: "players",
@@ -85,13 +88,13 @@ describe("the Section a path is in", () => {
 });
 
 describe("the Sections across the top", () => {
-  test("Maps, Campaigns, Daily, Circuit, Players and Prefabs, the path's one lit", () => {
+  test("Maps, Campaigns, Daily, Official, Players and Prefabs, the path's one lit", () => {
     expect(nav("/campaign/solar-trials").sections).toEqual([
       { key: "maps", label: "Maps", href: "/", on: false },
       { key: "campaigns", label: "Campaigns", href: "/campaigns", on: true },
       { key: "daily", label: "Daily", href: "/daily", on: false },
-      /* the Circuit opens on its newest season's Overall board */
-      { key: "circuit", label: "Circuit", href: "/board/OverallLeaderboard_EASeason2", on: false },
+      /* Official opens on its newest season's Overall board, as the Circuit did */
+      { key: "circuit", label: "Official", href: "/board/OverallLeaderboard_EASeason2", on: false },
       { key: "players", label: "Players", href: "/players", on: false },
       { key: "prefabs", label: "Prefabs", href: "/prefabs", on: false },
     ]);
@@ -127,11 +130,12 @@ describe("a Section's sub-tabs", () => {
       ["Today", "/daily"],
       ["Standings", "/daily/standings"],
     ]);
-    /* each season, newest first */
+    /* each season, newest first, then the Trials */
     expect(subs("/board/Map_Track13")).toEqual([
       ["Season 2", "/board/OverallLeaderboard_EASeason2"],
       ["Season 1", "/board/OverallLeaderboard_S1Current"],
       ["All Seasons", "/board/OverallLeaderboard_AllSeasons"],
+      ["Trials", "/trials"],
     ]);
     expect(subs("/players")).toEqual([
       ["Rankings", "/players"],
@@ -172,6 +176,10 @@ describe("a Section's sub-tabs", () => {
       "/board/OverallLeaderboard": ["Season 1"],
       "/board/OverallLeaderboard_AllSeasons": ["All Seasons"],
       "/board/OverallLeaderboard_EASeason2/podiums": ["Season 2"],
+      /* a Trial's board lights the Trials */
+      "/trials": ["Trials"],
+      "/board/Map_TheTower": ["Trials"],
+      [`/board/Map_TheTowerCP/${ID}`]: ["Trials"],
       /* a player's page and a head to head are the Rankings' */
       [`/player/${ID}`]: ["Rankings"],
       [`/player/${ID}/workshop`]: ["Rankings"],
@@ -221,6 +229,9 @@ describe("the kind of page", () => {
       [`/board/Map_Track13/${ID}`]: "Circuit Track",
       "/board/OverallLeaderboard_S1Current": "Circuit standings",
       "/board/OverallLeaderboard_EASeason2/podiums": "Circuit standings",
+      "/trials": "Trials",
+      "/board/Map_TheTower": "Trial",
+      [`/board/Map_TheTowerCP/${ID}`]: "Trial",
       [`/player/${ID}`]: "Player",
       [`/player/${ID}/circuit`]: "Player",
       [`/vs/${ID}/${RIVAL}`]: "Head to head",
@@ -260,11 +271,14 @@ describe("the breadcrumb trail", () => {
       "/daily/2026-09-05": ["Daily", "Today"],
       "/daily/standings": ["Daily"],
       "/board/OverallLeaderboard_EASeason2": [],
-      "/board/OverallLeaderboard_EASeason2/podiums": ["Circuit", "Season 2"],
-      "/board/OverallLeaderboard_S1Current": ["Circuit"],
-      "/board/Map_Track13": ["Circuit", "Season 1"],
-      [`/board/Map_Track13/${ID}`]: ["Circuit", "Season 1"],
-      "/board/OverallLeaderboard_AllSeasons": ["Circuit"],
+      "/board/OverallLeaderboard_EASeason2/podiums": ["Official", "Season 2"],
+      "/board/OverallLeaderboard_S1Current": ["Official"],
+      "/board/Map_Track13": ["Official", "Season 1"],
+      [`/board/Map_Track13/${ID}`]: ["Official", "Season 1"],
+      "/board/OverallLeaderboard_AllSeasons": ["Official"],
+      "/trials": ["Official"],
+      "/board/Map_TheTower": ["Official", "Trials"],
+      "/board/Map_TheTowerCP": ["Official", "Trials"],
       "/players": [],
       "/players/workshop/maps": ["Players", "Rankings"],
       "/you": ["Players"],
@@ -324,7 +338,7 @@ describe("the breadcrumbs a page draws above its title", () => {
   test("coming from a board, the parent is that board, under its Section", () => {
     expect(
       crumbs(`/player/${ID}`, "Will", { label: "Season 1 13", href: "/board/Map_Track13" }),
-    ).toEqual(["Circuit", "Season 1 13"]);
+    ).toEqual(["Official", "Season 1 13"]);
     expect(
       crumbs(`/player/${ID}`, "Will", { label: "Sway n So", href: "/map/3800958793" }),
     ).toEqual(["Maps", "Sway n So"]);

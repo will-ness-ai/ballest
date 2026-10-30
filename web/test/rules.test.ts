@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
-import { CIRCUIT, TRACKS } from "../lib/circuit";
+import { CIRCUIT, TRACKS, TRIALS, TRIALS_GROUP } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -351,7 +351,7 @@ describe("the Circuit table", () => {
     ].map((m) => m[1]);
 
   test("lists the collector's Tracks in its order", () => {
-    const tracks = CIRCUIT.filter((b) => b.name.startsWith("Map_"));
+    const tracks = CIRCUIT.filter((b) => b.group.startsWith("Season") && b.name.startsWith("Map_"));
     expect(tracks.filter((b) => b.group === "Season 1").map((b) => b.name)).toEqual(
       list("S1_TRACKS"),
     );
@@ -359,6 +359,31 @@ describe("the Circuit table", () => {
       list("S2_TRACKS"),
     );
     expect(Object.keys(TRACKS).sort()).toEqual(tracks.map((b) => b.name).sort());
+  });
+
+  test("holds the collector's Trials, after the seasons, by the names it writes", () => {
+    // TRIALS = {\n    "<board>": "<display name>",\n ...\n}
+    const start = py.indexOf("\nTRIALS = {\n");
+    const table = py.slice(start, py.indexOf("\n}\n", start));
+    const trials = [...table.matchAll(/^ {4}"(\w+)": "([^"]+)",$/gm)].map((m) => [m[1], m[2]]);
+    expect(start, "TRIALS not found in campaign_common.py").toBeGreaterThan(0);
+    expect(trials.map(([name]) => name)).toEqual(["Map_TheTower", "Map_TheTowerCP"]);
+    expect(CIRCUIT.filter((b) => b.group === TRIALS_GROUP).map((b) => [b.name, b.display])).toEqual(
+      trials,
+    );
+    expect(CIRCUIT.at(-1)?.group).toBe(TRIALS_GROUP);
+    /* a Trial is no Track: no number, no Medal times, in no season's points */
+    for (const [name] of trials) expect(TRACKS[name]).toBeUndefined();
+  });
+
+  test("names the three Trials in order, the Towers' boards their own pages", () => {
+    expect(TRIALS.map((t) => [t.board, t.title])).toEqual([
+      ["Map_TheTower", "The Tower"],
+      ["Map_TheTowerCP", "The Tower (Checkpoints)"],
+      ["Map_LethTrial_01", "Leth Trial #1"],
+    ]);
+    expect(TRIALS[0].page).toBe("/board/Map_TheTower");
+    expect(TRIALS[1].page).toBe("/board/Map_TheTowerCP");
   });
 
   test("knows the collector's Event boards, by the names and titles it writes", () => {

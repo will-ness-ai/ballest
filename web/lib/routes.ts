@@ -72,6 +72,8 @@ export const viewerHref = (folder: string) => "/" + folder + "/";
 
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
+/* the Trials sub-tab: a card per Trial */
+export const trialsHref = () => "/trials";
 
 /* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
    board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam

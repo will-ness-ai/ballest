@@ -337,6 +337,7 @@ describe("a player", () => {
       profileUrl: `https://steamcommunity.com/profiles/${p(1)}/`,
     });
     expect(data?.finishes.map((f) => [f.board, f.rank, f.score, f.lead, f.field])).toEqual([
+      ["Map_TheTower", 2, 44_273_200, 42_514_900, 3],
       ["Map_Track13", 1, 1_013_307, 1_013_307, 6],
       ["Map_Track15", 2, 1_900_000, 1_800_000, 3],
       ["OverallLeaderboard_AllSeasons", 1, 61450, 61450, 8],

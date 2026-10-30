@@ -2,7 +2,13 @@
 // player page"): the board table is read here and nowhere below, so a player page, the
 // head to head and the score card are only markup over a PlayerRecord. matchup() is the
 // one place two records are paired up. Pure, so the server and the browser share it.
-import { COMPOSITE_BOARD, COMPOSITE_GROUP, S1_CURRENT_BOARD, TRACKS } from "./circuit";
+import {
+  COMPOSITE_BOARD,
+  COMPOSITE_GROUP,
+  S1_CURRENT_BOARD,
+  TRACKS,
+  TRIALS_GROUP,
+} from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
 import { timed } from "./workshop";
 import {
@@ -139,12 +145,14 @@ export interface Season {
   tracks: number;
 }
 
+/* a season's Track: a timed board that is no Trial, which no season's points count */
+const isTrack = (b: IndexBoard) => !isPoints(b.name) && b.group !== TRIALS_GROUP;
+
 /* The season switch's choices, newest first. All Seasons has no Tracks of its own and adds
-   up every one */
+   up every one; the Trials have no Overall board, so they are no choice */
 export function seasonsOf(boards: ReadonlyArray<IndexBoard>): Array<Season> {
   const tracks = (group: string) =>
-    boards.filter((b) => !isPoints(b.name) && (group === COMPOSITE_GROUP || b.group === group))
-      .length;
+    boards.filter((b) => isTrack(b) && (group === COMPOSITE_GROUP || b.group === group)).length;
   return groupsOf(boards).flatMap((group) => {
     const o = overallOf(boards, group);
     return o ? [{ group, overall: o.name, players: o.entryCount, tracks: tracks(group) }] : [];
@@ -202,25 +210,23 @@ export function playerRecord(
       };
     })
     .sort((a, b) => b.runs - a.runs || b.subs - a.subs);
-  const tracks: Array<TrackTile> = boards
-    .filter((b) => !isPoints(b.name))
-    .map((b) => {
-      const f = by.get(b.name);
-      return {
-        name: b.name,
-        display: b.display,
-        field: b.entryCount,
-        finish: f
-          ? {
-              rank: f.rank,
-              score: f.score,
-              lead: f.lead,
-              earned: b.name in TRACKS ? timeMedal(TRACKS[b.name].medals, f.score) : "none",
-            }
-          : null,
-        points: f ? trackPoints(f.rank) : 0,
-      };
-    });
+  const tracks: Array<TrackTile> = boards.filter(isTrack).map((b) => {
+    const f = by.get(b.name);
+    return {
+      name: b.name,
+      display: b.display,
+      field: b.entryCount,
+      finish: f
+        ? {
+            rank: f.rank,
+            score: f.score,
+            lead: f.lead,
+            earned: b.name in TRACKS ? timeMedal(TRACKS[b.name].medals, f.score) : "none",
+          }
+        : null,
+      points: f ? trackPoints(f.rank) : 0,
+    };
+  });
   const run = tracks.filter((t) => t.finish);
   const medals = { gold: 0, silver: 0, bronze: 0 };
   for (const t of run) {
@@ -234,7 +240,7 @@ export function playerRecord(
   const seasons = groupsOf(boards)
     .map((season) => {
       const headed: SeasonRecord["tiers"] = [];
-      for (const b of boards.filter((x) => x.group === season && !isPoints(x.name))) {
+      for (const b of boards.filter((x) => x.group === season && isTrack(x))) {
         const tier = b.tier ?? "Circuit";
         const t = byName.get(b.name);
         if (!t) continue;

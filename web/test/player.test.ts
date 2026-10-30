@@ -91,6 +91,15 @@ describe("a player's record", () => {
     ]);
   });
 
+  test("a Trial is no Track: Tracks run and the seasons leave the Towers out", async () => {
+    // p1 is 2nd on The Tower, besides their two Season 1 Tracks
+    const r = await record(1);
+    expect([r.run, r.tracks]).toEqual([2, 20]);
+    expect(
+      r.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks.map((x) => x.name))),
+    ).not.toContain("Map_TheTower");
+  });
+
   test("Steam's Overall lags when it disagrees with what the Tracks add up to", async () => {
     // Season 2's Overall has p1 on 1450, but no Season 2 Track has a time from them
     const s2 = (await record(1)).seasons[0];
