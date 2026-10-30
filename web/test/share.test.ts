@@ -82,15 +82,15 @@ async function topOf(board: string): Promise<BoardTop> {
 
 describe("a player's card", () => {
   test("counts Circuit and Workshop together and leaves out a zero", async () => {
-    // Rae: 1st on Track 01 and 2nd on Track 02, both under the author time, and 3rd on
-    // Marble Run at a Bronze time; no Map published
+    // Rae: 1st on Track 01 and 2nd on Track 02, both under the author time, 2nd on The
+    // Tower, and 3rd on Marble Run at a Bronze time; no Map published
     const c = await player(1);
     expect(c.title).toBe("Rolling Rae");
     expect(c.headline).toEqual({ value: "#2", label: "Season 2 Overall", tone: "gold" });
     expect(c.tiles).toEqual([
       { value: "1", label: "World records", tone: "gold" },
       { value: "2", label: "Author medals", tone: "author" },
-      { value: "3", label: "Maps finished" },
+      { value: "4", label: "Maps finished" },
     ]);
   });
 
@@ -105,6 +105,15 @@ describe("a player's card", () => {
     // Slowpoke: both Towers' records, and 4th on Track 01
     const c = await player(4);
     expect(c.tiles[0]).toEqual({ value: "2", label: "World records", tone: "gold" });
+  });
+
+  test("counts a Trial run as a Map finished, as its record counts as a world record", async () => {
+    // Slowpoke: Track 01 and both Towers, no Workshop Map
+    const c = await player(4);
+    expect(c.tiles.find((s) => s.label === "Maps finished")).toEqual({
+      value: "3",
+      label: "Maps finished",
+    });
   });
 });
 

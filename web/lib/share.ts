@@ -53,9 +53,10 @@ export const beatAuthor = (scores: ReadonlyArray<number>, medals: ReadonlyArray<
   scores.filter((s) => timeMedal(medals, s) === "author").length;
 
 /* What a player has, counted as their cards count it: every count adds the Circuit's Tracks
-   and the Workshop's Maps together. A world record is rank 1 on either, a Medal what each
-   finish's time earned (so an Author medal includes a world record at the author time), and
-   a Map finished any board with a time on it. The share card and the Stat Card both read it. */
+   and the Workshop's Maps together, and the world records and Maps finished the Trials too. A
+   world record is rank 1 on any of them, a Medal what each finish's time earned (so an Author
+   medal includes a world record at the author time; a Trial has no Medal times), and a Map
+   finished any board with a time on it. The share card and the Stat Card both read it. */
 export function playerCounts(rec: PlayerRecord) {
   const ws = rec.workshop;
   const run = rec.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks));
@@ -68,7 +69,7 @@ export function playerCounts(rec: PlayerRecord) {
     gold: earned("gold"),
     silver: earned("silver"),
     bronze: earned("bronze"),
-    finished: rec.run + ws.finishes.length,
+    finished: rec.run + rec.trials.filter((t) => t.finish).length + ws.finishes.length,
     made: rec.made.length,
   };
 }

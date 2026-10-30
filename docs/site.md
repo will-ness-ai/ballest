@@ -188,8 +188,8 @@ rendering it again (it was last drawn from a small page in Chromium at 1200×630
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
-  Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
-  left out.
+  Maps made. Each counts the Circuit and the Workshop together (World records and Maps
+  finished the Trials too), and a count of zero is left out.
 - A Map, Track or Daily gets its picture across the top (the Workshop preview, the
   Track's screenshot, or a Trial's picture once it has one, `boardShot`), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
