@@ -59,7 +59,7 @@ const PREFAB_PATH = new RegExp(`^/prefab/${PREFAB_SLUG.source}$`);
 const BOARD_PATH = new RegExp(`^/board/(\\w{1,64})(?:/(?:${ID}|${PODIUM_SORT}))?/?$`);
 /* Leth Trial #1 was the Leth Trials Campaign's one Map until it became a Trial (2026-10-30):
    the Campaign's paths land on its board, a row marked on it still marked */
-const LETH_CAMPAIGN = new RegExp(`^/campaign/leth-trials(?:/.*?(?:/(${ID}))?)?/?$`);
+const LETH_CAMPAIGN = new RegExp(`^/campaign/leth-trials(?:/(?:.*/)?(${ID})|/.*)?/?$`);
 const LETH_BOARD = "Map_LethTrial_01";
 /* a player's Official tab was their Circuit tab until the Trials joined it (2026-10-30) */
 const CIRCUIT_TAB = new RegExp(`^/player/(${ID})/circuit/?$`);

@@ -28,6 +28,12 @@ describe("Leth Trial #1, a Trial now, not a Campaign", () => {
     ]);
   });
 
+  test("so does a row marked on its old Campaign board", () => {
+    const row = `https://ballestrecords.com/board/Map_LethTrial_01/${ID}`;
+    expect(target(`/campaign/leth-trials/${ID}`)).toEqual([308, row]);
+    expect(target(`/campaign/leth-trials/${ID}/`)).toEqual([308, row]);
+  });
+
   test("its Trial page is a board, with or without a row", () => {
     expect(at("/board/Map_LethTrial_01").status).toBe(200);
     expect(at(`/board/Map_LethTrial_01/${ID}`).status).toBe(200);
