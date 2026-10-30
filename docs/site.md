@@ -285,10 +285,11 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   shows the Trial's picture once there is one, and an Event board's links its own static
   page, Leth Trial #1's the ghost viewer at `/leth/`. Leth Trial #1 was the Leth Trials
   Campaign's one Map until it became a Trial: the proxy 308s `/campaign/leth-trials` and
-  anything under it to its board, a row marked after `leth-trial-1` still marked. The seasons, newest first then All Seasons (`seasonsOf` in
+  anything under it to its board, a row marked on it still marked. The seasons, newest first then All Seasons (`seasonsOf` in
   `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
-  the board button on a phone, whose menu gives each season's Tracks and field. Each
-  season opens its Overall board.
+  the board button on a phone, whose menu gives each season's Tracks and field, then the
+  Trials (lit, and the chip's label, on a Trial's board). Each season opens its Overall
+  board, the Trials `/trials`.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
   as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
