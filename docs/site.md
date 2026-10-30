@@ -299,7 +299,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   Circuit.
 - `/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - `/players`, or `/players/<scope>/<sort>`: the Players table, counted over `all`,
-  `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`.
+  `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`. Its Circuit side
+  counts the Trials' places with the Tracks' (`standings` in `db/site.ts`).
 - `/daily`, or `/daily/<YYYY-MM-DD>`: the Daily page, on the newest Daily or on that day.
   The proxy 404s any other `/daily/...` path but `/daily/standings`, and a real day with no Daily goes to
   `/daily`. A Daily is live or final by the reader's clock against its close (`isLive` in

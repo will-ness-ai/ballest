@@ -429,12 +429,16 @@ export async function playerData(
   return { profile, finishes };
 }
 
+/* the boards the Players page's Circuit side ranks over: the Circuit's Tracks and the
+   Trials, whose places count as world records and podiums (never as points) */
+const OFFICIAL = [...TRACKS, ...TRIALS.map((t) => t.board)];
+
 /* The Players page's counts, a StandingsRow (lib/rows.ts) for everyone with a world
-   record, podium or top 5 on the Circuit, or a time on a Map */
+   record, podium or top 5 on the Circuit or a Trial, or a time on a Map */
 export async function standings(db: Db): Promise<Standings> {
   const found = await rows<{ row: StandingsRow }>(
     db,
-    sql`with c as (${rankedSql(sql`e.board = any(${array(TRACKS)})`)}),
+    sql`with c as (${rankedSql(sql`e.board = any(${array(OFFICIAL)})`)}),
         w as (${rankedSql(sql`e.board in (${listedMapsSql})`)}),
         counts as (
           select steam_id,
@@ -460,7 +464,12 @@ export async function standings(db: Db): Promise<Standings> {
     sql`select count(distinct board)::int as maps from entries
       where closed_refresh is null and board in (${listedMapsSql})`,
   );
-  return { tracks: TRACKS.length, maps: n.maps, players: found.map((r) => r.row) };
+  return {
+    tracks: TRACKS.length,
+    trials: TRIALS.length,
+    maps: n.maps,
+    players: found.map((r) => r.row),
+  };
 }
 
 /* The Workshop standings now and at `since` (Unix ms), counted by lib/workshop-standings.ts

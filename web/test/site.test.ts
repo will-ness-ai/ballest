@@ -3,7 +3,7 @@
 import { desc, eq, TransactionRollbackError } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { entries, ghosts, players, refreshes } from "../db/schema";
+import { boards, entries, ghosts, players, refreshes } from "../db/schema";
 import { SKIN } from "../db/seed/datasets/tiny";
 import { seed } from "../db/seed/harness";
 import {
@@ -367,17 +367,52 @@ describe("the Players counts", () => {
   test("Circuit and Workshop records, podiums and top 5s over the listed Maps", async () => {
     const s = await standings(t.db);
     expect(s.tracks).toBe(20);
+    expect(s.trials).toBe(3);
     expect(s.maps).toBe(2);
+    // the Towers count on the Circuit side: p4 holds both records, p1 and p7 a podium
     expect(s.players).toEqual([
-      [p(1), "Rolling Rae", 1, 0, 2, 1, 2, 1, 1],
+      [p(1), "Rolling Rae", 1, 0, 3, 1, 3, 1, 1],
       [p(2), "Justy Sparks", 1, 0, 2, 1, 2, 1, 1],
-      [p(4), "Slowpoke", 0, 0, 0, 0, 1, 0, 0],
+      [p(4), "Slowpoke", 2, 0, 2, 0, 3, 0, 0],
       [p(5), "Tie Breaker", 0, 0, 1, 0, 1, 0, 0],
-      [p(7), "Steady Ed", 0, 0, 0, 0, 1, 0, 0],
+      [p(7), "Steady Ed", 0, 0, 1, 0, 2, 0, 0],
       [p(8), "Points Pat", 0, 0, 1, 0, 1, 0, 0],
       [p(9), "Ninth", 0, 1, 0, 1, 0, 1, 1],
       [p(10), "Tenpin", 0, 1, 0, 2, 0, 2, 2],
     ]);
+  });
+
+  test("Leth Trial #1, an Event board, counts on the Circuit side too", async () => {
+    await t.db
+      .transaction(async (tx) => {
+        const db = tx as unknown as typeof t.db;
+        await db.insert(boards).values({
+          name: "Map_LethTrial_01",
+          kind: "event",
+          display: "Leth Trial #1",
+          leaderboardId: 20899741,
+          scoresPoints: false,
+        });
+        await db.insert(entries).values(
+          [p(9), p(3)].map((steamId, i) => ({
+            board: "Map_LethTrial_01",
+            steamId,
+            score: 9_000_000 + i,
+            ugcId: null,
+            firstSeenRefresh: 3,
+            lastSeenRefresh: 3,
+            closedRefresh: null,
+          })),
+        );
+        const s = await standings(db);
+        // p9, a Workshop-only player, gains a Circuit record; p3 gains a podium
+        expect(s.players.find((r) => r[0] === p(9))).toEqual([p(9), "Ninth", 1, 1, 1, 1, 1, 1, 1]);
+        expect(s.players.find((r) => r[0] === p(3))?.slice(2, 7)).toEqual([0, 0, 1, 0, 1]);
+        tx.rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof TransactionRollbackError)) throw e;
+      });
   });
 });
 

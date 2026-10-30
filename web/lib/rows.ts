@@ -135,12 +135,15 @@ export interface PlayerData {
 }
 
 /* The Players page's counts for everyone with a world record, podium or top 5 on the
-   Circuit, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs, Circuit
-   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order. */
+   Circuit or a Trial, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs,
+   Circuit podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID
+   order. The Circuit counts take in the Trials. */
 export type StandingsRow = [string, string, number, number, number, number, number, number, number];
 
 export interface Standings {
+  /* the Circuit's Tracks and the Trials the Circuit counts rank over */
   tracks: number;
+  trials: number;
   maps: number;
   players: Array<StandingsRow>;
 }

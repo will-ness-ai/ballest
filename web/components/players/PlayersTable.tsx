@@ -307,9 +307,10 @@ export function PlayersTable({
     jumpTo.current = true;
   };
 
-  const { tracks, maps } = standings;
+  const { tracks, trials, maps } = standings;
   const where: Record<PlScope, string> = {
-    circuit: plural(tracks, "Circuit track", "Circuit tracks"),
+    circuit:
+      plural(tracks, "Circuit track", "Circuit tracks") + ", " + plural(trials, "Trial", "Trials"),
     workshop: plural(maps, "Workshop map", "Workshop maps"),
     all: "",
   };
