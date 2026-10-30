@@ -97,7 +97,9 @@ const ROUTES = [
   // Velocity Trials' first Map, shaped like a Steam ID
   ["/campaign/solar-trials/3803908791", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
-  ["/player/" + P1 + "/circuit", 200],
+  // the Official tab (the Circuit's seasons and the Trials), once the Circuit tab
+  ["/player/" + P1 + "/official", 200, null, "not in Overall points"],
+  ["/player/" + P1 + "/circuit", 308, "/player/" + P1 + "/official"],
   ["/player/" + P1 + "/workshop", 200],
   ["/player/" + P1 + "/made", 200],
   ["/player/" + P1 + "/daily", 200, null, "Days in a row"],
@@ -158,7 +160,7 @@ const ROUTES = [
   ["/og/stats/76561199000000099", 404],
   ["/og/stats/nope", 404],
   [
-    "/player/" + P1 + "/circuit",
+    "/player/" + P1 + "/official",
     200,
     null,
     '<meta property="og:image" content="https://ballestrecords.com/og/player/' + P1 + "?v=",
@@ -182,7 +184,7 @@ const ROUTES = [
     '<link rel="canonical" href="https://ballestrecords.com/board/Map_LethTrial_01"',
   ],
   [
-    "/player/" + P1 + "/circuit",
+    "/player/" + P1 + "/official",
     200,
     null,
     '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',

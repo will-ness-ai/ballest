@@ -329,6 +329,8 @@ describe("Steam IDs and URLs", () => {
 
   test("every old #/ link lands on its path", () => {
     expect(legacyPath(`#/player/${ID}/workshop`)).toBe(`/player/${ID}/workshop`);
+    // the Circuit tab is the Official tab now
+    expect(legacyPath(`#/player/${ID}/circuit`)).toBe(`/player/${ID}/official`);
     expect(legacyPath(`#/board/Map_Track13/${ID}`)).toBe(`/board/Map_Track13/${ID}`);
     expect(legacyPath("#/board/OverallLeaderboard_EASeason2/podiums")).toBe(
       "/board/OverallLeaderboard_EASeason2/podiums",

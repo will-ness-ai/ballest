@@ -95,10 +95,16 @@ describe("a player's card", () => {
   });
 
   test("has no headline off Season 2's Overall board, and no world record tile at 0", async () => {
-    // Slowpoke: 4th on Track 01, under its author time, and nothing in Season 2
-    const c = await player(4);
+    // Tie Breaker: 3rd on Track 01, under its author time, and nothing in Season 2
+    const c = await player(5);
     expect(c.headline).toBeNull();
     expect(c.tiles.map((s) => s.label)).toEqual(["Author medals", "Maps finished"]);
+  });
+
+  test("counts a Trial's record as a world record", async () => {
+    // Slowpoke: both Towers' records, and 4th on Track 01
+    const c = await player(4);
+    expect(c.tiles[0]).toEqual({ value: "2", label: "World records", tone: "gold" });
   });
 });
 

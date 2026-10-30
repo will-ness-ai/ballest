@@ -14,7 +14,7 @@ import type { ShareKind } from "./share";
 /* where the site is served: link previews and links posted outside it start here */
 export const SITE_ORIGIN = "https://ballestrecords.com";
 
-export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const;
+export const PLAYER_TABS = ["official", "workshop", "made", "daily"] as const;
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 
 /* an Overall board's slot for its podium order; a Steam ID is all digits, so they can't collide */
@@ -225,6 +225,8 @@ export const statsLinkConfirmHref = (token: string) =>
    that named nothing (the page then stays where it is). */
 const ID = STEAM_ID.source;
 const LEGACY: Array<[RegExp, (m: RegExpExecArray) => string]> = [
+  /* the Circuit tab, which is the Official tab now */
+  [new RegExp(`^#/player/(${ID})/circuit$`), (m) => playerHref(m[1], "official")],
   [new RegExp(`^#/player/(${ID})(?:/(${PLAYER_TABS.join("|")}))?$`), (m) => playerHref(m[1], m[2])],
   [new RegExp(`^#/vs/(${ID})/(${ID})$`), (m) => vsHref(m[1], m[2])],
   [

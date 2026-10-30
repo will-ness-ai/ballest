@@ -73,7 +73,7 @@ export const PAGES = [
   { name: "trial", path: "/board/Map_TheTower" },
   { name: "trial-event", path: "/board/Map_LethTrial_01" },
   { name: "player", path: "/player/{RANKED}" },
-  { name: "player-circuit", path: "/player/{RANKED}/circuit" },
+  { name: "player-official", path: "/player/{RANKED}/official" },
   { name: "player-workshop", path: "/player/{RANKED}/workshop" },
   { name: "player-campaigns", path: "/player/{CAMPAIGNER}/workshop" },
   { name: "player-long", path: "/player/{LONG}" },

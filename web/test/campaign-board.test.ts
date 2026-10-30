@@ -264,9 +264,9 @@ describe("a Campaign of an Event board", () => {
     expect(await getCampaign("test-unread")).toBeNull();
   });
 
-  test("leaves the Event board off a player's own finishes, where it has no home", async () => {
+  test("gives a player's place on the Event board with their finishes, as a Trial's", async () => {
     const data = await playerData(t.db, p(4), {});
-    expect(data?.finishes.map((f) => f.board)).not.toContain(LETH);
+    expect(data?.finishes.map((f) => f.board)).toContain(LETH);
   });
 });
 

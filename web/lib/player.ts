@@ -7,6 +7,7 @@ import {
   COMPOSITE_GROUP,
   S1_CURRENT_BOARD,
   TRACKS,
+  TRIALS,
   TRIALS_GROUP,
 } from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
@@ -45,6 +46,14 @@ export interface TrackTile {
   finish: { rank: number; score: number; lead: number; earned: MedalKey } | null;
   /* what the place pays toward the season's Overall */
   points: number;
+}
+
+/* a Trial on a player's Official tab: drawn as a Track's tile, but with no points */
+export interface TrialTile {
+  name: string;
+  display: string;
+  field: number;
+  finish: { rank: number; score: number; lead: number } | null;
 }
 
 export interface SeasonRecord {
@@ -97,11 +106,16 @@ export interface PlayerRecord {
   profileUrl: string | null;
   who: Who;
   allSeasons: { rank: number; score: number } | null;
+  /* the Circuit's Tracks' places and the Trials': a Trial's place counts as a world record
+     and a podium (GLOSSARY.md, Trial) */
   medals: { gold: number; silver: number; bronze: number };
   golds: Array<string>;
+  /* the Circuit's Tracks run, and how many it has; no Trial is one */
   run: number;
   tracks: number;
   seasons: Array<SeasonRecord>;
+  /* every Trial, in the Trials' order, with this player's finish or none */
+  trials: Array<TrialTile>;
   workshop: {
     finishes: Array<WorkshopFinish>;
     medals: Record<MedalKey, number>;
@@ -115,7 +129,7 @@ export interface PlayerRecord {
   made: Array<MadeMap>;
   holds: number;
   /* the tab /player/<id> opens on */
-  home: "workshop" | "circuit";
+  home: "workshop" | "official";
 }
 
 /* The Circuit's seasons in the order the site shows them: the current season leads, and
@@ -228,8 +242,20 @@ export function playerRecord(
     };
   });
   const run = tracks.filter((t) => t.finish);
+  /* a Trial's field is its board's, or (an Event board, which the Circuit's counts may not
+     hold) the one the finish was ranked in */
+  const trials: Array<TrialTile> = TRIALS.map((trial) => {
+    const f = by.get(trial.board);
+    return {
+      name: trial.board,
+      display: trial.title,
+      field: f?.field ?? boards.find((b) => b.name === trial.board)?.entryCount ?? 0,
+      finish: f ? { rank: f.rank, score: f.score, lead: f.lead } : null,
+    };
+  });
+  const placed = [...run, ...trials].filter((t) => t.finish);
   const medals = { gold: 0, silver: 0, bronze: 0 };
-  for (const t of run) {
+  for (const t of placed) {
     const r = t.finish?.rank ?? 0;
     if (r >= 1 && r <= 3) medals[(["gold", "silver", "bronze"] as const)[r - 1]]++;
   }
@@ -272,10 +298,11 @@ export function playerRecord(
     who: { steamId: id, persona: data.profile.persona, avatar: data.profile.avatar },
     allSeasons: comp ? { rank: comp.rank, score: comp.score } : null,
     medals,
-    golds: run.filter((t) => t.finish?.rank === 1).map((t) => t.display),
+    golds: placed.filter((t) => t.finish?.rank === 1).map((t) => t.display),
     run: run.length,
     tracks: tracks.length,
     seasons,
+    trials,
     workshop: {
       finishes,
       medals: byMedal,
@@ -286,7 +313,7 @@ export function playerRecord(
     },
     made,
     holds: made.filter((m) => m.record?.who.steamId === id).length,
-    home: finishes.length ? "workshop" : "circuit",
+    home: finishes.length ? "workshop" : "official",
   };
 }
 

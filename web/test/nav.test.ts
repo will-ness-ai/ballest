@@ -233,7 +233,7 @@ describe("the kind of page", () => {
       [`/board/Map_TheTowerCP/${ID}`]: "Trial",
       "/board/Map_LethTrial_01": "Trial",
       [`/player/${ID}`]: "Player",
-      [`/player/${ID}/circuit`]: "Player",
+      [`/player/${ID}/official`]: "Player",
       [`/vs/${ID}/${RIVAL}`]: "Head to head",
       "/players": "Rankings",
       "/players/workshop/maps": "Rankings",

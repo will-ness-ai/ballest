@@ -1,8 +1,8 @@
 // A player's page: who they are, Sign out and the Chosen Skin picker on your own and the
 // score card on anyone else's, the tabs, and the tab on screen. Everything comes from one
 // PlayerRecord (lib/player.ts) but the Daily tab, which is their Daily record over every
-// Daily; the Circuit tab is drawn here, the Workshop and Made tabs are client components over
-// the record.
+// Daily; the Official tab (the Circuit's seasons and the Trials) is drawn here, the Workshop
+// and Made tabs are client components over the record.
 import Link from "next/link";
 
 import { CompareButton } from "./Compare";
@@ -15,7 +15,7 @@ import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
 import type { PlayerCampaign } from "../../db/data";
-import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
+import type { PlayerRecord, SeasonRecord, TrackTile, TrialTile } from "../../lib/player";
 import type { DailyCell, PlayerDailies } from "../../lib/rows";
 import { boardHref, playerHref, type PlayerTab } from "../../lib/routes";
 import { fmtN, fmtTime, ord, pctOf, personaOf, plural, safeUrl, shortGap } from "../../lib/rules";
@@ -27,7 +27,11 @@ const TABS: ReadonlyArray<{
   count: (rec: PlayerRecord, daily: PlayerDailies) => number;
   shown?: (rec: PlayerRecord) => boolean;
 }> = [
-  { key: "circuit", label: "Circuit", count: (rec) => rec.run },
+  {
+    key: "official",
+    label: "Official",
+    count: (rec) => rec.run + rec.trials.filter((t) => t.finish).length,
+  },
   { key: "workshop", label: "Workshop", count: (rec) => rec.workshop.finishes.length },
   {
     key: "made",
@@ -44,7 +48,8 @@ const tabsOf = (rec: PlayerRecord) => TABS.filter((t) => !t.shown || t.shown(rec
 export const tabFor = (rec: PlayerRecord, want: string | null): PlayerTab =>
   tabsOf(rec).find((t) => t.key === want)?.key ?? rec.home;
 
-function Tile({ t, id }: { t: TrackTile; id: string }) {
+/* a Track's tile, or a Trial's, which pays no points */
+function Tile({ t, id }: { t: TrackTile | TrialTile; id: string }) {
   const f = t.finish;
   if (!f)
     return (
@@ -67,7 +72,7 @@ function Tile({ t, id }: { t: TrackTile; id: string }) {
       </span>{" "}
       <span className="pt-time">
         {fmtTime(f.score)}
-        <span className="pt-pts">{fmtN(t.points) + " pts"}</span>
+        {"points" in t ? <span className="pt-pts">{fmtN(t.points) + " pts"}</span> : null}
       </span>{" "}
       <span className="pt-pct">{pctOf(f.rank, t.field)}</span>{" "}
       <span className="pt-bar">
@@ -118,7 +123,33 @@ function Season({ s, id }: { s: SeasonRecord; id: string }) {
   );
 }
 
-function CircuitTab({ rec }: { rec: PlayerRecord }) {
+/* the Trials after the seasons, drawn as a season is but with no points (grill-design
+   round 3, A) */
+function Trials({ trials, id }: { trials: ReadonlyArray<TrialTile>; id: string }) {
+  return (
+    <section className="pseason">
+      <div className="pslab">
+        <h2>Trials</h2> <span className="pov">not in Overall points</span>
+      </div>{" "}
+      <div className="ptier">
+        <span className="ptlab">
+          Trials run
+          <span className="ptsum">
+            <b>{fmtN(trials.filter((t) => t.finish).length)}</b>
+            {" of " + fmtN(trials.length)}
+          </span>
+        </span>{" "}
+        <div className="pgrid">
+          {trials.map((x) => (
+            <Tile key={x.name} t={x} id={id} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OfficialTab({ rec }: { rec: PlayerRecord }) {
   return (
     <>
       <dl className="pstats">
@@ -153,7 +184,8 @@ function CircuitTab({ rec }: { rec: PlayerRecord }) {
       </dl>{" "}
       {rec.seasons.map((s) => (
         <Season key={s.group} s={s} id={rec.id} />
-      ))}
+      ))}{" "}
+      <Trials trials={rec.trials} id={rec.id} />
     </>
   );
 }
@@ -224,8 +256,8 @@ export function PlayerView({
               </PillLink>
             ))}
           </Pills>{" "}
-          {tab === "circuit" ? (
-            <CircuitTab rec={rec} />
+          {tab === "official" ? (
+            <OfficialTab rec={rec} />
           ) : tab === "workshop" ? (
             <WorkshopTab id={rec.id} w={rec.workshop} campaigns={campaigns} />
           ) : tab === "daily" ? (

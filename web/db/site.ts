@@ -422,10 +422,10 @@ export async function playerData(
   ).at(0);
   if (!profile) return null;
   /* a Daily's board is the player's Daily record, read on its own; an Event board's place
-     shows in their Campaigns */
+     is a Trial's (Leth Trial #1) */
   const theirs = sql`e.board in (select board from entries
     where steam_id = ${steamId} and closed_refresh is null)
-    and b.kind not in ('daily', 'event')`;
+    and b.kind <> 'daily'`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (

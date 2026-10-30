@@ -37,3 +37,16 @@ describe("Leth Trial #1, a Trial now, not a Campaign", () => {
     expect(at("/campaign/leth-trialz").status).toBe(404);
   });
 });
+
+describe("a player's Official tab, which was the Circuit tab", () => {
+  test("an old Circuit tab link goes to the Official tab for good", () => {
+    expect(target(`/player/${ID}/circuit`)).toEqual([
+      308,
+      `https://ballestrecords.com/player/${ID}/official`,
+    ]);
+  });
+
+  test("the Official tab is a player's page", () => {
+    expect(at(`/player/${ID}/official`).status).toBe(200);
+  });
+});

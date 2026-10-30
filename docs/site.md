@@ -303,9 +303,10 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   closed, runs, and the record with its holder (`trialTops`), three across on a desktop and
   one under another on a phone. Each card links its Trial's page. Prerendered; lights the
   Official Section and its Trials sub-tab.
-- `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
-  `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
-  Circuit.
+- `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/official`, `/workshop`,
+  `/made`, `/daily`). Without one the page opens on Workshop for anyone with a Workshop time,
+  else Official. The Official tab was the Circuit tab, and the proxy sends an old
+  `/player/<steam_id>/circuit` to `/official` with a 308.
 - `/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - `/players`, or `/players/<scope>/<sort>`: the Players table, counted over `all`,
   `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`. Its Circuit side
@@ -739,8 +740,13 @@ board and descending on a points board (`docs/data.md`).
 ## The player page
 
 `playerRecord` (`lib/player.ts`) turns a player's rows into everything the page shows:
-Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` for the tile counts), and the Maps the player made.
-The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
+Circuit tiles, Trial tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` for the tile counts), and the Maps the player made.
+The rendering is markup over that record. The Official tab shows the seasons and then a
+Trials section, one tile per Trial drawn as a Track's with no points and headed "not in
+Overall points" (grill-design round 3, A). A Trial's place counts in World records,
+Podiums (`medals`, `golds`, so the head to head's band, the share card and the Stat Card
+too) and the tab's count, never in Tracks run or a season; an Event board's place (Leth
+Trial #1) is read for it with the rest. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
 ## Trending this week
