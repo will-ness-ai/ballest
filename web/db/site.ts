@@ -124,12 +124,10 @@ export async function trialTops(db: Db): Promise<Array<TrialTop>> {
     avatar: string | null;
   }>(
     db,
-    sql`select r.board, r.runs, r.score::float8 as record, r.steam_id as "steamId",
+    sql`select s.board, s.runs, s.lead::float8 as record, p.steam_id as "steamId",
         ${personaSql} as persona, nullif(p.avatar, '') as avatar
-      from (select x.*, (count(*) over (partition by x.board))::int as runs
-            from (${rankedSql(sql`e.board = any(${array(names)})`)}) x) r
-      join players p on p.steam_id = r.steam_id
-      where r.rank = 1`,
+      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
+      join players p on p.steam_id = s.top3->0->>0`,
   );
   const by = new Map(found.map((r) => [r.board, r]));
   return names.map((board) => {
