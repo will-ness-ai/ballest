@@ -38,6 +38,7 @@ import type {
   BoardRow,
   PlayerCampaignRow,
   PlayerDailies,
+  TrialTop,
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
@@ -126,10 +127,8 @@ export async function getTrackBoards(): Promise<Array<{ name: string; leaderboar
   return q.trackBoards(db());
 }
 
-/* each Trial's runs and record, in the Trials' order: the Trials rail */
-export async function getTrialTops(): Promise<
-  Array<{ board: string; runs: number; record: number | null }>
-> {
+/* each Trial's runs, record and holder, in the Trials' order: the Trials rail and /trials */
+export async function getTrialTops(): Promise<Array<TrialTop>> {
   "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");

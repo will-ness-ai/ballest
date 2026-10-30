@@ -102,6 +102,8 @@ export interface Trial {
   /* its Steam board */
   board: string;
   title: string;
+  /* one line on what it is, under its title on /trials */
+  blurb: string;
   /* one of the site's own files, or null until the game's picture of it is extracted */
   picture: string | null;
   /* the page that draws its board */
@@ -112,16 +114,24 @@ export interface Trial {
    boards above; Leth Trial #1 is an Event board (lib/campaigns.ts), read once, and keeps
    its Campaign Map page for now. */
 export const TRIALS: ReadonlyArray<Trial> = [
-  { board: "Map_TheTower", title: "The Tower", picture: null, page: "/board/Map_TheTower" },
+  {
+    board: "Map_TheTower",
+    title: "The Tower",
+    blurb: "The climb to the top, no checkpoints.",
+    picture: null,
+    page: "/board/Map_TheTower",
+  },
   {
     board: "Map_TheTowerCP",
     title: "The Tower (Checkpoints)",
+    blurb: "The same climb, with checkpoints.",
     picture: null,
     page: "/board/Map_TheTowerCP",
   },
   {
     board: "Map_LethTrial_01",
     title: "Leth Trial #1",
+    blurb: "Lethamyr's one-off event board.",
     picture: "/leth/screenshot.jpg",
     page: "/campaign/leth-trials/leth-trial-1",
   },
