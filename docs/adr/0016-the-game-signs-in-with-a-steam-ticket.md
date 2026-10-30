@@ -33,7 +33,7 @@ token the way it could a cookie, and the cross-site check stays for both.
 This adds the site's first Web API key use: `STEAM_API_KEY` on Vercel. Without it, or
 without `SESSION_SECRET`, the route answers 503 and the browser's sign-in is unchanged.
 Anyone can post a ticket, and each one costs a call against the key's daily quota, so an
-address may sign in 30 times an hour and everyone 2,000 (`game_sign_ins`; an IPv6 address
+address may sign in 30 times an hour and everyone 2,000 (`db/hourly-limit.ts`; an IPv6 address
 counts by its /64), counted only once the ticket has a ticket's shape and before Steam is
 asked. The cap on everyone keeps the key under half its daily quota, but a flood can still
 fill the cap and keep players out for the hour, so the key should not be the collector's
@@ -42,7 +42,7 @@ front. A game token ends after a day, or with a new
 `SESSION_SECRET`.
 
 The game makes writing easy to script, so the writes that expire the cached Prefab reads are
-held to 60 an hour per player (`prefab_writes`, as the Chosen Skin's saves are): every edit,
+held to 60 an hour per player (the same rolling-hour limit): every edit,
 and every heart added or taken back; a heart that changes nothing costs nothing, and deleting
 one's own Prefab, which happens once, is never held back. Reading costs little whatever
 is asked: a page holds at most 100 entries and never a file; each size is read from a file

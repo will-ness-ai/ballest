@@ -1,11 +1,9 @@
 // How often the game may sign in (ADR 0016). Every sign-in asks Steam about its ticket with the
 // site's Web API key, which has a daily quota, so anyone posting tickets in a loop would
-// otherwise spend it for everyone. Kept in `game_sign_ins` for an hour, the way the Chosen
-// Skin's saves are (db/chosen-skin-api.ts): so many per address, and so many in all.
-import { count, eq, lte, sql } from "drizzle-orm";
-
+// otherwise spend it for everyone: so many an hour per address, and so many in all
+// (db/hourly-limit.ts).
 import type { Db } from "./client";
-import { gameSignIns } from "./schema";
+import { spendHourly, type Bucket } from "./hourly-limit";
 
 /* a player starts the game, and signs in again on a 401, a few times an hour; a shared
    address (a LAN, a school) has room for many */
@@ -13,7 +11,11 @@ export const HOURLY_GAME_SIGN_INS = 30;
 /* everyone's together: under half of Steam's 100,000 Web API calls a day, so a crowd of
    addresses can't spend the key's quota either */
 export const HOURLY_GAME_SIGN_INS_ALL = 2000;
-const WINDOW_MS = 3_600_000;
+const GAME_SIGN_INS: Bucket = {
+  name: "game-sign-in",
+  perKey: HOURLY_GAME_SIGN_INS,
+  all: HOURLY_GAME_SIGN_INS_ALL,
+};
 
 /* the address a request came from, as limited: Vercel sets x-real-ip, and the first
    x-forwarded-for, from the connection itself, whatever the client sent. An IPv6 address
@@ -50,21 +52,7 @@ function blockOf(address: string): string {
     .concat("::/64");
 }
 
-/* whether `address` may sign in now, counting this one if so: under one lock for everyone,
-   so the cap on all can't be passed by many at once either */
-export async function spendGameSignIn(db: Db, address: string, now: number): Promise<boolean> {
-  const at = new Date(now);
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('game-sign-in'))`);
-    await tx.delete(gameSignIns).where(lte(gameSignIns.signedAt, new Date(now - WINDOW_MS)));
-    const [{ all }] = await tx.select({ all: count() }).from(gameSignIns);
-    if (all >= HOURLY_GAME_SIGN_INS_ALL) return false;
-    const [{ n }] = await tx
-      .select({ n: count() })
-      .from(gameSignIns)
-      .where(eq(gameSignIns.address, address));
-    if (n >= HOURLY_GAME_SIGN_INS) return false;
-    await tx.insert(gameSignIns).values({ address, signedAt: at });
-    return true;
-  });
+/* whether `address` may sign in now, counting this one if so */
+export function spendGameSignIn(db: Db, address: string, now: number): Promise<boolean> {
+  return db.transaction((tx) => spendHourly(tx, GAME_SIGN_INS, address, now));
 }

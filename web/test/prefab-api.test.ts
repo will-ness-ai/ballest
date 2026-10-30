@@ -343,6 +343,29 @@ describe("favorites", () => {
     await t.db.execute(sql`delete from prefab_favorites where steam_id = '76561199000000026'`);
   });
 
+  test("the same heart sent twice at once lands once and costs one write", async () => {
+    const fan = await sessionOf("76561199000000028");
+    const { slug } = await addPrefab(t.db, {
+      name: "Double tap",
+      description: "",
+      tags: [],
+      uploader: "76561199000000027",
+      uploaderName: null,
+      file: bench,
+    });
+    for (const method of ["PUT", "DELETE"]) {
+      const said = await Promise.all(
+        [0, 1].map(async () => (await favoritePrefab(fav(slug, method, fan), deps(), slug)).status),
+      );
+      expect(said).toEqual([200, 200]);
+    }
+    expect((await prefabOf(t.db, slug))?.favorites).toBe(0);
+    const { rows } = await t.db.execute(
+      sql`select count(*)::int as n from hourly_spends where key = '76561199000000028'`,
+    );
+    expect(rows[0]).toEqual({ n: 2 });
+  });
+
   test("signed out it only counts, and asks to sign in to change", async () => {
     expect(await said(await favoritePrefab(fav("heart-me", "GET"), deps(), "heart-me"))).toEqual({
       status: 200,

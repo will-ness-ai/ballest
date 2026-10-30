@@ -4,7 +4,7 @@
 // request another site sent. `deps` carries the database and what the tests stand in for:
 // the session's secret and clock, the upload ping, the uploader's Steam persona, and the cache
 // to expire after a write.
-import { and, count, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { isCrossSite, prefabSessionOf, sessionOf, type AuthEnv } from "../lib/auth";
 import { checkPrefab } from "../lib/prefab-check";
@@ -15,7 +15,6 @@ import {
   MAX_HOURLY_UPLOADS,
   NO_UPLOADS,
   UPLOAD_WINDOW_MS,
-  WRITE_WINDOW_MS,
   checkAngle,
   checkFields,
   type PrefabAngle,
@@ -25,9 +24,10 @@ import {
 } from "../lib/prefabs";
 import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
+import { spendHourly, type Bucket } from "./hourly-limit";
 import { discordPing, type PrefabPing } from "./prefab-ping";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
-import { prefabBans, prefabLimits, prefabWrites, prefabs } from "./schema";
+import { prefabBans, prefabLimits, prefabs } from "./schema";
 
 export interface PrefabDeps {
   db: Db;
@@ -226,21 +226,31 @@ export async function steamPersona(steamId: string): Promise<string | null> {
 
 const WRITES_SPENT = "that's your hearts and edits for the last hour";
 
-/* whether `steamId` has a heart or edit left this hour (HOURLY_PREFAB_WRITES): taken inside
-   the write's transaction, under a lock per player, so two at once can't both take the last */
-async function writesLeft(tx: Conn, steamId: string, at: number): Promise<boolean> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"prefab-write:" + steamId}))`);
-  await tx.delete(prefabWrites).where(lte(prefabWrites.writtenAt, new Date(at - WRITE_WINDOW_MS)));
-  const [{ n }] = await tx
-    .select({ n: count() })
-    .from(prefabWrites)
-    .where(eq(prefabWrites.steamId, steamId));
-  return n < HOURLY_PREFAB_WRITES;
-}
+/* a heart added or taken back, or an edit: each expires the cached Prefab reads */
+const PREFAB_WRITES: Bucket = { name: "prefab-write", perKey: HOURLY_PREFAB_WRITES };
 
-/* counts one heart or edit by `steamId` */
-async function spendWrite(tx: Conn, steamId: string, at: number) {
-  await tx.insert(prefabWrites).values({ steamId, writtenAt: new Date(at) });
+/* thrown inside a write's transaction to roll the write back when its spend is refused */
+class Spent extends Error {}
+
+/* makes `write` in one transaction, which says whether it changed anything; a change spends
+   one of `steamId`'s hourly writes, and with none left it is rolled back. "same" when
+   nothing changed, so it cost nothing */
+async function spendingWrite(
+  db: Db,
+  steamId: string,
+  at: number,
+  write: (tx: Conn) => Promise<boolean>,
+): Promise<"changed" | "same" | "spent"> {
+  try {
+    return await db.transaction(async (tx) => {
+      if (!(await write(tx))) return "same";
+      if (!(await spendHourly(tx, PREFAB_WRITES, steamId, at))) throw new Spent();
+      return "changed";
+    });
+  } catch (e) {
+    if (e instanceof Spent) return "spent";
+    throw e;
+  }
 }
 
 /* a live Prefab's id and uploader by its slug, or null: deleted, taken down and hidden
@@ -267,24 +277,16 @@ export async function favoritePrefab(
   if (prefab === undefined) return json({ error: "no such prefab" }, 404);
   if (id && write) {
     /* a heart added or taken back counts against the player's hourly writes and expires the
-       cached reads; one that changes nothing costs neither */
-    const want = request.method === "PUT";
-    const done = await deps.db.transaction(async (tx) => {
-      const { rows: on } = await tx.execute(
-        sql`select 1 from prefab_favorites where prefab_id = ${prefab} and steam_id = ${id}`,
+       cached reads; one that changes nothing, such as the same heart sent twice at once,
+       costs neither */
+    const done = await spendingWrite(deps.db, id, now(deps), async (tx) => {
+      const { rowCount } = await tx.execute(
+        request.method === "PUT"
+          ? sql`insert into prefab_favorites (prefab_id, steam_id) values (${prefab}, ${id})
+                on conflict do nothing`
+          : sql`delete from prefab_favorites where prefab_id = ${prefab} and steam_id = ${id}`,
       );
-      if (on.length > 0 === want) return "same";
-      if (!(await writesLeft(tx, id, now(deps)))) return "spent";
-      if (want)
-        await tx.execute(
-          sql`insert into prefab_favorites (prefab_id, steam_id) values (${prefab}, ${id})`,
-        );
-      else
-        await tx.execute(
-          sql`delete from prefab_favorites where prefab_id = ${prefab} and steam_id = ${id}`,
-        );
-      await spendWrite(tx, id, now(deps));
-      return "changed";
+      return (rowCount ?? 0) > 0;
     });
     if (done === "spent") return json({ error: WRITES_SPENT }, 429);
     if (done === "changed") deps.changed?.();
@@ -344,8 +346,7 @@ export async function editPrefab(
     if (angle === undefined) return json({ problems: [BAD_ANGLE] }, 400);
     set.angle = angle;
   }
-  const edited = await deps.db.transaction(async (tx) => {
-    if (!(await writesLeft(tx, id, now(deps)))) return "spent";
+  const edited = await spendingWrite(deps.db, id, now(deps), async (tx) => {
     /* still live as it lands: an edit racing a take-down, a ban or its own delete changes
        nothing */
     const done = await tx
@@ -360,12 +361,10 @@ export async function editPrefab(
         ),
       )
       .returning({ id: prefabs.id });
-    if (!done.length) return "gone";
-    await spendWrite(tx, id, now(deps));
-    return "edited";
+    return done.length > 0;
   });
   if (edited === "spent") return json({ error: WRITES_SPENT }, 429);
-  if (edited === "gone") return json({ error: "no such prefab" }, 404);
+  if (edited === "same") return json({ error: "no such prefab" }, 404);
   deps.changed?.();
   return json({ slug });
 }

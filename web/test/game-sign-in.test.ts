@@ -9,7 +9,7 @@ import {
   addressOf,
   spendGameSignIn,
 } from "../db/game-sign-in";
-import { gameSignIns } from "../db/schema";
+import { hourlySpends } from "../db/schema";
 import { freshDb } from "./pg";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
@@ -43,10 +43,11 @@ test("many at once can't take more than the limit", async () => {
 
 test("past the cap on everyone, no address signs in", async () => {
   const later = NOW + 5 * HOUR;
-  await t.db.insert(gameSignIns).values(
+  await t.db.insert(hourlySpends).values(
     Array.from({ length: HOURLY_GAME_SIGN_INS_ALL }, (_, i) => ({
-      address: `10.0.${String(i)}`,
-      signedAt: new Date(later),
+      bucket: "game-sign-in",
+      key: `10.0.${String(i)}`,
+      spentAt: new Date(later),
     })),
   );
   expect(await spendGameSignIn(t.db, "192.0.2.50", later)).toBe(false);

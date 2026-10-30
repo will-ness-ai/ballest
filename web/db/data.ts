@@ -45,6 +45,7 @@ import type { CampaignStanding } from "../lib/share";
 import { mapCard, timed, trendCard, trending, type MapCard, type TrendCard } from "../lib/workshop";
 import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
+import type { PrefabAngle } from "../lib/prefabs";
 import { isPrefabSlug } from "../lib/routes";
 import type { AuthEnv } from "../lib/auth";
 import type { ChosenSkinDeps } from "./chosen-skin-api";
@@ -615,10 +616,35 @@ export async function getPrefabSize(slug: string): Promise<PrefabPage["size"] | 
   }
 }
 
+/* small enough that a page of 50 costs a few megabytes, big enough for a card */
+const PREFAB_THUMB = [320, 200] as const;
+
+/* a live Prefab drawn small for the game's list (ADR 0016), as at its edit `updatedAt`, from
+   the angle its uploader picked, by the same drawing as its share image, as base64. Kept for
+   days apart from the Prefab reads, so no write throws it away; a new angle is a new edit and
+   so a new entry. A drawing that fails throws, so nothing is kept for it. It takes the three
+   values it is drawn from rather than the card, since its arguments are its cache key and a
+   card's hearts change */
+export async function getPrefabThumb(
+  slug: string,
+  updatedAt: string,
+  angle: PrefabAngle | null,
+): Promise<string> {
+  "use cache: remote";
+  cacheTag(PREFAB_FILE_TAG);
+  cacheLife("days");
+  const file = await prefabFileText(slug);
+  if (file === null) throw new Error(`${slug} at ${updatedAt}: no such prefab`);
+  const [w, h] = PREFAB_THUMB;
+  /* loaded here, not at the top, so the reads every page makes don't load three.js */
+  const { prefabPicture } = await import("../components/share/prefab");
+  return (await prefabPicture(JSON.parse(file) as PrefabFile, angle, w, h)).toString("base64");
+}
+
 /* a Prefab's file read fresh, whatever its state, or null for a slug nobody uploaded: for a
-   cached drawing of it, which mustn't read through getPrefabFile, since a "use cache" inside
-   another passes its tags out, and every Prefab write would then throw the drawing away */
-export async function prefabFileText(slug: string): Promise<string | null> {
+   cached read of it, which mustn't read through getPrefabFile, since a "use cache" inside
+   another passes its tags out, and every Prefab write would then throw it away */
+async function prefabFileText(slug: string): Promise<string | null> {
   if (!isPrefabSlug(slug)) return null;
   return (await prefabOf(db(), slug))?.file ?? null;
 }
@@ -653,8 +679,6 @@ export function prefabDeps(): PrefabDeps {
   return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
 }
 
-/* what the Chosen Skin API writes with: this server's database, and the cached picks expired
-   after a save, so every page draws it on its next load without reading the boards again */
 /* the game's sign-in limit on this server's database: each address so many an hour */
 export function gameSignInDeps(): Pick<AuthEnv, "allowGameSignIn"> {
   return {
@@ -662,6 +686,8 @@ export function gameSignInDeps(): Pick<AuthEnv, "allowGameSignIn"> {
   };
 }
 
+/* what the Chosen Skin API writes with: this server's database, and the cached picks expired
+   after a save, so every page draws it on its next load without reading the boards again */
 export function chosenSkinDeps(): ChosenSkinDeps {
   return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
 }

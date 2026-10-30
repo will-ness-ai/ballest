@@ -307,35 +307,20 @@ export const prefabFavorites = pgTable(
   (t) => [primaryKey({ columns: [t.prefabId, t.steamId] })],
 );
 
-// A heart, an unheart or an edit a signed-in player made to a Prefab, kept an hour to hold
-// them to HOURLY_PREFAB_WRITES (lib/prefabs.ts): each one expires the cached Prefab reads, so
-// one account, or one script with a game token, can't keep expiring them (ADR 0016).
-export const prefabWrites = pgTable(
-  "prefab_writes",
+// One spend of a rolling-hour limit (db/hourly-limit.ts, ADR 0016): a heart, an unheart or an
+// edit a player made to a Prefab (each expires the cached Prefab reads), or a sign-in from the
+// game by its address (each costs a call on the site's Steam Web API key). Kept an hour.
+export const hourlySpends = pgTable(
+  "hourly_spends",
   {
-    steamId: text("steam_id").notNull(),
-    writtenAt: timestamp("written_at", { withTimezone: true }).notNull().defaultNow(),
+    bucket: text("bucket").notNull(),
+    key: text("key").notNull(),
+    spentAt: timestamp("spent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("prefab_writes_player").on(t.steamId, t.writtenAt),
-    /* the hour's pruning finds old rows by time alone */
-    index("prefab_writes_at").on(t.writtenAt),
-  ],
-);
-
-// A sign-in from the game, by the address it came from, kept an hour to hold an address to
-// HOURLY_GAME_SIGN_INS (db/game-sign-in.ts): each one costs a call on the site's Steam Web API
-// key, whose daily quota is all the game's sign-in has (ADR 0016).
-export const gameSignIns = pgTable(
-  "game_sign_ins",
-  {
-    address: text("address").notNull(),
-    signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("game_sign_ins_address").on(t.address, t.signedAt),
-    /* the hour's pruning and the cap on everyone find rows by time alone */
-    index("game_sign_ins_at").on(t.signedAt),
+    index("hourly_spends_key").on(t.bucket, t.key, t.spentAt),
+    /* the hour's pruning and a cap on all find a bucket's rows by time alone */
+    index("hourly_spends_at").on(t.bucket, t.spentAt),
   ],
 );
 

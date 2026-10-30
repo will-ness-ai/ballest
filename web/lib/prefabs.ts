@@ -15,9 +15,8 @@ export const MAX_HOURLY_UPLOADS = 1000;
 export const UPLOAD_WINDOW_MS = 3_600_000;
 /* the hearts, unhearts and edits a player may make in a rolling hour: plenty for browsing the
    gallery, few enough that one account can't keep expiring the cached Prefab reads
-   (db/prefab-api.ts writesLeft, ADR 0016) */
+   (db/prefab-api.ts, ADR 0016) */
 export const HOURLY_PREFAB_WRITES = 60;
-export const WRITE_WINDOW_MS = 3_600_000;
 
 /* what GET /api/prefabs tells the upload form: who may upload, how many more they may now
    of their hourly limit, and, at none, when the next frees up */

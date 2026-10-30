@@ -859,10 +859,12 @@ branch `claude/prototype-prefabs` (spec #213).
   Prefab routes the site's pages use. They read it with `prefabSessionOf`, the bearer before the
   cookie, so every rule above holds for the game unchanged; every other route, the admin's
   included, reads the cookie alone (`sessionOf`). Every edit, and every heart added or taken
-  back, counts against 60 an hour per player (`HOURLY_PREFAB_WRITES`, the `prefab_writes`
-  table), since each expires the cached Prefab reads; deleting one's own is never held back.
-  The thumbnail and each size are cached apart from those reads (`PREFAB_FILE_TAG`), each
-  reading its file fresh, since a cached read inside another passes its tags out.
+  back, counts against 60 an hour per player (`HOURLY_PREFAB_WRITES`, a bucket of
+  `db/hourly-limit.ts`), since each expires the cached Prefab reads; deleting one's own is never held back.
+  A write that changes nothing (the same heart sent twice) costs nothing. The thumbnail
+  (`getPrefabThumb`) and each size (`getPrefabSize`) are cached in `db/data.ts` apart from those
+  reads (`PREFAB_FILE_TAG`), each reading its file fresh, since a cached read inside another
+  passes its tags out.
 
 ## Generators
 
