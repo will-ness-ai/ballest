@@ -370,8 +370,9 @@ player's tab names the player's page, a board or Map focused on a row or in podi
 names the board), All maps' views name All maps and the Players table's rankings name
 Players, and each Daily is a page of its own. A Map or player the page can only send away
 (a soft 404) is `noindex`, and so is a Map nobody has a time on yet, as the sitemap leaves
-it out. The homepage's title says what the site is, and it carries the
-site's name for search results as schema.org `WebSite` JSON-LD.
+it out. The homepage's title leads with what people search for ("Ballest of Them All
+Leaderboards & Records"), and it carries the site's name for search results as schema.org
+`WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
@@ -518,8 +519,8 @@ The site is BALLESTRECORDS (spec #339), the name its address carries; "Ballest o
 is the game's name and stays wherever it means the game (descriptions, the footer). The
 wordmark beside the marble rack is that name as one word in Bungee, BALLEST in the text colour
 and RECORDS in lime (`SITE_WORDMARK`), and never wraps. It links home. Every tab title ends
-"· BALLESTRECORDS" (`pageTitle`), and the homepage's title and its `WebSite` JSON-LD say the
-site's name first, then the game it mirrors.
+"· BALLESTRECORDS" (`pageTitle`), the homepage's included, and its `WebSite` JSON-LD names the
+site.
 
 The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
 

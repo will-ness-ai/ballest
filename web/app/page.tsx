@@ -12,15 +12,14 @@ import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
 import { getCampaigns, getMapCards, getSite, getTrending } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
-import { SITE_NAME, SITE_TITLE } from "../lib/rules";
+import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 import { SHELVES, shelfMaps } from "../lib/workshop";
 
-/* The homepage is the one search result for the site's name, so its title says what the
-   site is: the site's name, then the game whose boards it mirrors. */
+/* The homepage is the result for searches of the game with "leaderboard" or "records", so its
+   title leads with those words, as every other page's does with its own, and ends with the
+   site's name. */
 export const metadata: Metadata = {
-  title: {
-    absolute: SITE_TITLE + ": Ballest of Them All Workshop, Circuit and Daily leaderboards",
-  },
+  title: { absolute: pageTitle("Ballest of Them All Leaderboards & Records") },
   alternates: { canonical: homeHref() },
 };
 
