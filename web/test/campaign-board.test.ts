@@ -22,15 +22,13 @@ import { freshDb } from "./pg";
    board no Refresh has read yet; and a pinned one of Leth Trial #1's Event board, to which
    this file gives two Entries. No curated Campaign holds an Event board since Leth Trial #1
    became a Trial, so these stand in for one that might. */
-const TEST = vi.hoisted(
-  (): Campaign => ({
-    slug: "test-run",
-    title: "Test Run",
-    creator: "Tenpin",
-    creatorId: "76561199000000010",
-    maps: ["9000000001", "9000000002", "9000000003"],
-  }),
-);
+const TEST = vi.hoisted((): Campaign => ({
+  slug: "test-run",
+  title: "Test Run",
+  creator: "Tenpin",
+  creatorId: "76561199000000010",
+  maps: ["9000000001", "9000000002", "9000000003"],
+}));
 vi.mock("../lib/campaigns", async (original) => {
   const m = await original<typeof import("../lib/campaigns")>();
   const one = (slug: string, maps: Array<string>): Campaign => ({ ...TEST, slug, maps });
