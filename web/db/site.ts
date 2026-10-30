@@ -4,7 +4,7 @@
 // from db/boards.ts.
 import { sql, type SQL } from "drizzle-orm";
 
-import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
+import { CIRCUIT, S1_TRACKS, S2_TRACKS, TRIALS } from "../lib/circuit";
 import { playerDailiesOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
@@ -106,6 +106,25 @@ export async function trackBoards(db: Db): Promise<Array<{ name: string; leaderb
   return TRACKS.flatMap((name) => {
     const id = ids.get(name);
     return id === undefined ? [] : [{ name, leaderboardId: id }];
+  });
+}
+
+/* Each Trial's runs and record, in the Trials' order (lib/circuit.ts): what the Trials rail
+   lists. A Trial is a time board, so its record is its lowest open score; one no Refresh
+   has read yet has no runs and no record. */
+export async function trialTops(
+  db: Db,
+): Promise<Array<{ board: string; runs: number; record: number | null }>> {
+  const names = TRIALS.map((t) => t.board);
+  const found = await rows<{ board: string; runs: number; record: string }>(
+    db,
+    sql`select board, count(*)::int as runs, min(score)::text as record from entries
+      where closed_refresh is null and board = any(${array(names)}) group by board`,
+  );
+  const by = new Map(found.map((r) => [r.board, r]));
+  return names.map((board) => {
+    const r = by.get(board);
+    return { board, runs: r?.runs ?? 0, record: r ? Number(r.record) : null };
   });
 }
 

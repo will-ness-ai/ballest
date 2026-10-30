@@ -70,6 +70,7 @@ export const PAGES = [
   { name: "overall", path: "/board/OverallLeaderboard_S1Current" },
   { name: "allseasons", path: "/board/OverallLeaderboard_AllSeasons" },
   { name: "pods", path: "/board/OverallLeaderboard_EASeason2/podiums" },
+  { name: "trial", path: "/board/Map_TheTower" },
   { name: "player", path: "/player/{RANKED}" },
   { name: "player-circuit", path: "/player/{RANKED}/circuit" },
   { name: "player-workshop", path: "/player/{RANKED}/workshop" },

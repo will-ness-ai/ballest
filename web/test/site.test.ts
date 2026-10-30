@@ -20,6 +20,7 @@ import {
   standings,
   trackBoards,
   trackPodiums,
+  trialTops,
   withTimes,
   workshopMaps,
 } from "../db/site";
@@ -44,6 +45,16 @@ describe("the Track boards Multiballs reads", () => {
     expect(await trackBoards(t.db)).toEqual([
       { name: "Map_Track13", leaderboardId: 17800617 },
       { name: "Map_Track15", leaderboardId: 17800873 },
+    ]);
+  });
+});
+
+describe("the Trials rail", () => {
+  test("each Trial's runs and record, in the Trials' order; one with no runs has none", async () => {
+    expect(await trialTops(t.db)).toEqual([
+      { board: "Map_TheTower", runs: 3, record: 42_514_900 },
+      { board: "Map_TheTowerCP", runs: 1, record: 44_502_500 },
+      { board: "Map_LethTrial_01", runs: 0, record: null },
     ]);
   });
 });

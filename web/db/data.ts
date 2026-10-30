@@ -126,6 +126,16 @@ export async function getTrackBoards(): Promise<Array<{ name: string; leaderboar
   return q.trackBoards(db());
 }
 
+/* each Trial's runs and record, in the Trials' order: the Trials rail */
+export async function getTrialTops(): Promise<
+  Array<{ board: string; runs: number; record: number | null }>
+> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.trialTops(db());
+}
+
 export async function getWorkshop(): Promise<Array<WorkshopMap>> {
   "use cache: remote";
   cacheTag(DATA_TAG);

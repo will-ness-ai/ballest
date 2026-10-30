@@ -36,6 +36,10 @@ const ROUTES = [
   ["/board/OverallLeaderboard_EASeason2/podiums", 200],
   ["/board/OverallLeaderboard_S1Current", 200, null, "Rolling Rae"],
   ["/board/OverallLeaderboard_AllSeasons", 200],
+  // a Trial's board: tiny's Tower record is Slowpoke's, and the rail names every Trial
+  ["/board/Map_TheTower", 200, null, "Slowpoke"],
+  ["/board/Map_TheTowerCP", 200, null, "Leth Trial #1"],
+  ["/api/search?q=the%20tower", 200, null, "Map_TheTowerCP"],
   ["/board/Map_Nope", 404],
   ["/board/Map_Track13/nope", 404],
   ["/board/Map_Track13/podiums/x", 404],
@@ -131,6 +135,7 @@ const ROUTES = [
   ["/og/map/" + MAP, 200, null, "PNG"],
   ["/og/map/1", 404],
   ["/og/track/Map_Track13", 200, null, "PNG"],
+  ["/og/track/Map_TheTower", 200, null, "PNG"],
   ["/og/track/Map_Nope", 404],
   ["/og/track/OverallLeaderboard_EASeason2", 404],
   ["/og/daily/2026-08-30", 200, null, "PNG"],
