@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
-import { CIRCUIT, TRACKS } from "../lib/circuit";
+import { CAMPAIGNS } from "../lib/campaigns";
+import { CIRCUIT, TRACKS, TRIALS, TRIALS_GROUP } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -244,8 +244,9 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("Map_Track13", ID)).toBe(`/board/Map_Track13/${ID}`);
     expect(boardHref("OverallLeaderboard", "podiums")).toBe("/board/OverallLeaderboard/podiums");
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
-    // an Event board has no page of its own: its Campaign's slot for it is its page
-    expect(boardHref("Map_LethTrial_01")).toBe("/campaign/leth-trials/leth-trial-1");
+    // Leth Trial #1, an Event board, is a Trial, drawn on the board page as the Towers are
+    expect(boardHref("Map_LethTrial_01")).toBe("/board/Map_LethTrial_01");
+    expect(boardHref("Map_LethTrial_01", ID)).toBe(`/board/Map_LethTrial_01/${ID}`);
     expect(viewerHref("leth")).toBe("/leth/");
     expect(mapPfidOf("Workshop_42")).toBe("42");
     expect(mapPfidOf("Map_Track13")).toBeNull();
@@ -304,18 +305,9 @@ describe("Steam IDs and URLs", () => {
     });
   });
 
-  test("an Event's slot takes a row to mark, as a Map's own page does", () => {
-    const leth = CAMPAIGNS.find((c) => c.slug === "leth-trials");
-    expect(campaignPath(`/campaign/leth-trials/leth-trial-1/${ID}`)).toEqual({
-      c: leth,
-      map: "leth-trial-1",
-      focus: ID,
-      podiums: false,
-    });
-    // a Workshop Map's row is on its own page, /map/<pfid>/<steam id>
+  test("a Map's slot takes no row: its row is on its own page", () => {
+    // /map/<pfid>/<steam id>
     expect(campaignPath(`/campaign/solar-trials/3805391903/${ID}`)).toBeNull();
-    expect(campaignPath("/campaign/leth-trials/leth-trial-1/x")).toBeNull();
-    expect(boardHref("Map_LethTrial_01", ID)).toBe(`/campaign/leth-trials/leth-trial-1/${ID}`);
   });
 
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
@@ -328,6 +320,8 @@ describe("Steam IDs and URLs", () => {
 
   test("every old #/ link lands on its path", () => {
     expect(legacyPath(`#/player/${ID}/workshop`)).toBe(`/player/${ID}/workshop`);
+    // the Circuit tab is the Official tab now
+    expect(legacyPath(`#/player/${ID}/circuit`)).toBe(`/player/${ID}/official`);
     expect(legacyPath(`#/board/Map_Track13/${ID}`)).toBe(`/board/Map_Track13/${ID}`);
     expect(legacyPath("#/board/OverallLeaderboard_EASeason2/podiums")).toBe(
       "/board/OverallLeaderboard_EASeason2/podiums",
@@ -351,7 +345,7 @@ describe("the Circuit table", () => {
     ].map((m) => m[1]);
 
   test("lists the collector's Tracks in its order", () => {
-    const tracks = CIRCUIT.filter((b) => b.name.startsWith("Map_"));
+    const tracks = CIRCUIT.filter((b) => b.group.startsWith("Season") && b.name.startsWith("Map_"));
     expect(tracks.filter((b) => b.group === "Season 1").map((b) => b.name)).toEqual(
       list("S1_TRACKS"),
     );
@@ -361,7 +355,23 @@ describe("the Circuit table", () => {
     expect(Object.keys(TRACKS).sort()).toEqual(tracks.map((b) => b.name).sort());
   });
 
-  test("knows the collector's Event boards, by the names and titles it writes", () => {
+  test("holds the collector's Trials, after the seasons, by the names it writes", () => {
+    // TRIALS = {\n    "<board>": "<display name>",\n ...\n}
+    const start = py.indexOf("\nTRIALS = {\n");
+    const table = py.slice(start, py.indexOf("\n}\n", start));
+    const trials = [...table.matchAll(/^ {4}"(\w+)": "([^"]+)",$/gm)].map((m) => [m[1], m[2]]);
+    expect(start, "TRIALS not found in campaign_common.py").toBeGreaterThan(0);
+    expect(trials.map(([name]) => name)).toEqual(["Map_TheTower", "Map_TheTowerCP"]);
+    /* the Trials the collector reads every Refresh, then Leth Trial #1, its Event board */
+    expect(CIRCUIT.filter((b) => b.group === TRIALS_GROUP).map((b) => [b.name, b.display])).toEqual(
+      [...trials, ["Map_LethTrial_01", "Leth Trial #1"]],
+    );
+    expect(CIRCUIT.at(-1)?.group).toBe(TRIALS_GROUP);
+    /* a Trial is no Track: no number, no Medal times, in no season's points */
+    for (const [name] of trials) expect(TRACKS[name]).toBeUndefined();
+  });
+
+  test("knows the collector's Event boards as Trials, by the names and titles it writes", () => {
     // EVENT_BOARDS = {\n    "<board>": (<leaderboard id>, "<title>"),\n ...\n}: the lines
     // between its opening line and the closing brace at the start of a line
     const start = py.indexOf("\nEVENT_BOARDS = {\n");
@@ -371,7 +381,13 @@ describe("the Circuit table", () => {
       m[2],
     ]);
     expect(start, "EVENT_BOARDS not found in campaign_common.py").toBeGreaterThan(0);
-    expect(EVENTS.map((e) => [e.board, e.title])).toEqual(events);
+    expect(TRIALS.filter((t) => t.event).map((t) => [t.board, t.title])).toEqual(events);
+    /* an Event board links its own page beside the site; a Tower has none */
+    expect(TRIALS.map((t) => [t.board, t.viewer])).toEqual([
+      ["Map_TheTower", null],
+      ["Map_TheTowerCP", null],
+      ["Map_LethTrial_01", "leth"],
+    ]);
   });
 
   test("names them as the collector does (display_name, track_tier)", () => {

@@ -1,20 +1,13 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
-import {
-  campaignOf,
-  campaignOfBoard,
-  campaignOfMap,
-  eventOf,
-  eventOfBoard,
-  type Campaign,
-} from "./campaigns";
+import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
 
 /* where the site is served: link previews and links posted outside it start here */
 export const SITE_ORIGIN = "https://ballestrecords.com";
 
-export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const;
+export const PLAYER_TABS = ["official", "workshop", "made", "daily"] as const;
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 
 /* an Overall board's slot for its podium order; a Steam ID is all digits, so they can't collide */
@@ -55,11 +48,6 @@ export function boardHref(name: string, slot?: string | null) {
   const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
   const campaign = campaignOfBoard(name);
   if (campaign) return campaignHref(campaign.slug) + tail;
-  /* an Event board's page is its Campaign's slot for it, which takes a row after it */
-  const event = eventOfBoard(name);
-  const home = event && campaignOfMap(event.id);
-  if (home)
-    return campaignHref(home.campaign.slug, event.id) + (slot && isSteamId(slot) ? "/" + slot : "");
   return "/board/" + name + tail;
 }
 
@@ -67,28 +55,24 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
-/* an Event's own static page beside the site (EventBoard's viewer), such as /leth/ */
+/* an Event's own static page beside the site (a Trial's viewer, lib/circuit.ts), such as /leth/ */
 export const viewerHref = (folder: string) => "/" + folder + "/";
 
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
+/* the Trials sub-tab: a card per Trial */
+export const trialsHref = () => "/trials";
 
 /* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
    board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam
-   ID whose row to mark (`focus`), on its board or, after an Event's id, on the Event's.
+   ID whose row to mark on its board (`focus`; a Map's row is on the Map's own page).
    Another Campaign's Map is shaped like a Steam ID, and is none. The proxy and the page both
    read a path through it. */
 export function campaignSlot(
   c: Campaign,
   slot: string | null | undefined,
-  row?: string | null,
 ): { map: string | null; focus: string | null; podiums: boolean } | null {
   const none = { map: null, focus: null, podiums: false };
-  /* only an Event's slot takes a row after it: a Workshop Map's row is on its own page */
-  if (row)
-    return slot && c.maps.includes(slot) && eventOf(slot) && isSteamId(row)
-      ? { ...none, map: slot, focus: row }
-      : null;
   if (!slot) return none;
   if (slot === PODIUM_SORT) return { ...none, podiums: true };
   if (c.maps.includes(slot)) return { ...none, map: slot };
@@ -98,9 +82,9 @@ export function campaignSlot(
 /* the Campaign a path under /campaign/ names and what follows its slug (campaignSlot), or
    null for a path that is no Campaign's page */
 export function campaignPath(path: string) {
-  const m = /^\/campaign\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/.exec(path);
+  const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
   const c = m && campaignOf(m[1]);
-  const at = c && campaignSlot(c, m[2], m[3]);
+  const at = c && campaignSlot(c, m[2]);
   return c && at ? { c, ...at } : null;
 }
 
@@ -223,6 +207,8 @@ export const statsLinkConfirmHref = (token: string) =>
    that named nothing (the page then stays where it is). */
 const ID = STEAM_ID.source;
 const LEGACY: Array<[RegExp, (m: RegExpExecArray) => string]> = [
+  /* the Circuit tab, which is the Official tab now */
+  [new RegExp(`^#/player/(${ID})/circuit$`), (m) => playerHref(m[1], "official")],
   [new RegExp(`^#/player/(${ID})(?:/(${PLAYER_TABS.join("|")}))?$`), (m) => playerHref(m[1], m[2])],
   [new RegExp(`^#/vs/(${ID})/(${ID})$`), (m) => vsHref(m[1], m[2])],
   [

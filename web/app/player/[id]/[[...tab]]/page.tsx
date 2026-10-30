@@ -1,4 +1,4 @@
-// /player/<steam_id>[/circuit|workshop|made|daily]: a player's page (components/player). With no
+// /player/<steam_id>[/official|workshop|made|daily]: a player's page (components/player). With no
 // tab in the path it opens on the player's home tab. The leaders of Season 2's Overall
 // board are prerendered; anyone else is served from the App Shell, then cached whole.
 import type { Metadata } from "next";
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata(
     {
       title: name,
-      description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
+      description: `${name}'s Circuit, Trials, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
       /* every tab is a view of the one page */
       canonical: playerHref(rec.id),
     },

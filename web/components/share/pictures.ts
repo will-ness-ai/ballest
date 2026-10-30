@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { TRACKS, boardPicture } from "../../lib/circuit";
 import { SITE_ORIGIN } from "../../lib/routes";
 import { safeImg } from "../../lib/rules";
 import { SHARE_ASSETS } from "./Card";
@@ -59,6 +60,11 @@ async function local(path: string, type: string) {
 
 /* a Track's screenshot: the JPEG copy of circuit/<name>.webp, since Satori reads no WebP */
 export const trackShot = (board: string) => local(join("circuit", board + ".jpg"), "image/jpeg");
+
+/* a Track's or a Trial's picture: a Track's screenshot copy, a Trial's own picture (a JPEG,
+   Leth Trial #1's) as the site serves it, or null for a Trial with none yet */
+export const boardShot = (board: string) =>
+  board in TRACKS ? trackShot(board) : remote(boardPicture(board));
 
 /* a Skin's picture: the PNG copy of skins/<asset>.webp, for the same reason */
 export const skinShot = (asset: string) => local(join("skins", asset + ".png"), "image/png");

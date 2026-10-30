@@ -15,6 +15,7 @@ import {
   isPlSort,
   playerHref,
   playersHref,
+  boardHref,
   isGeneratorKey,
   makePrefabHref,
 } from "./lib/routes";
@@ -56,6 +57,12 @@ const MAP_PATH = new RegExp(`^/map/${PFID.source}(/(?:${ID}|${MAP_FILE}))?$`);
 const DAILY_PATH = new RegExp(`^/daily(?:/(${DAILY_DATE.source}|${DAILY_STANDINGS}))?/?$`);
 const PREFAB_PATH = new RegExp(`^/prefab/${PREFAB_SLUG.source}$`);
 const BOARD_PATH = new RegExp(`^/board/(\\w{1,64})(?:/(?:${ID}|${PODIUM_SORT}))?/?$`);
+/* Leth Trial #1 was the Leth Trials Campaign's one Map until it became a Trial (2026-10-30):
+   the Campaign's paths land on its board, a row marked on it still marked */
+const LETH_CAMPAIGN = new RegExp(`^/campaign/leth-trials(?:/(?:.*/)?(${ID})|/.*)?/?$`);
+const LETH_BOARD = "Map_LethTrial_01";
+/* a player's Official tab was their Circuit tab until the Trials joined it (2026-10-30) */
+const CIRCUIT_TAB = new RegExp(`^/player/(${ID})/circuit/?$`);
 
 const notFound = (request: NextRequest) =>
   NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
@@ -69,6 +76,8 @@ export function proxy(request: NextRequest) {
     const board = BOARD_PATH.exec(path);
     if (!board || !circuitBoard(board[1])) return notFound(request);
   }
+  const leth = LETH_CAMPAIGN.exec(path);
+  if (leth) return NextResponse.redirect(new URL(boardHref(LETH_BOARD, leth[1]), request.url), 308);
   if (path.startsWith("/campaign/") && !campaignPath(path)) return notFound(request);
   const pl = /^\/players\/(.+?)\/?$/.exec(path);
   if (pl) {
@@ -98,6 +107,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(makePrefabHref(), request.url), 308);
   const make = /^\/prefabs\/make\/(.*)$/.exec(path);
   if (make && !isGeneratorKey(make[1])) return notFound(request);
+  const circuitTab = CIRCUIT_TAB.exec(path);
+  if (circuitTab)
+    return NextResponse.redirect(new URL(playerHref(circuitTab[1], "official"), request.url), 308);
   const vs = VS_PATH.exec(path);
   if (vs && vs[1] === vs[2]) return NextResponse.redirect(new URL(playerHref(vs[1]), request.url));
   if ((path.startsWith("/player/") && !PLAYER_PATH.test(path)) || (path.startsWith("/vs/") && !vs))

@@ -20,8 +20,6 @@ import {
   campaignBoard,
   campaignOf,
   campaignOfBoard,
-  EVENTS,
-  eventOf,
   mapLabel,
   type Campaign,
 } from "../lib/campaigns";
@@ -38,6 +36,7 @@ import type {
   BoardRow,
   PlayerCampaignRow,
   PlayerDailies,
+  TrialTop,
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
@@ -124,6 +123,14 @@ export async function getTrackBoards(): Promise<Array<{ name: string; leaderboar
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.trackBoards(db());
+}
+
+/* each Trial's runs, record and holder, in the Trials' order: the Trials rail and /trials */
+export async function getTrialTops(): Promise<Array<TrialTop>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.trialTops(db());
 }
 
 export async function getWorkshop(): Promise<Array<WorkshopMap>> {
@@ -217,7 +224,6 @@ export async function isBoard(name: string): Promise<boolean> {
   return (
     !!circuitBoard(name) ||
     !!campaignOfBoard(name) ||
-    EVENTS.some((e) => e.board === name) ||
     (pfid !== null && (await getMap(pfid)) !== null)
   );
 }
@@ -406,8 +412,8 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
   cacheLife("max");
   const c = campaignOf(slug);
   if (!c) return null;
-  const [workshop, events] = await Promise.all([getWorkshop(), eventMaps(c)]);
-  const maps = c.maps.flatMap((id) => [...workshop, ...events].filter((m) => m.pfid === id));
+  const workshop = await getWorkshop();
+  const maps = c.maps.flatMap((id) => workshop.filter((m) => m.pfid === id));
   if (!maps.length) return null;
   const boards = maps.map((m) => m.name);
   const label = (name: string) => {
@@ -425,42 +431,6 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
     leader: head.rows[0] ?? null,
     tally: tally(c.title, boards, podiums, label),
   };
-}
-
-/* a Campaign's Event boards as its Maps, each read one (with open Entries) drawn as a Map
-   card draws a Workshop Map: its picture for the preview, Medals and Workshop counters none */
-async function eventMaps(c: Campaign): Promise<Array<WorkshopMap>> {
-  const events = c.maps.flatMap((id) => eventOf(id) ?? []);
-  const read = await q.eventBoards(
-    db(),
-    events.map((e) => e.board),
-  );
-  return events.flatMap((e) =>
-    read
-      .filter((b) => b.board === e.board)
-      .map((b) => ({
-        pfid: e.id,
-        name: e.board,
-        title: e.title,
-        creator: c.creator,
-        cid: c.creatorId,
-        preview: e.picture,
-        created: 0,
-        medals: [],
-        entryCount: b.runs,
-        sessions: 0,
-        subs: 0,
-        top3: b.top3,
-        gap13: b.gap13,
-        crowd: 0,
-        authorBeaten: 0,
-        fileVersion: null,
-        weekPlays: 0,
-        votesUp: 0,
-        votesDown: 0,
-        voteScore: 0,
-      })),
-  );
 }
 
 /* a Campaign as the lists draw it: the Campaign switch, the banners, a player's cards */

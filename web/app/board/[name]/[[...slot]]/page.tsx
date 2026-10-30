@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CircuitBoardView } from "../../../../components/board/CircuitBoardView";
-import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
+import { CIRCUIT, TRIALS_GROUP, boardTitle, circuitBoard } from "../../../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../../../lib/routes";
 import { isPoints } from "../../../../lib/rules";
 import { pageMetadata } from "../../../../components/metadata";
@@ -28,14 +28,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
   const b = circuitBoard(name);
   if (!b) return {};
-  const title = `${b.group} ${b.display}`;
+  const title = boardTitle(b);
   const description = `The ${title} leaderboard of Ballest of Them All, read straight from Steam.`;
-  /* a player's row or the podium order is a view of the board; a Track has its own share
-     image, and an Overall board keeps the site's */
+  /* a player's row or the podium order is a view of the board; a Track or a Trial has its
+     own share image, and an Overall board keeps the site's */
   return pageMetadata(
     { title, description, canonical: boardHref(b.name) },
     hasTrackCard(b)
-      ? { kind: "track", id: b.name, alt: `Circuit track ${title} and its record.` }
+      ? {
+          kind: "track",
+          id: b.name,
+          alt: `${b.group === TRIALS_GROUP ? "Trial" : "Circuit track"} ${title} and its record.`,
+        }
       : undefined,
   );
 }

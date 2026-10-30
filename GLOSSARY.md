@@ -23,10 +23,18 @@ player's total is the sum over the Maps they hold a time on. The Workshop's coun
 Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
 _Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
 
+**Trial**:
+One of the game's own one-off challenge boards outside the Circuit seasons: The Tower, The
+Tower (Checkpoints) and Leth Trial #1. Each is a timed board of its own, so the two Towers are
+never compared. Its places count as world records and podiums, never as points: no Overall,
+Season or All Seasons total includes a Trial. The Towers are read on every Refresh as a Track
+is; Leth Trial #1 is an Event board.
+_Avoid_: challenge, Tower track, Other
+
 **Event board**:
 The Steam board of a one-off event the game ran, such as Leth Trial #1: neither a Track nor a
-Map. The board stops moving once the event ends, so the collector reads it once, and a
-Campaign can hold it as one of its Maps.
+Map. The board stops moving once the event ends, so the collector reads it once. Leth Trial #1
+is a Trial now, under Official, rather than one of a Campaign's Maps.
 _Avoid_: event map, trial board
 
 **Medal**:
@@ -173,11 +181,13 @@ _Avoid_: Overall board (that is Steam's Circuit points board), overall score
 ### The site
 
 **Section**:
-One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Circuit,
-Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season, ...),
+One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Official,
+Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season and
+the Trials, ...),
 and every page belongs to one: a Campaign's Map to Campaigns, a player's page and a head to
 head to Players. "Workshop" stays the game's word for player-made Maps; the Section is
-labelled Maps.
+labelled Maps. Official holds the game's own boards, the Circuit and the Trials; it was
+labelled Circuit.
 _Avoid_: tab, group, category
 
 ### Prefabs

@@ -82,23 +82,38 @@ async function topOf(board: string): Promise<BoardTop> {
 
 describe("a player's card", () => {
   test("counts Circuit and Workshop together and leaves out a zero", async () => {
-    // Rae: 1st on Track 01 and 2nd on Track 02, both under the author time, and 3rd on
-    // Marble Run at a Bronze time; no Map published
+    // Rae: 1st on Track 01 and 2nd on Track 02, both under the author time, 2nd on The
+    // Tower, and 3rd on Marble Run at a Bronze time; no Map published
     const c = await player(1);
     expect(c.title).toBe("Rolling Rae");
     expect(c.headline).toEqual({ value: "#2", label: "Season 2 Overall", tone: "gold" });
     expect(c.tiles).toEqual([
       { value: "1", label: "World records", tone: "gold" },
       { value: "2", label: "Author medals", tone: "author" },
-      { value: "3", label: "Maps finished" },
+      { value: "4", label: "Maps finished" },
     ]);
   });
 
   test("has no headline off Season 2's Overall board, and no world record tile at 0", async () => {
-    // Slowpoke: 4th on Track 01, under its author time, and nothing in Season 2
-    const c = await player(4);
+    // Tie Breaker: 3rd on Track 01, under its author time, and nothing in Season 2
+    const c = await player(5);
     expect(c.headline).toBeNull();
     expect(c.tiles.map((s) => s.label)).toEqual(["Author medals", "Maps finished"]);
+  });
+
+  test("counts a Trial's record as a world record", async () => {
+    // Slowpoke: both Towers' records, and 4th on Track 01
+    const c = await player(4);
+    expect(c.tiles[0]).toEqual({ value: "2", label: "World records", tone: "gold" });
+  });
+
+  test("counts a Trial run as a Map finished, as its record counts as a world record", async () => {
+    // Slowpoke: Track 01 and both Towers, no Workshop Map
+    const c = await player(4);
+    expect(c.tiles.find((s) => s.label === "Maps finished")).toEqual({
+      value: "3",
+      label: "Maps finished",
+    });
   });
 });
 
@@ -134,6 +149,25 @@ describe("a place's card", () => {
     const overall = circuitBoard("OverallLeaderboard_EASeason2");
     if (!overall) throw new Error("no Overall board");
     expect(trackCard(overall, await topOf(overall.name))).toBeNull();
+  });
+
+  test("a Trial: its record, its field, the record's lead and the median time", async () => {
+    const b = circuitBoard("Map_TheTower");
+    if (!b) throw new Error("no Tower");
+    const c = trackCard(b, await topOf("Map_TheTower"));
+    expect(c?.kicker).toBe("Official · Trial");
+    expect(c?.title).toBe("The Tower");
+    expect(c?.headline).toEqual({
+      value: "7:05.149",
+      label: "World record · Slowpoke",
+      tone: "gold",
+    });
+    // 7:05.149, 7:22.732, 8:20.000: 2nd is 17.583 s behind, and the median is 2nd's time
+    expect(c?.tiles).toEqual([
+      { value: "3", label: "Players" },
+      { value: "0:17.583", label: "Lead over 2nd", tone: "gold" },
+      { value: "7:22.732", label: "Median time" },
+    ]);
   });
 
   test("a Daily: the fastest time, live or final alike, and its Gold time", async () => {

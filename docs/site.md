@@ -27,8 +27,10 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     page the reader came from as its parent ("How a page opens").
   - `search.ts`, the site search: what a query finds, how each hit scores, and how the
     results are grouped under the filter chips ("Search").
-  - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
-    Season 2 tiers, each Track's screenshot and Medal times.
+  - `circuit.ts`, the Official Section's fixed facts: the board order (the in-game
+    numbering), the Season 2 tiers, each Track's screenshot and Medal times, and the Trials
+    (`TRIALS`, CIRCUIT's Trials group with each one's blurb and picture), and what a page calls
+    a board and draws it with (`boardTitle`, `boardPicture`).
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
@@ -49,7 +51,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
   for a path that can't be a page, and the redirects (`/leth`, a scope-only Players path,
-  a player against themselves).
+  a player against themselves, the old Leth Trials Campaign's paths).
 - `web/app/styles/` — the stylesheet, split by view and imported in order by
   `app/layout.tsx`. Every color is a custom property on `:root`; the theme is dark-only.
   Font sizes are in rem, written `calc(Nrem / 16)` with N the design's px, so text follows
@@ -170,8 +172,9 @@ from another skin's alpha so every edge matches.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track, a Daily, a Campaign and a Prefab each unfurl
-with their own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+A player, a Workshop Map, a Circuit Track or a Trial, a Daily, a Campaign and a Prefab each
+unfurl with their own 1200×630 card (a Trial's, with no Medal times, gives its record, field,
+the record's lead over 2nd and the median time, under `kind` `track`) (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
 card says, `components/share/` draws it through `next/og`, `pageMetadata`
 (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
 (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
@@ -185,10 +188,10 @@ rendering it again (it was last drawn from a small page in Chromium at 1200×630
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
-  Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
-  left out.
-- A Map, Track or Daily gets its picture across the top (the Workshop preview, or the
-  Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
+  Maps made. Each counts the Circuit and the Workshop together (World records and Maps
+  finished the Trials too), and a count of zero is left out.
+- A Map, Track or Daily gets its picture across the top (the Workshop preview, the
+  Track's screenshot, or a Trial's picture once it has one, `boardShot`), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
 - A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
   previews side by side as the band (`CAMPAIGN_MAX_PICTURES`), a missing one a blank slice;
@@ -274,26 +277,41 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
-  cannot collide. Every Circuit board lights the Circuit Section, which opens the newest
-  season's Overall board, and its own season among the sub-tabs. The seasons, newest first then All Seasons (`seasonsOf` in
+  cannot collide. Every Circuit board lights the Official Section (key `circuit`), which
+  opens the newest season's Overall board, and its own season among the sub-tabs. A Trial's
+  board (`/board/Map_TheTower`, `/board/Map_TheTowerCP`, and `/board/Map_LethTrial_01`, an
+  Event board the Trials group of `CIRCUIT` holds too) lights the Trials sub-tab, is titled
+  by its name, has no season tabs, and its rail (the sheet on a phone) lists the three
+  Trials with each one's record and runs (`TrialRailItems`, from `trialTops`). Its card
+  shows the Trial's picture once there is one, and an Event board's links its own static
+  page, Leth Trial #1's the ghost viewer at `/leth/`. Leth Trial #1 was the Leth Trials
+  Campaign's one Map until it became a Trial: the proxy 308s `/campaign/leth-trials` and
+  anything under it to its board, a row marked on it still marked. The seasons, newest first then All Seasons (`seasonsOf` in
   `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
-  the board button on a phone, whose menu gives each season's Tracks and field. Each
-  season opens its Overall board.
+  the board button on a phone, whose menu gives each season's Tracks and field, then the
+  Trials (lit, and the chip's label, on a Trial's board). Each season opens its Overall
+  board, the Trials `/trials`.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
-  as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
-  its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
-  page). Lights the Campaigns Section. The proxy 404s a slug that
+  as a Track opens inside its season (a Map's row is on its own page). Lights the Campaigns
+  Section. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
   and one on a phone. Prerendered; lights the Campaigns Section.
-- `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
-  `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
-  Circuit.
+- `/trials`: the Trials sub-tab, a card per Trial in `TRIALS` order (`TrialCards`), picture
+  on top (a striped placeholder for a Tower until its picture is extracted), title, open or
+  closed, runs, and the record with its holder (`trialTops`), three across on a desktop and
+  one under another on a phone. Each card links its Trial's page. Prerendered; lights the
+  Official Section and its Trials sub-tab.
+- `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/official`, `/workshop`,
+  `/made`, `/daily`). Without one the page opens on Workshop for anyone with a Workshop time,
+  else Official. The Official tab was the Circuit tab, and the proxy sends an old
+  `/player/<steam_id>/circuit` to `/official` with a 308.
 - `/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - `/players`, or `/players/<scope>/<sort>`: the Players table, counted over `all`,
-  `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`.
+  `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`. Its Circuit side
+  counts the Trials' places with the Tracks' (`standings` in `db/site.ts`).
 - `/daily`, or `/daily/<YYYY-MM-DD>`: the Daily page, on the newest Daily or on that day.
   The proxy 404s any other `/daily/...` path but `/daily/standings`, and a real day with no Daily goes to
   `/daily`. A Daily is live or final by the reader's clock against its close (`isLive` in
@@ -409,30 +427,23 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
-**Event boards and pinning.** A Campaign's `maps` may also name an Event board (GLOSSARY.md)
-by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
-screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
-since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
-from the site's root, and the share card fetches it from production) and the folder of the
-static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
-collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it
-counts toward its Campaign once it holds open Entries, and until then it is left out like a
-Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
-links the ghost viewer, it has no `/map/` page (`boardHref` sends its board, and a row on it,
-to the slot), and its slot canonicals to the Campaign, with its share card: robots.txt keeps
-crawlers off a Campaign's slots, so the Campaign's page is the one indexed. Its runs are
-its open Entries: the collector reads a board whole, so that is Steam's count give or take a
-run Steam dropped. The board API serves it by name; a player's own finishes leave it out, since their
-place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
-Campaigns are (`getCampaigns`), whatever its player count: the Leth Trials, Leth Trial #1's
-Campaign, is. `stress` reads its Event board, so its builds list it first.
+**Event boards and pinning.** A Campaign holds Workshop Maps only. Leth Trial #1, an Event
+board (GLOSSARY.md), was the Leth Trials Campaign's one Map until it became a Trial (under
+"Pages": `/board/<board name>`). Its `TRIALS` entry (`lib/circuit.ts`) marks it an Event board (`event`,
+which the Trials list as closed) and names the folder of the static page its Trial page links
+(`viewer`, `viewerHref`); a test holds the Event boards there to the collector's `EVENT_BOARDS`. Its picture is the level's own screenshot
+from the game files, committed as `leth/screenshot.jpg` and served from the site (a JPEG, as
+the share card can't read WebP; `safeImg` takes a path from the site's root, and the share
+card fetches it from production). A Campaign with `pinned` is listed first wherever
+Campaigns are (`getCampaigns`), whatever its player count; none is now. `stress` reads Leth
+Trial #1's Event board, so its builds' Trial page and card have runs.
 
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
 `board_kind` with no special case, so every board piece (paging, search, You, plates, the
 Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
 Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
-open Entries of its Maps the Workshop lists (and its Event boards read), each place paying the Circuit's track points,
+open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
 equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
 place there. A player is ranked once they have a time on one Map.
 
@@ -525,14 +536,15 @@ The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's vari
 
 - **The bar**: the wordmark and You's card, with the site search between them ("Search").
 - **The Sections** (`GLOSSARY.md`), as tabs with icons, the current one underlined in lime:
-  Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
+  Maps (the homepage), Campaigns, Daily, Official (its newest season's Overall board),
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
   out.
 - **The Section's sub-tabs**, as pills, the current one lit: Featured / All Maps; All
   Campaigns and the pinned Campaigns (`navCampaigns`); Today / Standings; each
-  season; Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
+  season, then Trials (`/trials`); Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
   Section lights one: a Map lights All Maps, a Campaign's Map its Campaign (or All Campaigns
-  when the sub-tabs don't name it), a Circuit board its own season, a player's page and a
+  when the sub-tabs don't name it), a Circuit board its own season, a Trial's board Trials,
+  a player's page and a
   head to head the Rankings.
 
 What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
@@ -565,8 +577,8 @@ browser can tell, so a signed-in visitor never sees Sign in first.
 
 ## Search
 
-One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks, Dailies
-and Prefabs (spec #339, round 2's filter chips; ticket #342).
+One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks and Trials
+(under Official; a Trial by its name alone), Dailies and Prefabs (spec #339, round 2's filter chips; ticket #342).
 
 - **The read**: `GET /api/search?q=` (`app/api/search/route.ts`). The query is trimmed,
   lowercased and cut to 64 characters (`searchTerm`), and an empty one answers `null`. Players
@@ -721,8 +733,13 @@ board and descending on a points board (`docs/data.md`).
 ## The player page
 
 `playerRecord` (`lib/player.ts`) turns a player's rows into everything the page shows:
-Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` for the tile counts), and the Maps the player made.
-The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
+Circuit tiles, Trial tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` for the tile counts), and the Maps the player made.
+The rendering is markup over that record. The Official tab shows the seasons and then a
+Trials section, one tile per Trial drawn as a Track's with no points and headed "not in
+Overall points" (grill-design round 3, A). A Trial's place counts in World records,
+Podiums (`medals`, `golds`, so the head to head's band, the share card and the Stat Card
+too) and the tab's count, never in Tracks run or a season; an Event board's place (Leth
+Trial #1) is read for it with the rest. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
 ## Trending this week

@@ -4,7 +4,7 @@
 // from db/boards.ts.
 import { sql, type SQL } from "drizzle-orm";
 
-import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
+import { CIRCUIT, S1_TRACKS, S2_TRACKS, TRIALS } from "../lib/circuit";
 import { playerDailiesOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
@@ -40,6 +40,7 @@ import type {
   RunRace,
   Standings,
   StandingsRow,
+  TrialTop,
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
@@ -106,6 +107,39 @@ export async function trackBoards(db: Db): Promise<Array<{ name: string; leaderb
   return TRACKS.flatMap((name) => {
     const id = ids.get(name);
     return id === undefined ? [] : [{ name, leaderboardId: id }];
+  });
+}
+
+/* Each Trial's runs, record and the record's holder, in the Trials' order (lib/circuit.ts):
+   what the Trials rail and /trials list. A Trial is a time board, ranked as its board
+   ranks it; one no Refresh has read yet has no runs, no record and no holder. */
+export async function trialTops(db: Db): Promise<Array<TrialTop>> {
+  const names = TRIALS.map((t) => t.board);
+  const found = await rows<{
+    board: string;
+    runs: number;
+    record: number;
+    steamId: string;
+    persona: string;
+    avatar: string | null;
+  }>(
+    db,
+    sql`select s.board, s.runs, s.lead::float8 as record, p.steam_id as "steamId",
+        ${personaSql} as persona, nullif(p.avatar, '') as avatar
+      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
+      join players p on p.steam_id = s.top3->0->>0`,
+  );
+  const by = new Map(found.map((r) => [r.board, r]));
+  return names.map((board) => {
+    const r = by.get(board);
+    return r
+      ? {
+          board,
+          runs: r.runs,
+          record: r.record,
+          holder: { steamId: r.steamId, persona: r.persona, avatar: r.avatar },
+        }
+      : { board, runs: 0, record: null, holder: null };
   });
 }
 
@@ -317,24 +351,6 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
-/* What a Map card shows of each Event board in `names` with open Entries: its runs (the
-   collector reads a board whole, so its open Entries are Steam's count, give or take a run
-   Steam dropped), its top three and the gap from 1st to 3rd */
-export async function eventBoards(
-  db: Db,
-  names: ReadonlyArray<string>,
-): Promise<
-  Array<{ board: string; runs: number; top3: WorkshopMap["top3"]; gap13: number | null }>
-> {
-  if (!names.length) return [];
-  return rows(
-    db,
-    sql`select s.board, s.runs, s.top3, s.gap13::float8 as gap13
-      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
-      join boards b on b.name = s.board and b.kind = 'event'`,
-  );
-}
-
 /* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
    the site holds none */
 export async function mapFile(
@@ -386,10 +402,10 @@ export async function playerData(
   ).at(0);
   if (!profile) return null;
   /* a Daily's board is the player's Daily record, read on its own; an Event board's place
-     shows in their Campaigns */
+     is a Trial's (Leth Trial #1) */
   const theirs = sql`e.board in (select board from entries
     where steam_id = ${steamId} and closed_refresh is null)
-    and b.kind not in ('daily', 'event')`;
+    and b.kind <> 'daily'`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (
@@ -410,12 +426,16 @@ export async function playerData(
   return { profile, finishes };
 }
 
+/* the boards the Players page's Circuit side ranks over: the Circuit's Tracks and the
+   Trials, whose places count as world records and podiums (never as points) */
+const OFFICIAL = [...TRACKS, ...TRIALS.map((t) => t.board)];
+
 /* The Players page's counts, a StandingsRow (lib/rows.ts) for everyone with a world
-   record, podium or top 5 on the Circuit, or a time on a Map */
+   record, podium or top 5 on the Circuit or a Trial, or a time on a Map */
 export async function standings(db: Db): Promise<Standings> {
   const found = await rows<{ row: StandingsRow }>(
     db,
-    sql`with c as (${rankedSql(sql`e.board = any(${array(TRACKS)})`)}),
+    sql`with c as (${rankedSql(sql`e.board = any(${array(OFFICIAL)})`)}),
         w as (${rankedSql(sql`e.board in (${listedMapsSql})`)}),
         counts as (
           select steam_id,
@@ -441,7 +461,12 @@ export async function standings(db: Db): Promise<Standings> {
     sql`select count(distinct board)::int as maps from entries
       where closed_refresh is null and board in (${listedMapsSql})`,
   );
-  return { tracks: TRACKS.length, maps: n.maps, players: found.map((r) => r.row) };
+  return {
+    tracks: TRACKS.length,
+    trials: TRIALS.length,
+    maps: n.maps,
+    players: found.map((r) => r.row),
+  };
 }
 
 /* The Workshop standings now and at `since` (Unix ms), counted by lib/workshop-standings.ts

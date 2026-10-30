@@ -2,7 +2,14 @@
 // player page"): the board table is read here and nowhere below, so a player page, the
 // head to head and the score card are only markup over a PlayerRecord. matchup() is the
 // one place two records are paired up. Pure, so the server and the browser share it.
-import { COMPOSITE_BOARD, COMPOSITE_GROUP, S1_CURRENT_BOARD, TRACKS } from "./circuit";
+import {
+  COMPOSITE_BOARD,
+  COMPOSITE_GROUP,
+  S1_CURRENT_BOARD,
+  TRACKS,
+  TRIALS,
+  TRIALS_GROUP,
+} from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
 import { timed } from "./workshop";
 import {
@@ -39,6 +46,14 @@ export interface TrackTile {
   finish: { rank: number; score: number; lead: number; earned: MedalKey } | null;
   /* what the place pays toward the season's Overall */
   points: number;
+}
+
+/* a Trial on a player's Official tab: drawn as a Track's tile, but with no points */
+export interface TrialTile {
+  name: string;
+  display: string;
+  field: number;
+  finish: { rank: number; score: number; lead: number } | null;
 }
 
 export interface SeasonRecord {
@@ -91,11 +106,18 @@ export interface PlayerRecord {
   profileUrl: string | null;
   who: Who;
   allSeasons: { rank: number; score: number } | null;
+  /* the Circuit's Tracks' places and the Trials': a Trial's place counts as a world record
+     and a podium (GLOSSARY.md, Trial) */
   medals: { gold: number; silver: number; bronze: number };
   golds: Array<string>;
+  /* the Circuit's Tracks run, and how many it has; no Trial is one */
   run: number;
   tracks: number;
   seasons: Array<SeasonRecord>;
+  /* every Trial, in the Trials' order, with this player's finish or none, and how many of
+     them they have run */
+  trials: Array<TrialTile>;
+  trialsRun: number;
   workshop: {
     finishes: Array<WorkshopFinish>;
     medals: Record<MedalKey, number>;
@@ -109,7 +131,7 @@ export interface PlayerRecord {
   made: Array<MadeMap>;
   holds: number;
   /* the tab /player/<id> opens on */
-  home: "workshop" | "circuit";
+  home: "workshop" | "official";
 }
 
 /* The Circuit's seasons in the order the site shows them: the current season leads, and
@@ -139,12 +161,14 @@ export interface Season {
   tracks: number;
 }
 
+/* a season's Track: a timed board that is no Trial, which no season's points count */
+const isTrack = (b: IndexBoard) => !isPoints(b.name) && b.group !== TRIALS_GROUP;
+
 /* The season switch's choices, newest first. All Seasons has no Tracks of its own and adds
-   up every one */
+   up every one; the Trials have no Overall board, so they are no choice */
 export function seasonsOf(boards: ReadonlyArray<IndexBoard>): Array<Season> {
   const tracks = (group: string) =>
-    boards.filter((b) => !isPoints(b.name) && (group === COMPOSITE_GROUP || b.group === group))
-      .length;
+    boards.filter((b) => isTrack(b) && (group === COMPOSITE_GROUP || b.group === group)).length;
   return groupsOf(boards).flatMap((group) => {
     const o = overallOf(boards, group);
     return o ? [{ group, overall: o.name, players: o.entryCount, tracks: tracks(group) }] : [];
@@ -202,28 +226,38 @@ export function playerRecord(
       };
     })
     .sort((a, b) => b.runs - a.runs || b.subs - a.subs);
-  const tracks: Array<TrackTile> = boards
-    .filter((b) => !isPoints(b.name))
-    .map((b) => {
-      const f = by.get(b.name);
-      return {
-        name: b.name,
-        display: b.display,
-        field: b.entryCount,
-        finish: f
-          ? {
-              rank: f.rank,
-              score: f.score,
-              lead: f.lead,
-              earned: b.name in TRACKS ? timeMedal(TRACKS[b.name].medals, f.score) : "none",
-            }
-          : null,
-        points: f ? trackPoints(f.rank) : 0,
-      };
-    });
+  const tracks: Array<TrackTile> = boards.filter(isTrack).map((b) => {
+    const f = by.get(b.name);
+    return {
+      name: b.name,
+      display: b.display,
+      field: b.entryCount,
+      finish: f
+        ? {
+            rank: f.rank,
+            score: f.score,
+            lead: f.lead,
+            earned: b.name in TRACKS ? timeMedal(TRACKS[b.name].medals, f.score) : "none",
+          }
+        : null,
+      points: f ? trackPoints(f.rank) : 0,
+    };
+  });
   const run = tracks.filter((t) => t.finish);
+  /* a Trial's field is its board's, or (an Event board, which the Circuit's counts may not
+     hold) the one the finish was ranked in */
+  const trials: Array<TrialTile> = TRIALS.map((trial) => {
+    const f = by.get(trial.board);
+    return {
+      name: trial.board,
+      display: trial.title,
+      field: f?.field ?? boards.find((b) => b.name === trial.board)?.entryCount ?? 0,
+      finish: f ? { rank: f.rank, score: f.score, lead: f.lead } : null,
+    };
+  });
+  const placed = [...run, ...trials].filter((t) => t.finish);
   const medals = { gold: 0, silver: 0, bronze: 0 };
-  for (const t of run) {
+  for (const t of placed) {
     const r = t.finish?.rank ?? 0;
     if (r >= 1 && r <= 3) medals[(["gold", "silver", "bronze"] as const)[r - 1]]++;
   }
@@ -234,7 +268,7 @@ export function playerRecord(
   const seasons = groupsOf(boards)
     .map((season) => {
       const headed: SeasonRecord["tiers"] = [];
-      for (const b of boards.filter((x) => x.group === season && !isPoints(x.name))) {
+      for (const b of boards.filter((x) => x.group === season && isTrack(x))) {
         const tier = b.tier ?? "Circuit";
         const t = byName.get(b.name);
         if (!t) continue;
@@ -266,10 +300,12 @@ export function playerRecord(
     who: { steamId: id, persona: data.profile.persona, avatar: data.profile.avatar },
     allSeasons: comp ? { rank: comp.rank, score: comp.score } : null,
     medals,
-    golds: run.filter((t) => t.finish?.rank === 1).map((t) => t.display),
+    golds: placed.filter((t) => t.finish?.rank === 1).map((t) => t.display),
     run: run.length,
     tracks: tracks.length,
     seasons,
+    trials,
+    trialsRun: trials.filter((t) => t.finish).length,
     workshop: {
       finishes,
       medals: byMedal,
@@ -280,7 +316,7 @@ export function playerRecord(
     },
     made,
     holds: made.filter((m) => m.record?.who.steamId === id).length,
-    home: finishes.length ? "workshop" : "circuit",
+    home: finishes.length ? "workshop" : "official",
   };
 }
 

@@ -36,6 +36,14 @@ const ROUTES = [
   ["/board/OverallLeaderboard_EASeason2/podiums", 200],
   ["/board/OverallLeaderboard_S1Current", 200, null, "Rolling Rae"],
   ["/board/OverallLeaderboard_AllSeasons", 200],
+  // a Trial's board: tiny's Tower record is Slowpoke's, and the rail names every Trial
+  ["/board/Map_TheTower", 200, null, "Slowpoke"],
+  ["/board/Map_TheTowerCP", 200, null, "Leth Trial #1"],
+  // /trials: a card per Trial, each with its record's holder and runs
+  ["/trials", 200, null, "Slowpoke"],
+  ["/trials", 200, null, 'href="/board/Map_TheTowerCP"'],
+  ["/trials", 200, null, "Leth Trial #1"],
+  ["/api/search?q=the%20tower", 200, null, "Map_TheTowerCP"],
   ["/board/Map_Nope", 404],
   ["/board/Map_Track13/nope", 404],
   ["/board/Map_Track13/podiums/x", 404],
@@ -62,12 +70,20 @@ const ROUTES = [
   ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
   ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
   ["/og/campaign/solar-trials", 200, null, "PNG"],
-  // the Leth Trials, pinned, of one Event board
-  ["/campaign/leth-trials", 200, null, "Lethamyr"],
-  ["/campaign/leth-trials/leth-trial-1", 200, null, "Ghost viewer"],
+  // Leth Trial #1, an Event board, is a Trial: its board page links its ghost viewer, and
+  // the Leth Trials Campaign it was the one Map of is gone, its paths landing there
+  ["/board/Map_LethTrial_01", 200, null, "Ghost viewer"],
+  ["/board/Map_LethTrial_01", 200, null, "Twizzle"],
   ["/api/board/Map_LethTrial_01?from=0&count=3", 200, null, "Twizzle"],
-  // a row after the Event's id is marked on the Event's board: Slowpoke's plate
-  ["/campaign/leth-trials/leth-trial-1/76561199000000004", 200, null, 'class="plate focus"'],
+  // a row on it is marked: Slowpoke's plate
+  ["/board/Map_LethTrial_01/76561199000000004", 200, null, 'class="plate focus"'],
+  ["/campaign/leth-trials", 308, "/board/Map_LethTrial_01"],
+  ["/campaign/leth-trials/leth-trial-1", 308, "/board/Map_LethTrial_01"],
+  [
+    "/campaign/leth-trials/leth-trial-1/76561199000000004",
+    308,
+    "/board/Map_LethTrial_01/76561199000000004",
+  ],
   ["/campaign/solar-trials/3805399883/76561199000000004", 404],
   ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
   ["/campaign/ajc", 200, null, SOFT_404],
@@ -81,7 +97,9 @@ const ROUTES = [
   // Velocity Trials' first Map, shaped like a Steam ID
   ["/campaign/solar-trials/3803908791", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
-  ["/player/" + P1 + "/circuit", 200],
+  // the Official tab (the Circuit's seasons and the Trials), once the Circuit tab
+  ["/player/" + P1 + "/official", 200, null, "not in Overall points"],
+  ["/player/" + P1 + "/circuit", 308, "/player/" + P1 + "/official"],
   ["/player/" + P1 + "/workshop", 200],
   ["/player/" + P1 + "/made", 200],
   ["/player/" + P1 + "/daily", 200, null, "Days in a row"],
@@ -131,6 +149,7 @@ const ROUTES = [
   ["/og/map/" + MAP, 200, null, "PNG"],
   ["/og/map/1", 404],
   ["/og/track/Map_Track13", 200, null, "PNG"],
+  ["/og/track/Map_TheTower", 200, null, "PNG"],
   ["/og/track/Map_Nope", 404],
   ["/og/track/OverallLeaderboard_EASeason2", 404],
   ["/og/daily/2026-08-30", 200, null, "PNG"],
@@ -141,7 +160,7 @@ const ROUTES = [
   ["/og/stats/76561199000000099", 404],
   ["/og/stats/nope", 404],
   [
-    "/player/" + P1 + "/circuit",
+    "/player/" + P1 + "/official",
     200,
     null,
     '<meta property="og:image" content="https://ballestrecords.com/og/player/' + P1 + "?v=",
@@ -159,13 +178,13 @@ const ROUTES = [
   // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
   // its own
   [
-    "/campaign/leth-trials/leth-trial-1",
+    "/board/Map_LethTrial_01/76561199000000004",
     200,
     null,
-    '<link rel="canonical" href="https://ballestrecords.com/campaign/leth-trials"',
+    '<link rel="canonical" href="https://ballestrecords.com/board/Map_LethTrial_01"',
   ],
   [
-    "/player/" + P1 + "/circuit",
+    "/player/" + P1 + "/official",
     200,
     null,
     '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',

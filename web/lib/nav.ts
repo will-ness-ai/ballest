@@ -1,8 +1,7 @@
 // The site's navigation, from a path alone: the Section it is in (GLOSSARY.md), that
 // Section's sub-tabs with the lit one, what kind of page it is, and the breadcrumb trail
 // above its title. The header (components/Shell.tsx) draws it.
-import { eventOf } from "./campaigns";
-import { circuitBoard } from "./circuit";
+import { TRIALS_GROUP, circuitBoard } from "./circuit";
 import {
   boardHref,
   campaignHref,
@@ -17,6 +16,7 @@ import {
   prefabGuideHref,
   playersHref,
   prefabsHref,
+  trialsHref,
   youHref,
 } from "./routes";
 import { isPoints } from "./rules";
@@ -67,8 +67,9 @@ export interface Crumb {
 }
 
 /* the Sections in their order: the Workshop's Maps lead, as the homepage, and its Campaigns
-   follow them; the Daily, a Map a day, comes next, then the Circuit on its newest season's
-   Overall board, Players over every board, and the Prefabs for the level editor */
+   follow them; the Daily, a Map a day, comes next, then Official (the game's own boards: the
+   Circuit and the Trials) on its newest season's Overall board, Players over every board,
+   and the Prefabs for the level editor. Official keeps the key `circuit`. */
 function sectionsOf(f: NavFacts): Array<Omit<SectionLink, "on"> & { shown: boolean }> {
   const newest = f.seasons.at(0);
   return [
@@ -77,7 +78,7 @@ function sectionsOf(f: NavFacts): Array<Omit<SectionLink, "on"> & { shown: boole
     { key: "daily", label: "Daily", href: dailyHref(), shown: f.daily },
     {
       key: "circuit",
-      label: "Circuit",
+      label: "Official",
       href: newest ? boardHref(newest.overall) : homeHref(),
       shown: !!newest,
     },
@@ -86,12 +87,15 @@ function sectionsOf(f: NavFacts): Array<Omit<SectionLink, "on"> & { shown: boole
   ];
 }
 
+const isTrialsPath = (path: string) => /^\/trials(\/|$)/.test(path);
+
 function sectionOf(path: string): SectionKey | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return "maps";
   if (/^\/campaigns?(\/|$)/.test(path)) return "campaigns";
   if (/^\/daily(\/|$)/.test(path)) return "daily";
   if (/^\/(players?|you|vs)(\/|$)/.test(path)) return "players";
   if (/^\/prefabs?(\/|$)/.test(path)) return "prefabs";
+  if (isTrialsPath(path)) return "circuit";
   const board = /^\/board\/([^/]+)/.exec(path);
   return board && circuitBoard(decodeURIComponent(board[1])) ? "circuit" : null;
 }
@@ -132,10 +136,15 @@ function subsOf(
         on: path.startsWith(dailyStandingsHref()) ? 1 : 0,
       };
     case "circuit": {
+      /* each season, then the Trials */
       const board = circuitBoard(decodeURIComponent(path.split("/")[2] ?? ""));
+      const trials = isTrialsPath(path) || board?.group === TRIALS_GROUP;
       return {
-        list: f.seasons.map((s) => ({ label: s.group, href: boardHref(s.overall) })),
-        on: f.seasons.findIndex((s) => s.group === board?.group),
+        list: [
+          ...f.seasons.map((s) => ({ label: s.group, href: boardHref(s.overall) })),
+          { label: TRIALS_GROUP, href: trialsHref() },
+        ],
+        on: trials ? f.seasons.length : f.seasons.findIndex((s) => s.group === board?.group),
       };
     }
     case "players":
@@ -175,13 +184,16 @@ function kindOf(section: SectionKey | null, path: string): string | null {
     case "campaigns": {
       const at = campaignPath(path);
       if (!at) return "Campaigns";
-      if (!at.map) return "Campaign";
-      return eventOf(at.map) ? "Event board" : "Campaign Map";
+      return at.map ? "Campaign Map" : "Campaign";
     }
     case "daily":
       return path.startsWith(dailyStandingsHref()) ? "Daily standings" : "Daily";
-    case "circuit":
-      return isPoints(path.split("/")[2] ?? "") ? "Circuit standings" : "Circuit Track";
+    case "circuit": {
+      if (isTrialsPath(path)) return "Trials";
+      const name = decodeURIComponent(path.split("/")[2] ?? "");
+      if (circuitBoard(name)?.group === TRIALS_GROUP) return "Trial";
+      return isPoints(name) ? "Circuit standings" : "Circuit Track";
+    }
     case "players":
       if (path.startsWith("/player/")) return "Player";
       if (path.startsWith("/vs/")) return "Head to head";

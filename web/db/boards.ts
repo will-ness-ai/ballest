@@ -9,14 +9,9 @@
 // (7,288 of them, 2026-10-04) reads that way, so the ranks here are Steam's.
 import { sql, type SQL } from "drizzle-orm";
 
-import {
-  campaignBoard,
-  campaignMapBoard,
-  campaignOfBoard,
-  eventOf,
-  type Campaign,
-} from "../lib/campaigns";
+import { campaignBoard, campaignOfBoard, type Campaign } from "../lib/campaigns";
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD, S1_TRACKS, S2_OVERALL_BOARD } from "../lib/circuit";
+import { mapBoard } from "../lib/rules";
 
 /* The open Entries of the boards `where` picks, each with its rank on its board:
    (board, steam_id, score, rank). `where` is a condition on entries `e`. */
@@ -56,22 +51,13 @@ export const listedMapsSql = sql`select m.board from maps m join (
   where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)`;
 
 /* A Campaign's Maps' boards, in its order */
-const campaignMapBoards = (c: Campaign) => c.maps.map(campaignMapBoard);
+const campaignMapBoards = (c: Campaign) => c.maps.map(mapBoard);
 
-/* The boards of a Campaign's Maps the Workshop lists now and of its Event boards a Refresh
-   has read (those with open Entries, which no later Refresh closes: docs/data.md), as a
-   query of one column, board: the Maps its board adds up, and those a player's Maps
-   finished and "finished every map" count */
-export function campaignListedSql(c: Campaign) {
-  const listed = sql`select board from (${listedMapsSql}) l
+/* The boards of a Campaign's Maps the Workshop lists now, as a query of one column, board:
+   the Maps its board adds up, and those a player's Maps finished and "finished every map"
+   count */
+export const campaignListedSql = (c: Campaign) => sql`select board from (${listedMapsSql}) l
     where board = any(${array(campaignMapBoards(c))})`;
-  const events = c.maps.flatMap((id) => eventOf(id)?.board ?? []);
-  if (!events.length) return listed;
-  return sql`${listed} union all
-    select b.name from boards b
-    where b.name = any(${array(events)}) and b.kind = 'event'
-      and exists (select 1 from entries e where e.board = b.name and e.closed_refresh is null)`;
-}
 
 /* Season 1 as it stands: each player's points for their place on every Season 1 Track,
    added up, highest first. Equal totals keep the order the collector met them in: by the

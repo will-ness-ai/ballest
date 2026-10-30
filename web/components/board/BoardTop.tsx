@@ -11,8 +11,8 @@ import { YouSpread } from "./YouSpread";
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
-import { eventOf, unitOf } from "../../lib/campaigns";
-import { TRACKS, trackNo } from "../../lib/circuit";
+import { unitOf } from "../../lib/campaigns";
+import { TRACKS, boardPicture, trackNo, trialOf } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
@@ -110,11 +110,15 @@ export function TrackCard({
   rows: Array<BoardRow>;
   scores: ReadonlyArray<number>;
 }) {
+  /* a Trial's picture, once there is one; a Trial with its own page beside the site links
+     it, Leth Trial #1's ghost viewer */
+  const pic = boardPicture(b.name);
   const t = TRACKS[b.name] as (typeof TRACKS)[string] | undefined;
+  const viewer = trialOf(b.name)?.viewer;
   const lead = rows[0] as BoardRow | undefined;
   return (
-    <div className={t ? "bcard" : "bcard nopic"} id="bcard">
-      {t && <img className="bc-pic" src={t.img} alt="" />}
+    <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
+      {pic && <img className="bc-pic" src={pic} alt="" />}
       <div className="bc-body">
         <div className="bc-top">
           <div>
@@ -122,6 +126,12 @@ export function TrackCard({
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
+              {viewer && (
+                <>
+                  {" · "}
+                  <a href={viewerHref(viewer)}>Ghost viewer</a>
+                </>
+              )}
             </span>
           </div>
           <Facts
@@ -159,8 +169,6 @@ export function CampaignMapCard({
 }) {
   const lead = rows[0] as BoardRow | undefined;
   const pic = safeImg(m.preview);
-  /* an Event board has no Map page; its card links where the Event says instead */
-  const event = eventOf(m.pfid);
   return (
     <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
       {pic && <img className="bc-pic" src={pic} alt="" />}
@@ -169,12 +177,7 @@ export function CampaignMapCard({
           <div>
             <h2>{title}</h2>
             <span className="bc-by">
-              {group} · by {m.creator} ·{" "}
-              {event ? (
-                <a href={viewerHref(event.viewer)}>Ghost viewer</a>
-              ) : (
-                <Link href={mapHref(m.pfid)}>Map page</Link>
-              )}
+              {group} · by {m.creator} · <Link href={mapHref(m.pfid)}>Map page</Link>
             </span>
           </div>
           <Facts
@@ -189,7 +192,7 @@ export function CampaignMapCard({
           />
         </div>
         <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
-        {pic && !event && <p className="bc-cap">Workshop preview picture.</p>}
+        {pic && <p className="bc-cap">Workshop preview picture.</p>}
       </div>
     </div>
   );

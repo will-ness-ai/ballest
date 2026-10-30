@@ -88,6 +88,15 @@ LEADERBOARD_IDS = {
     "Map_Track_S2_NightWay": 20687735,
     "Map_Track_S2_NightClimb": 20687731,
     "Map_TheTower": 17990402,
+    "Map_TheTowerCP": 18587284,
+}
+
+# The Trials (GLOSSARY.md): the game's own one-off challenge boards outside the seasons that
+# are read every Refresh, as a Track is. They are timed boards, never in Overall points.
+# Leth Trial #1 is a Trial too, but an Event board (EVENT_BOARDS), read once.
+TRIALS = {
+    "Map_TheTower": "The Tower",
+    "Map_TheTowerCP": "The Tower (Checkpoints)",
 }
 
 # (leaderboard_name, group) — order here is the order shown in the site's dropdown.
@@ -96,7 +105,7 @@ BOARDS = (
     + [(t, "Season 1") for t in S1_TRACKS]
     + [("OverallLeaderboard_EASeason2", "Season 2")]
     + [(t, "Season 2") for t in S2_TRACKS]
-    + []
+    + [(t, "Trials") for t in TRIALS]
 )
 # Event boards (GLOSSARY.md): a one-off event's board, neither a Track nor a Workshop Map,
 # by name, with its leaderboard ID and what the site calls it. Each Refresh reads only those
@@ -144,10 +153,6 @@ async def read_events(fetch, read_ok):
     return await read_boards(fetch, [(name, lid, None) for name, lid in due])
 
 
-# Map_TheTower is parked, not deleted: it reports an internal metric rather than
-# run times, so the site never had anything trustworthy to show. Its ID is kept
-# above so it can be put back by re-adding it to BOARDS.
-
 # Workshop Maps (collect_workshop in steampy_collect.py).
 # Every Map's board is read at least this often, whatever the Workshop counters say:
 # nothing on the Workshop moves when a player beats their own time.
@@ -189,8 +194,8 @@ def display_name(name):
         return "Overall"
     if name == "OverallLeaderboard":
         return "Final"
-    if name == "Map_TheTower":
-        return "The Tower"
+    if name in TRIALS:
+        return TRIALS[name]
     if name in EVENT_BOARDS:
         return EVENT_BOARDS[name][1]
     n = track_number(name)

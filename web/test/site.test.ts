@@ -3,7 +3,7 @@
 import { desc, eq, TransactionRollbackError } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { entries, ghosts, players, refreshes } from "../db/schema";
+import { boards, entries, ghosts, players, refreshes } from "../db/schema";
 import { SKIN } from "../db/seed/datasets/tiny";
 import { seed } from "../db/seed/harness";
 import {
@@ -20,6 +20,7 @@ import {
   standings,
   trackBoards,
   trackPodiums,
+  trialTops,
   withTimes,
   workshopMaps,
 } from "../db/site";
@@ -44,6 +45,21 @@ describe("the Track boards Multiballs reads", () => {
     expect(await trackBoards(t.db)).toEqual([
       { name: "Map_Track13", leaderboardId: 17800617 },
       { name: "Map_Track15", leaderboardId: 17800873 },
+    ]);
+  });
+});
+
+describe("the Trials rail and /trials", () => {
+  test("each Trial's runs, record and its holder, in the Trials' order; one with no runs has none", async () => {
+    const slowpoke = {
+      steamId: p(4),
+      persona: "Slowpoke",
+      avatar: "https://avatars.example.invalid/4_medium.jpg",
+    };
+    expect(await trialTops(t.db)).toEqual([
+      { board: "Map_TheTower", runs: 3, record: 42_514_900, holder: slowpoke },
+      { board: "Map_TheTowerCP", runs: 1, record: 44_502_500, holder: slowpoke },
+      { board: "Map_LethTrial_01", runs: 0, record: null, holder: null },
     ]);
   });
 });
@@ -337,6 +353,7 @@ describe("a player", () => {
       profileUrl: `https://steamcommunity.com/profiles/${p(1)}/`,
     });
     expect(data?.finishes.map((f) => [f.board, f.rank, f.score, f.lead, f.field])).toEqual([
+      ["Map_TheTower", 2, 44_273_200, 42_514_900, 3],
       ["Map_Track13", 1, 1_013_307, 1_013_307, 6],
       ["Map_Track15", 2, 1_900_000, 1_800_000, 3],
       ["OverallLeaderboard_AllSeasons", 1, 61450, 61450, 8],
@@ -355,17 +372,52 @@ describe("the Players counts", () => {
   test("Circuit and Workshop records, podiums and top 5s over the listed Maps", async () => {
     const s = await standings(t.db);
     expect(s.tracks).toBe(20);
+    expect(s.trials).toBe(3);
     expect(s.maps).toBe(2);
+    // the Towers count on the Circuit side: p4 holds both records, p1 and p7 a podium
     expect(s.players).toEqual([
-      [p(1), "Rolling Rae", 1, 0, 2, 1, 2, 1, 1],
+      [p(1), "Rolling Rae", 1, 0, 3, 1, 3, 1, 1],
       [p(2), "Justy Sparks", 1, 0, 2, 1, 2, 1, 1],
-      [p(4), "Slowpoke", 0, 0, 0, 0, 1, 0, 0],
+      [p(4), "Slowpoke", 2, 0, 2, 0, 3, 0, 0],
       [p(5), "Tie Breaker", 0, 0, 1, 0, 1, 0, 0],
-      [p(7), "Steady Ed", 0, 0, 0, 0, 1, 0, 0],
+      [p(7), "Steady Ed", 0, 0, 1, 0, 2, 0, 0],
       [p(8), "Points Pat", 0, 0, 1, 0, 1, 0, 0],
       [p(9), "Ninth", 0, 1, 0, 1, 0, 1, 1],
       [p(10), "Tenpin", 0, 1, 0, 2, 0, 2, 2],
     ]);
+  });
+
+  test("Leth Trial #1, an Event board, counts on the Circuit side too", async () => {
+    await t.db
+      .transaction(async (tx) => {
+        const db = tx as unknown as typeof t.db;
+        await db.insert(boards).values({
+          name: "Map_LethTrial_01",
+          kind: "event",
+          display: "Leth Trial #1",
+          leaderboardId: 20899741,
+          scoresPoints: false,
+        });
+        await db.insert(entries).values(
+          [p(9), p(3)].map((steamId, i) => ({
+            board: "Map_LethTrial_01",
+            steamId,
+            score: 9_000_000 + i,
+            ugcId: null,
+            firstSeenRefresh: 3,
+            lastSeenRefresh: 3,
+            closedRefresh: null,
+          })),
+        );
+        const s = await standings(db);
+        // p9, a Workshop-only player, gains a Circuit record; p3 gains a podium
+        expect(s.players.find((r) => r[0] === p(9))).toEqual([p(9), "Ninth", 1, 1, 1, 1, 1, 1, 1]);
+        expect(s.players.find((r) => r[0] === p(3))?.slice(2, 7)).toEqual([0, 0, 1, 0, 1]);
+        tx.rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof TransactionRollbackError)) throw e;
+      });
   });
 });
 
