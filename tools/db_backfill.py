@@ -13,7 +13,7 @@ the same writer the collector uses, as one Refresh with source 'backfill', dated
 commit time and carrying its SHA. Each snapshot is its own transaction.
 
 What a snapshot counts as read: every Circuit board in BOARDS that has a file (a derived
-board, or one no longer in BOARDS such as the parked Map_TheTower, is skipped), and only
+board, or one no longer in BOARDS, is skipped; Map_TheTower's early snapshots are read), and only
 the Maps whose board file changed in that commit or first appears in it. A Map file that
 did not change says nothing about whether the collector read it, so it is left unread,
 as the collector leaves a Map it did not read. Map metadata comes from that commit's
