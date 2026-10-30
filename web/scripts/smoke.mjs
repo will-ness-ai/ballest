@@ -70,12 +70,20 @@ const ROUTES = [
   ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
   ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
   ["/og/campaign/solar-trials", 200, null, "PNG"],
-  // the Leth Trials, pinned, of one Event board
-  ["/campaign/leth-trials", 200, null, "Lethamyr"],
-  ["/campaign/leth-trials/leth-trial-1", 200, null, "Ghost viewer"],
+  // Leth Trial #1, an Event board, is a Trial: its board page links its ghost viewer, and
+  // the Leth Trials Campaign it was the one Map of is gone, its paths landing there
+  ["/board/Map_LethTrial_01", 200, null, "Ghost viewer"],
+  ["/board/Map_LethTrial_01", 200, null, "Twizzle"],
   ["/api/board/Map_LethTrial_01?from=0&count=3", 200, null, "Twizzle"],
-  // a row after the Event's id is marked on the Event's board: Slowpoke's plate
-  ["/campaign/leth-trials/leth-trial-1/76561199000000004", 200, null, 'class="plate focus"'],
+  // a row on it is marked: Slowpoke's plate
+  ["/board/Map_LethTrial_01/76561199000000004", 200, null, 'class="plate focus"'],
+  ["/campaign/leth-trials", 308, "/board/Map_LethTrial_01"],
+  ["/campaign/leth-trials/leth-trial-1", 308, "/board/Map_LethTrial_01"],
+  [
+    "/campaign/leth-trials/leth-trial-1/76561199000000004",
+    308,
+    "/board/Map_LethTrial_01/76561199000000004",
+  ],
   ["/campaign/solar-trials/3805399883/76561199000000004", 404],
   ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
   ["/campaign/ajc", 200, null, SOFT_404],
@@ -168,10 +176,10 @@ const ROUTES = [
   // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
   // its own
   [
-    "/campaign/leth-trials/leth-trial-1",
+    "/board/Map_LethTrial_01/76561199000000004",
     200,
     null,
-    '<link rel="canonical" href="https://ballestrecords.com/campaign/leth-trials"',
+    '<link rel="canonical" href="https://ballestrecords.com/board/Map_LethTrial_01"',
   ],
   [
     "/player/" + P1 + "/circuit",

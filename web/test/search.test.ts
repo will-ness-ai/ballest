@@ -205,7 +205,16 @@ describe("the other kinds", () => {
       board("Map_Track_S2_TinyTower", "Season 2", "07 Tiny Tower", 400),
       board("Map_TheTower", "Trials", "The Tower", 90),
       board("Map_TheTowerCP", "Trials", "The Tower (Checkpoints)", 30),
+      board("Map_LethTrial_01", "Trials", "Leth Trial #1", 120),
     ];
+    expect(kind("leth", { boards }, "tracks")).toEqual([
+      expect.objectContaining({
+        href: "/board/Map_LethTrial_01",
+        title: "Leth Trial #1",
+        tag: "Trial",
+        img: "/leth/screenshot.jpg",
+      }),
+    ]);
     expect(kind("the tower", { boards }, "tracks")).toEqual([
       expect.objectContaining({
         href: "/board/Map_TheTower",

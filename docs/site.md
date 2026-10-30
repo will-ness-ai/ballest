@@ -50,7 +50,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
   for a path that can't be a page, and the redirects (`/leth`, a scope-only Players path,
-  a player against themselves).
+  a player against themselves, the old Leth Trials Campaign's paths).
 - `web/app/styles/` — the stylesheet, split by view and imported in order by
   `app/layout.tsx`. Every color is a custom property on `:root`; the theme is dark-only.
   Font sizes are in rem, written `calc(Nrem / 16)` with N the design's px, so text follows
@@ -277,11 +277,15 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the Official Section (key `circuit`), which
-  opens the newest season's Overall board, and its own season among the sub-tabs. A Tower's
-  board (`/board/Map_TheTower`, `/board/Map_TheTowerCP`) is a Trial: it lights the Trials
-  sub-tab, is titled by its name, has no season tabs, and its rail (the sheet on a phone)
-  lists the three Trials with each one's record and runs (`TrialRailItems`, from
-  `trialTops`). The seasons, newest first then All Seasons (`seasonsOf` in
+  opens the newest season's Overall board, and its own season among the sub-tabs. A Trial's
+  board (`/board/Map_TheTower`, `/board/Map_TheTowerCP`, and `/board/Map_LethTrial_01`, an
+  Event board the Trials group of `CIRCUIT` holds too) lights the Trials sub-tab, is titled
+  by its name, has no season tabs, and its rail (the sheet on a phone) lists the three
+  Trials with each one's record and runs (`TrialRailItems`, from `trialTops`). Its card
+  shows the Trial's picture once there is one, and an Event board's links its own static
+  page, Leth Trial #1's the ghost viewer at `/leth/`. Leth Trial #1 was the Leth Trials
+  Campaign's one Map until it became a Trial: the proxy 308s `/campaign/leth-trials` and
+  anything under it to its board, a row marked after `leth-trial-1` still marked. The seasons, newest first then All Seasons (`seasonsOf` in
   `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
@@ -289,7 +293,7 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
   as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
   its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
-  page). Lights the Campaigns Section. The proxy 404s a slug that
+  page; no curated Campaign holds an Event board now). Lights the Campaigns Section. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
@@ -421,8 +425,9 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
-**Event boards and pinning.** A Campaign's `maps` may also name an Event board (GLOSSARY.md)
-by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
+**Event boards and pinning.** No curated Campaign holds one since Leth Trial #1 became a
+Trial (under "Pages": `/board/<board name>`), but a Campaign's `maps` may still name an Event
+board (GLOSSARY.md) by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
 screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
 since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
 from the site's root, and the share card fetches it from production) and the folder of the
@@ -436,8 +441,8 @@ crawlers off a Campaign's slots, so the Campaign's page is the one indexed. Its 
 its open Entries: the collector reads a board whole, so that is Steam's count give or take a
 run Steam dropped. The board API serves it by name; a player's own finishes leave it out, since their
 place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
-Campaigns are (`getCampaigns`), whatever its player count: the Leth Trials, Leth Trial #1's
-Campaign, is. `stress` reads its Event board, so its builds list it first.
+Campaigns are (`getCampaigns`), whatever its player count; none is now. `stress` reads Leth
+Trial #1's Event board, so its builds' Trial page and card have runs.
 
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and

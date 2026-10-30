@@ -3,7 +3,8 @@
 // across the top, the history card and plates, and the list. `slot` is what follows the board's
 // name in its path: a Steam ID whose row to find and mark, or on an Overall board
 // "podiums" for its podium order. A Trial's board is drawn as a Track's, with no season
-// tabs, named rather than numbered, and the Trials in its rail.
+// tabs, named rather than numbered, and the Trials in its rail; Leth Trial #1's, an Event
+// board read once, too.
 import { notFound } from "next/navigation";
 
 import { BoardBody } from "./BoardBody";
@@ -28,7 +29,7 @@ import {
 } from "../../db/data";
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
-import { TRACKS, TRIALS_GROUP, circuitBoard, trackNo } from "../../lib/circuit";
+import { TRACKS, TRIALS_GROUP, circuitBoard, trackNo, trialOf } from "../../lib/circuit";
 import { seasonsOf } from "../../lib/player";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { podiumRows } from "../../lib/podiums";
@@ -95,7 +96,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
           <div className="boardrow">
             <SeasonChip seasons={seasons} on={b.group} board={name} />
             <BoardSheet
-              img={t?.img ?? null}
+              img={t?.img ?? trialOf(name)?.picture ?? null}
               name={points || trial ? b.display : trackNo(b.display)}
               count={countText(b)}
               group={b.group}

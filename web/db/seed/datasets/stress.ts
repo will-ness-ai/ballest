@@ -1,8 +1,8 @@
 // tiny, plus the data that strains a layout: a player with a long name holding a five-digit
 // rank, a Map with a long title, one Map of a curated Campaign (Solar Trials' first,
 // lib/campaigns.ts), so that Campaign is listed with one of its nine Maps and its pages,
-// the carousel and the long-named player's Campaigns shelf have something to draw, and the
-// Leth Trials' Event board, read, so the pinned Campaign is listed first. `pnpm qa`
+// the carousel and the long-named player's Campaigns shelf have something to draw, and
+// Leth Trial #1's Event board, read, so its Trial page and card have runs. `pnpm qa`
 // checks a local build seeded with it (scripts/qa/catalogue.mjs names these IDs); tiny's
 // own rows are untouched, so every page tiny's comments describe still reads the same, with
 // more players below on the Overall board.
@@ -30,7 +30,7 @@ const TITLE = "Rocky Alpine but backwards or something like that";
 /* Solar Trials' first Map: p11 1st, p1 2nd, p2 3rd */
 const CAMPAIGN_PFID = "3805399883";
 const CAMPAIGN_MAP = "Workshop_" + CAMPAIGN_PFID;
-/* the Leth Trials' Event board (lib/campaigns.ts, EVENTS): p11 1st, p4 2nd, p10 3rd */
+/* Leth Trial #1's Event board (lib/campaigns.ts, EVENTS), a Trial: p11 1st, p4 2nd, p10 3rd */
 const EVENT = "Map_LethTrial_01";
 
 const id = (n: number) => `7656119900${String(n).padStart(7, "0")}`;

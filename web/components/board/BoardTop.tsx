@@ -11,8 +11,8 @@ import { YouSpread } from "./YouSpread";
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
-import { eventOf, unitOf } from "../../lib/campaigns";
-import { TRACKS, trackNo } from "../../lib/circuit";
+import { eventOf, eventOfBoard, unitOf } from "../../lib/campaigns";
+import { TRACKS, trackNo, trialOf } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
@@ -111,10 +111,14 @@ export function TrackCard({
   scores: ReadonlyArray<number>;
 }) {
   const t = TRACKS[b.name] as (typeof TRACKS)[string] | undefined;
+  /* a Trial's picture, once there is one; an Event board's links its own page beside the
+     site, Leth Trial #1's ghost viewer */
+  const pic = t?.img ?? trialOf(b.name)?.picture ?? null;
+  const event = eventOfBoard(b.name);
   const lead = rows[0] as BoardRow | undefined;
   return (
-    <div className={t ? "bcard" : "bcard nopic"} id="bcard">
-      {t && <img className="bc-pic" src={t.img} alt="" />}
+    <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
+      {pic && <img className="bc-pic" src={pic} alt="" />}
       <div className="bc-body">
         <div className="bc-top">
           <div>
@@ -122,6 +126,12 @@ export function TrackCard({
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
+              {event && (
+                <>
+                  {" · "}
+                  <a href={viewerHref(event.viewer)}>Ghost viewer</a>
+                </>
+              )}
             </span>
           </div>
           <Facts

@@ -48,11 +48,14 @@ describe("sitemapOf", () => {
         "/campaign/solar-trials",
         "/trials",
         ...CIRCUIT.map((b) => "/board/" + b.name),
-        /* the Towers' pages, as Trials */
+        /* the Trials' pages: the Towers and Leth Trial #1 */
         "/board/Map_TheTower",
         "/board/Map_TheTowerCP",
+        "/board/Map_LethTrial_01",
       ]),
     );
+    /* Leth Trial #1 is a Trial now, and its old Campaign only redirects there */
+    expect(paths.filter((p) => p.startsWith("/campaign/leth-trials"))).toEqual([]);
     expect(new Set(paths).size).toBe(paths.length);
   });
 

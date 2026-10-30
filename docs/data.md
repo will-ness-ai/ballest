@@ -36,7 +36,8 @@ Open in Neon.
   board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is read by the
   Refreshes until one reads it ok (`read_events` over `events_due`, from the
   collector's memory), and
-  never again, so its Entries are never closed. A failed one never fails the Refresh.
+  never again, so its Entries are never closed. A failed one never fails the Refresh. Leth
+  Trial #1's, the one so far, is the third Trial: the site draws it as the Towers are.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.
 - `players` and `persona_history`: the current profile, and every persona with the first
