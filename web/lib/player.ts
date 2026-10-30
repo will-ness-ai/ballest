@@ -114,8 +114,10 @@ export interface PlayerRecord {
   run: number;
   tracks: number;
   seasons: Array<SeasonRecord>;
-  /* every Trial, in the Trials' order, with this player's finish or none */
+  /* every Trial, in the Trials' order, with this player's finish or none, and how many of
+     them they have run */
   trials: Array<TrialTile>;
+  trialsRun: number;
   workshop: {
     finishes: Array<WorkshopFinish>;
     medals: Record<MedalKey, number>;
@@ -303,6 +305,7 @@ export function playerRecord(
     tracks: tracks.length,
     seasons,
     trials,
+    trialsRun: trials.filter((t) => t.finish).length,
     workshop: {
       finishes,
       medals: byMedal,

@@ -30,7 +30,7 @@ const TABS: ReadonlyArray<{
   {
     key: "official",
     label: "Official",
-    count: (rec) => rec.run + rec.trials.filter((t) => t.finish).length,
+    count: (rec) => rec.run + rec.trialsRun,
   },
   { key: "workshop", label: "Workshop", count: (rec) => rec.workshop.finishes.length },
   {
@@ -125,7 +125,7 @@ function Season({ s, id }: { s: SeasonRecord; id: string }) {
 
 /* the Trials after the seasons, drawn as a season is but with no points (grill-design
    round 3, A) */
-function Trials({ trials, id }: { trials: ReadonlyArray<TrialTile>; id: string }) {
+function Trials({ rec }: { rec: PlayerRecord }) {
   return (
     <section className="pseason">
       <div className="pslab">
@@ -135,13 +135,13 @@ function Trials({ trials, id }: { trials: ReadonlyArray<TrialTile>; id: string }
         <span className="ptlab">
           Trials run
           <span className="ptsum">
-            <b>{fmtN(trials.filter((t) => t.finish).length)}</b>
-            {" of " + fmtN(trials.length)}
+            <b>{fmtN(rec.trialsRun)}</b>
+            {" of " + fmtN(rec.trials.length)}
           </span>
         </span>{" "}
         <div className="pgrid">
-          {trials.map((x) => (
-            <Tile key={x.name} t={x} id={id} />
+          {rec.trials.map((x) => (
+            <Tile key={x.name} t={x} id={rec.id} />
           ))}
         </div>
       </div>
@@ -185,7 +185,7 @@ function OfficialTab({ rec }: { rec: PlayerRecord }) {
       {rec.seasons.map((s) => (
         <Season key={s.group} s={s} id={rec.id} />
       ))}{" "}
-      <Trials trials={rec.trials} id={rec.id} />
+      <Trials rec={rec} />
     </>
   );
 }

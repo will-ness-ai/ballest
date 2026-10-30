@@ -69,7 +69,7 @@ export function playerCounts(rec: PlayerRecord) {
     gold: earned("gold"),
     silver: earned("silver"),
     bronze: earned("bronze"),
-    finished: rec.run + rec.trials.filter((t) => t.finish).length + ws.finishes.length,
+    finished: rec.run + rec.trialsRun + ws.finishes.length,
     made: rec.made.length,
   };
 }

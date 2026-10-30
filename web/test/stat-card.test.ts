@@ -40,6 +40,7 @@ function record({ s1, s2, tracks = [], finishes = [] }: Shape): PlayerRecord {
     medals: { gold: tracks.filter((t) => t.finish?.rank === 1).length, silver: 0, bronze: 0 },
     run: tracks.filter((t) => t.finish).length,
     trials: [],
+    trialsRun: 0,
     made: [],
     seasons: [season("Season 2", s2, tracks.slice(0, 2)), season("Season 1", s1, tracks.slice(2))],
     workshop: {

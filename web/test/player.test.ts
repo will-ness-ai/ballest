@@ -106,7 +106,9 @@ describe("a player's record", () => {
 
   test("each Trial's finish, in the Trials' order, or none", async () => {
     // p1 is 2nd of 3 on The Tower and has no time on the other two
-    expect((await record(1)).trials).toEqual([
+    const r = await record(1);
+    expect(r.trialsRun).toBe(1);
+    expect(r.trials).toEqual([
       {
         name: "Map_TheTower",
         display: "The Tower",
@@ -123,7 +125,7 @@ describe("a player's record", () => {
     const r = await record(4);
     expect(r.medals).toEqual({ gold: 2, silver: 0, bronze: 0 });
     expect(r.golds).toEqual(["The Tower", "The Tower (Checkpoints)"]);
-    expect([r.run, r.tracks]).toEqual([1, 20]);
+    expect([r.run, r.tracks, r.trialsRun]).toEqual([1, 20, 2]);
   });
 
   test("Leth Trial #1's Event board comes through as a Trial", async () => {
