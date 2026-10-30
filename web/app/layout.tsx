@@ -30,7 +30,7 @@ import "./styles/generators.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =
-  "Workshop, Circuit and Daily leaderboards for Ballest of Them All, with every world record and player, read straight from Steam.";
+  "Ballest of Them All leaderboards and records: every world record and player on the Workshop, Circuit and Daily boards, read straight from Steam.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
