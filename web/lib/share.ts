@@ -1,7 +1,7 @@
 // What a page's share image says (docs/site.md, "Share images"): the link-preview card a
-// player, a Map, a Circuit Track or a Trial, a Daily, a Campaign or a Prefab unfurls with in Discord and
-// elsewhere. Pure, so the rules a card follows are tested here; components/share draws a
-// ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
+// player, a Map, a Circuit Track or a Trial, a Daily, a Campaign or a Prefab unfurls with in
+// Discord and elsewhere. Pure, so the rules a card follows are tested here; components/share
+// draws a ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
 // prototype branch claude/prototype-og; the Campaign's in spec #206).
 import type { Campaign } from "./campaigns";
 import type { CircuitBoard } from "./circuit";
