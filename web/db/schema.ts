@@ -307,6 +307,38 @@ export const prefabFavorites = pgTable(
   (t) => [primaryKey({ columns: [t.prefabId, t.steamId] })],
 );
 
+// A heart, an unheart or an edit a signed-in player made to a Prefab, kept an hour to hold
+// them to HOURLY_PREFAB_WRITES (lib/prefabs.ts): each one expires the cached Prefab reads, so
+// one account, or one script with a game token, can't keep expiring them (ADR 0016).
+export const prefabWrites = pgTable(
+  "prefab_writes",
+  {
+    steamId: text("steam_id").notNull(),
+    writtenAt: timestamp("written_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("prefab_writes_player").on(t.steamId, t.writtenAt),
+    /* the hour's pruning finds old rows by time alone */
+    index("prefab_writes_at").on(t.writtenAt),
+  ],
+);
+
+// A sign-in from the game, by the address it came from, kept an hour to hold an address to
+// HOURLY_GAME_SIGN_INS (db/game-sign-in.ts): each one costs a call on the site's Steam Web API
+// key, whose daily quota is all the game's sign-in has (ADR 0016).
+export const gameSignIns = pgTable(
+  "game_sign_ins",
+  {
+    address: text("address").notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("game_sign_ins_address").on(t.address, t.signedAt),
+    /* the hour's pruning and the cap on everyone find rows by time alone */
+    index("game_sign_ins_at").on(t.signedAt),
+  ],
+);
+
 // A player the admin has stopped uploading. Their Prefabs read as hidden while the row is here.
 export const prefabBans = pgTable("prefab_bans", {
   steamId: text("steam_id").primaryKey(),

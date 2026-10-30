@@ -221,7 +221,12 @@ default; `docs/site.md`, "Prefabs"), and `deleted_at` / `taken_down_at`, which h
 without removing the row (it still counts against the uploader's hourly limit).
 `prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
 stopped uploading; the reads hide their Prefabs while the row is there. `prefab_limits` is a
-player the admin gave their own hourly upload limit in place of the 5; no row is the default. `tiny` seeds two
+player the admin gave their own hourly upload limit in place of the 5; no row is the default.
+`prefab_writes` is one row per edit and per heart added or taken back, which the limit
+of 60 in a rolling hour per player counts and prunes; `game_sign_ins` is one row per sign-in
+from the game by the address it came from (an IPv6 one by its /64), held to 30 an hour
+per address and 2,000 in all the same way (ADR 0016). Both
+hold only the last hour. `tiny` seeds two
 Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
 from before uploads) to a database once, idempotently.
 
