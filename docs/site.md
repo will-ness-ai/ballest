@@ -29,7 +29,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     results are grouped under the filter chips ("Search").
   - `circuit.ts`, the Official Section's fixed facts: the board order (the in-game
     numbering), the Season 2 tiers, each Track's screenshot and Medal times, and the Trials
-    (`TRIALS`: each one's board, title, picture and page).
+    (`TRIALS`, CIRCUIT's Trials group with each one's blurb and picture), and what a page calls
+    a board and draws it with (`boardTitle`, `boardPicture`).
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
@@ -189,8 +190,8 @@ rendering it again (it was last drawn from a small page in Chromium at 1200×630
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
   Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
   left out.
-- A Map, Track or Daily gets its picture across the top (the Workshop preview, or the
-  Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
+- A Map, Track or Daily gets its picture across the top (the Workshop preview, the
+  Track's screenshot, or a Trial's picture once it has one, `boardShot`), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
 - A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
   previews side by side as the band (`CAMPAIGN_MAX_PICTURES`), a missing one a blank slice;
