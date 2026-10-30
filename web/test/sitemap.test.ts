@@ -47,6 +47,9 @@ describe("sitemapOf", () => {
         "/campaigns",
         "/campaign/solar-trials",
         ...CIRCUIT.map((b) => "/board/" + b.name),
+        /* the Towers' pages, as Trials */
+        "/board/Map_TheTower",
+        "/board/Map_TheTowerCP",
       ]),
     );
     expect(new Set(paths).size).toBe(paths.length);

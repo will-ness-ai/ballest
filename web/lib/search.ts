@@ -2,7 +2,7 @@
 // Map makers, Maps, Campaigns, Circuit Tracks, Dailies and Prefabs, how each hit scores, and
 // how the results are grouped under the filter chips. Pure: the route hands it what it read.
 import type { CampaignSummary } from "./campaigns";
-import { TRACKS } from "./circuit";
+import { TRACKS, TRIALS_GROUP, trialOf } from "./circuit";
 import type { IndexBoard } from "./player";
 import type { DailyCell, NameHit } from "./rows";
 import {
@@ -168,24 +168,27 @@ function campaigns(q: string, list: SearchSources["campaigns"]): Array<Hit> {
   });
 }
 
-/* a Circuit board by its number or nickname ("08", "Downhill"), or its season with it */
+/* an Official board: a Circuit board by its number or nickname ("08", "Downhill"), or its
+   season with it, and a Trial by its name, which alone titles it */
 function tracks(q: string, boards: SearchSources["boards"]): Array<Hit> {
   return boards.flatMap((b) => {
     const tier = Math.max(tierOf(b.display, q), Math.min(2, tierOf(b.group + " " + b.display, q)));
-    return tier
-      ? [
-          {
-            kind: "tracks" as const,
-            href: boardHref(b.name),
-            title: b.group + " · " + b.display,
-            meta: plural(b.entryCount, "player", "players"),
-            tag: "Circuit",
-            img: b.name in TRACKS ? TRACKS[b.name].img : null,
-            who: null,
-            score: scoreOf(tier, b.entryCount),
-          },
-        ]
-      : [];
+    if (!tier) return [];
+    const trial = b.group === TRIALS_GROUP;
+    return [
+      {
+        kind: "tracks" as const,
+        href: boardHref(b.name),
+        title: trial ? b.display : b.group + " · " + b.display,
+        meta: trial
+          ? plural(b.entryCount, "run", "runs")
+          : plural(b.entryCount, "player", "players"),
+        tag: trial ? "Trial" : "Circuit",
+        img: b.name in TRACKS ? TRACKS[b.name].img : (trialOf(b.name)?.picture ?? null),
+        who: null,
+        score: scoreOf(tier, b.entryCount),
+      },
+    ];
   });
 }
 
@@ -265,7 +268,7 @@ const HEADING: Record<SearchKind, string> = {
   people: "Players and makers",
   campaigns: "Campaigns",
   maps: "Maps",
-  tracks: "Circuit",
+  tracks: "Official",
   dailies: "Dailies",
   prefabs: "Prefabs",
 };

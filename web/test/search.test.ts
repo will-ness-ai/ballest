@@ -200,6 +200,26 @@ describe("the other kinds", () => {
     ]);
   });
 
+  test("a Trial by its name, titled by it alone, the two Towers apart", () => {
+    const boards = [
+      board("Map_Track_S2_TinyTower", "Season 2", "07 Tiny Tower", 400),
+      board("Map_TheTower", "Trials", "The Tower", 90),
+      board("Map_TheTowerCP", "Trials", "The Tower (Checkpoints)", 30),
+    ];
+    expect(kind("the tower", { boards }, "tracks")).toEqual([
+      expect.objectContaining({
+        href: "/board/Map_TheTower",
+        title: "The Tower",
+        meta: "90 runs",
+        tag: "Trial",
+      }),
+      expect.objectContaining({ href: "/board/Map_TheTowerCP", title: "The Tower (Checkpoints)" }),
+    ]);
+    expect(kind("checkpoints", { boards }, "tracks").map((h) => h.href)).toEqual([
+      "/board/Map_TheTowerCP",
+    ]);
+  });
+
   const daily = (date: string, title: string, entryCount = 4) => ({
     date,
     pfid: "9000000001",

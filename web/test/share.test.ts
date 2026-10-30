@@ -136,6 +136,25 @@ describe("a place's card", () => {
     expect(trackCard(overall, await topOf(overall.name))).toBeNull();
   });
 
+  test("a Trial: its record, its field, the record's lead and the median time", async () => {
+    const b = circuitBoard("Map_TheTower");
+    if (!b) throw new Error("no Tower");
+    const c = trackCard(b, await topOf("Map_TheTower"));
+    expect(c?.kicker).toBe("Official · Trial");
+    expect(c?.title).toBe("The Tower");
+    expect(c?.headline).toEqual({
+      value: "7:05.149",
+      label: "World record · Slowpoke",
+      tone: "gold",
+    });
+    // 7:05.149, 7:22.732, 8:20.000: 2nd is 17.583 s behind, and the median is 2nd's time
+    expect(c?.tiles).toEqual([
+      { value: "3", label: "Players" },
+      { value: "0:17.583", label: "Lead over 2nd", tone: "gold" },
+      { value: "7:22.732", label: "Median time" },
+    ]);
+  });
+
   test("a Daily: the fastest time, live or final alike, and its Gold time", async () => {
     const d = await dailyDay(t.db, "2026-08-30");
     if (!d) throw new Error("no Daily");
