@@ -55,7 +55,7 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
-/* an Event's own static page beside the site (EventBoard's viewer), such as /leth/ */
+/* an Event's own static page beside the site (a Trial's viewer, lib/circuit.ts), such as /leth/ */
 export const viewerHref = (folder: string) => "/" + folder + "/";
 
 /* every Campaign, as banners */

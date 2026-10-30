@@ -3,7 +3,6 @@
 // Event board is read once and never again, so it says it is closed.
 import Link from "next/link";
 
-import { eventOfBoard } from "../../lib/campaigns";
 import { TRIALS } from "../../lib/circuit";
 import type { TrialTop } from "../../lib/rows";
 import { fmtTime, plural } from "../../lib/rules";
@@ -31,7 +30,7 @@ export function TrialRailItems({
             <span className="rt">{top?.record != null ? fmtTime(top.record) : "No times yet"}</span>{" "}
             <small>
               {runs}
-              {eventOfBoard(t.board) ? " · closed" : ""}
+              {t.event ? " · closed" : ""}
             </small>
           </span>
         </span>

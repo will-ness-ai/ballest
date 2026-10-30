@@ -30,7 +30,7 @@ const TITLE = "Rocky Alpine but backwards or something like that";
 /* Solar Trials' first Map: p11 1st, p1 2nd, p2 3rd */
 const CAMPAIGN_PFID = "3805399883";
 const CAMPAIGN_MAP = "Workshop_" + CAMPAIGN_PFID;
-/* Leth Trial #1's Event board (lib/campaigns.ts, EVENTS), a Trial: p11 1st, p4 2nd, p10 3rd */
+/* Leth Trial #1's Event board (lib/circuit.ts, TRIALS), a Trial: p11 1st, p4 2nd, p10 3rd */
 const EVENT = "Map_LethTrial_01";
 
 const id = (n: number) => `7656119900${String(n).padStart(7, "0")}`;

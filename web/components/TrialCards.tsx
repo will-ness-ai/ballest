@@ -5,7 +5,6 @@
 import Link from "next/link";
 
 import { Marble } from "./Marble";
-import { eventOfBoard } from "../lib/campaigns";
 import { TRIALS } from "../lib/circuit";
 import type { TrialTop } from "../lib/rows";
 import { fmtTime, personaOf, plural } from "../lib/rules";
@@ -16,7 +15,7 @@ export function TrialCards({ tops }: { tops: ReadonlyArray<TrialTop> }) {
       {TRIALS.map((t) => {
         const top = tops.find((x) => x.board === t.board);
         /* an Event board is read once and never again */
-        const status = eventOfBoard(t.board) ? "Closed" : "Open";
+        const status = t.event ? "Closed" : "Open";
         return (
           <Link key={t.board} className="trc" href={t.page}>
             {t.picture ? (

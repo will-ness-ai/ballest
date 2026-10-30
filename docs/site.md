@@ -429,9 +429,9 @@ one fixed Campaign, so look at the new one's page with
 
 **Event boards and pinning.** A Campaign holds Workshop Maps only. Leth Trial #1, an Event
 board (GLOSSARY.md), was the Leth Trials Campaign's one Map until it became a Trial (under
-"Pages": `/board/<board name>`). `EVENTS` (`lib/campaigns.ts`) keeps each Event board's
-Steam board, title and the folder of the static page its Trial card links (`viewerHref`); a
-test holds it to the collector's `EVENT_BOARDS`. Its picture is the level's own screenshot
+"Pages": `/board/<board name>`). Its `TRIALS` entry (`lib/circuit.ts`) marks it an Event board (`event`,
+which the Trials list as closed) and names the folder of the static page its Trial page links
+(`viewer`, `viewerHref`); a test holds the Event boards there to the collector's `EVENT_BOARDS`. Its picture is the level's own screenshot
 from the game files, committed as `leth/screenshot.jpg` and served from the site (a JPEG, as
 the share card can't read WebP; `safeImg` takes a path from the site's root, and the share
 card fetches it from production). A Campaign with `pinned` is listed first wherever

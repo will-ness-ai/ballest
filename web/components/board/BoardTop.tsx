@@ -11,8 +11,8 @@ import { YouSpread } from "./YouSpread";
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
-import { eventOfBoard, unitOf } from "../../lib/campaigns";
-import { TRACKS, boardPicture, trackNo } from "../../lib/circuit";
+import { unitOf } from "../../lib/campaigns";
+import { TRACKS, boardPicture, trackNo, trialOf } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
@@ -110,11 +110,11 @@ export function TrackCard({
   rows: Array<BoardRow>;
   scores: ReadonlyArray<number>;
 }) {
-  /* a Trial's picture, once there is one; an Event board's links its own page beside the
-     site, Leth Trial #1's ghost viewer */
+  /* a Trial's picture, once there is one; a Trial with its own page beside the site links
+     it, Leth Trial #1's ghost viewer */
   const pic = boardPicture(b.name);
   const t = TRACKS[b.name] as (typeof TRACKS)[string] | undefined;
-  const event = eventOfBoard(b.name);
+  const viewer = trialOf(b.name)?.viewer;
   const lead = rows[0] as BoardRow | undefined;
   return (
     <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
@@ -126,10 +126,10 @@ export function TrackCard({
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
-              {event && (
+              {viewer && (
                 <>
                   {" · "}
-                  <a href={viewerHref(event.viewer)}>Ghost viewer</a>
+                  <a href={viewerHref(viewer)}>Ghost viewer</a>
                 </>
               )}
             </span>

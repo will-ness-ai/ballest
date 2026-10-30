@@ -26,23 +26,6 @@ export interface Campaign {
   collection?: string;
 }
 
-/* An Event board (GLOSSARY.md): a one-off event's Steam board, which the collector reads
-   once (EVENT_BOARDS in tools/campaign_common.py). Leth Trial #1's is a Trial now
-   (lib/circuit.ts), drawn on its own board page. */
-export interface EventBoard {
-  /* its Steam board */
-  board: string;
-  title: string;
-  /* the folder of its own static page beside the site, which its card links (viewerHref) */
-  viewer: string;
-}
-
-export const EVENTS: ReadonlyArray<EventBoard> = [
-  { board: "Map_LethTrial_01", title: "Leth Trial #1", viewer: "leth" },
-];
-
-export const eventOfBoard = (board: string) => EVENTS.find((e) => e.board === board) ?? null;
-
 /* makers of more than one Campaign, each written once */
 const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
 const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };

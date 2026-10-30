@@ -94,7 +94,7 @@ export const CIRCUIT: ReadonlyArray<CircuitBoard> = [
     display: "The Tower (Checkpoints)",
     origin: "steam",
   },
-  /* and Leth Trial #1, an Event board (lib/campaigns.ts) the collector read once, after the
+  /* and Leth Trial #1, an Event board (TRIALS) the collector read once, after the
      event closed; its page is drawn as the Towers' are */
   {
     name: "Map_LethTrial_01",
@@ -117,17 +117,42 @@ export interface Trial {
   picture: string | null;
   /* the page that draws its board */
   page: string;
+  /* an Event board (GLOSSARY.md): one event's, which the collector read once (EVENT_BOARDS in
+     tools/campaign_common.py) and never again, so it is closed; any other is read every
+     Refresh */
+  event: boolean;
+  /* the folder of its own static page beside the site, which its page links (viewerHref), or
+     null for none */
+  viewer: string | null;
 }
 
 /* what CIRCUIT doesn't say of each Trial */
-const TRIAL_FACTS: Readonly<Record<string, Pick<Trial, "blurb" | "picture">>> = {
-  Map_TheTower: { blurb: "The climb to the top, no checkpoints.", picture: null },
-  Map_TheTowerCP: { blurb: "The same climb, with checkpoints.", picture: null },
-  Map_LethTrial_01: { blurb: "Lethamyr's one-off event board.", picture: "/leth/screenshot.jpg" },
-};
+const TRIAL_FACTS: Readonly<Record<string, Pick<Trial, "blurb" | "picture" | "event" | "viewer">>> =
+  {
+    Map_TheTower: {
+      blurb: "The climb to the top, no checkpoints.",
+      picture: null,
+      event: false,
+      viewer: null,
+    },
+    Map_TheTowerCP: {
+      blurb: "The same climb, with checkpoints.",
+      picture: null,
+      event: false,
+      viewer: null,
+    },
+    /* the picture is the level's own screenshot, a JPEG, as the share card can't read WebP;
+     the viewer is its ghost viewer, /leth/ */
+    Map_LethTrial_01: {
+      blurb: "Lethamyr's one-off event board.",
+      picture: "/leth/screenshot.jpg",
+      event: true,
+      viewer: "leth",
+    },
+  };
 
 /* the Trials in the order the Trials sub-tab and rail list them: CIRCUIT's Trials group, the
-   Towers, read every Refresh, and Leth Trial #1, an Event board (lib/campaigns.ts) read once */
+   Towers, read every Refresh, and Leth Trial #1, an Event board read once */
 export const TRIALS: ReadonlyArray<Trial> = CIRCUIT.filter((b) => b.group === TRIALS_GROUP).map(
   (b) => ({
     board: b.name,

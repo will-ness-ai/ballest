@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
-import { CIRCUIT, TRACKS, TRIALS_GROUP } from "../lib/circuit";
+import { CAMPAIGNS } from "../lib/campaigns";
+import { CIRCUIT, TRACKS, TRIALS, TRIALS_GROUP } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -371,7 +371,7 @@ describe("the Circuit table", () => {
     for (const [name] of trials) expect(TRACKS[name]).toBeUndefined();
   });
 
-  test("knows the collector's Event boards, by the names and titles it writes", () => {
+  test("knows the collector's Event boards as Trials, by the names and titles it writes", () => {
     // EVENT_BOARDS = {\n    "<board>": (<leaderboard id>, "<title>"),\n ...\n}: the lines
     // between its opening line and the closing brace at the start of a line
     const start = py.indexOf("\nEVENT_BOARDS = {\n");
@@ -381,7 +381,13 @@ describe("the Circuit table", () => {
       m[2],
     ]);
     expect(start, "EVENT_BOARDS not found in campaign_common.py").toBeGreaterThan(0);
-    expect(EVENTS.map((e) => [e.board, e.title])).toEqual(events);
+    expect(TRIALS.filter((t) => t.event).map((t) => [t.board, t.title])).toEqual(events);
+    /* an Event board links its own page beside the site; a Tower has none */
+    expect(TRIALS.map((t) => [t.board, t.viewer])).toEqual([
+      ["Map_TheTower", null],
+      ["Map_TheTowerCP", null],
+      ["Map_LethTrial_01", "leth"],
+    ]);
   });
 
   test("names them as the collector does (display_name, track_tier)", () => {
