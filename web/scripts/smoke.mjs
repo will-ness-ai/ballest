@@ -42,7 +42,7 @@ const ROUTES = [
   // /trials: a card per Trial, each with its record's holder and runs
   ["/trials", 200, null, "Slowpoke"],
   ["/trials", 200, null, 'href="/board/Map_TheTowerCP"'],
-  ["/trials", 200, null, "Closed · 0 runs"],
+  ["/trials", 200, null, "Leth Trial #1"],
   ["/api/search?q=the%20tower", 200, null, "Map_TheTowerCP"],
   ["/board/Map_Nope", 404],
   ["/board/Map_Track13/nope", 404],
