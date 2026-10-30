@@ -27,8 +27,9 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     page the reader came from as its parent ("How a page opens").
   - `search.ts`, the site search: what a query finds, how each hit scores, and how the
     results are grouped under the filter chips ("Search").
-  - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
-    Season 2 tiers, each Track's screenshot and Medal times.
+  - `circuit.ts`, the Official Section's fixed facts: the board order (the in-game
+    numbering), the Season 2 tiers, each Track's screenshot and Medal times, and the Trials
+    (`TRIALS`: each one's board, title, picture and page).
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
@@ -170,8 +171,9 @@ from another skin's alpha so every edge matches.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track, a Daily, a Campaign and a Prefab each unfurl
-with their own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+A player, a Workshop Map, a Circuit Track or a Trial, a Daily, a Campaign and a Prefab each
+unfurl with their own 1200×630 card (a Trial's, with no Medal times, gives its record, field,
+the record's lead over 2nd and the median time, under `kind` `track`) (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
 card says, `components/share/` draws it through `next/og`, `pageMetadata`
 (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
 (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
@@ -274,8 +276,12 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
-  cannot collide. Every Circuit board lights the Circuit Section, which opens the newest
-  season's Overall board, and its own season among the sub-tabs. The seasons, newest first then All Seasons (`seasonsOf` in
+  cannot collide. Every Circuit board lights the Official Section (key `circuit`), which
+  opens the newest season's Overall board, and its own season among the sub-tabs. A Tower's
+  board (`/board/Map_TheTower`, `/board/Map_TheTowerCP`) is a Trial: it lights the Trials
+  sub-tab, is titled by its name, has no season tabs, and its rail (the sheet on a phone)
+  lists the three Trials with each one's record and runs (`TrialRailItems`, from
+  `trialTops`). The seasons, newest first then All Seasons (`seasonsOf` in
   `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
@@ -525,14 +531,15 @@ The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's vari
 
 - **The bar**: the wordmark and You's card, with the site search between them ("Search").
 - **The Sections** (`GLOSSARY.md`), as tabs with icons, the current one underlined in lime:
-  Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
+  Maps (the homepage), Campaigns, Daily, Official (its newest season's Overall board),
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
   out.
 - **The Section's sub-tabs**, as pills, the current one lit: Featured / All Maps; All
   Campaigns and the pinned Campaigns (`navCampaigns`); Today / Standings; each
-  season; Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
+  season, then Trials (`/trials`); Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
   Section lights one: a Map lights All Maps, a Campaign's Map its Campaign (or All Campaigns
-  when the sub-tabs don't name it), a Circuit board its own season, a player's page and a
+  when the sub-tabs don't name it), a Circuit board its own season, a Trial's board Trials,
+  a player's page and a
   head to head the Rankings.
 
 What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
@@ -565,8 +572,8 @@ browser can tell, so a signed-in visitor never sees Sign in first.
 
 ## Search
 
-One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks, Dailies
-and Prefabs (spec #339, round 2's filter chips; ticket #342).
+One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks and Trials
+(under Official; a Trial by its name alone), Dailies and Prefabs (spec #339, round 2's filter chips; ticket #342).
 
 - **The read**: `GET /api/search?q=` (`app/api/search/route.ts`). The query is trimmed,
   lowercased and cut to 64 characters (`searchTerm`), and an empty one answers `null`. Players

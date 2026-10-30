@@ -31,8 +31,10 @@ Open in Neon.
   Refreshes or says when the boards were refreshed leaves the Daily reads out.
 - `boards`: every Steam board, Tracks, Overall boards, each Map's, each Daily's and each
   Event board's, with its kind, Season, display name, leaderboard ID and whether it scores
-  points. An Event board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is
-  read by the Refreshes until one reads it ok (`read_events` over `events_due`, from the
+  points. The two Tower boards are Trials (`GLOSSARY.md`): `kind = 'track'` with Season
+  `Trials`, read every Refresh as a Track is, and in no Overall board's points. An Event
+  board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is read by the
+  Refreshes until one reads it ok (`read_events` over `events_due`, from the
   collector's memory), and
   never again, so its Entries are never closed. A failed one never fails the Refresh.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
