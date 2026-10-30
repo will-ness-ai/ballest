@@ -351,24 +351,6 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
-/* What a Map card shows of each Event board in `names` with open Entries: its runs (the
-   collector reads a board whole, so its open Entries are Steam's count, give or take a run
-   Steam dropped), its top three and the gap from 1st to 3rd */
-export async function eventBoards(
-  db: Db,
-  names: ReadonlyArray<string>,
-): Promise<
-  Array<{ board: string; runs: number; top3: WorkshopMap["top3"]; gap13: number | null }>
-> {
-  if (!names.length) return [];
-  return rows(
-    db,
-    sql`select s.board, s.runs, s.top3, s.gap13::float8 as gap13
-      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
-      join boards b on b.name = s.board and b.kind = 'event'`,
-  );
-}
-
 /* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
    the site holds none */
 export async function mapFile(

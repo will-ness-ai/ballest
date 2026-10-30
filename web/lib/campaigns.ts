@@ -7,7 +7,7 @@
 // read from its Maps' boards (db/boards.ts). The Overall prefix makes it a points board to
 // isPoints and board_kind with no special case.
 import type { WorkshopMap } from "./rows";
-import { isPfid, mapBoard, safeImg } from "./rules";
+import { isPfid, safeImg } from "./rules";
 
 export interface Campaign {
   /* its path, /campaign/<slug>: lowercase words joined by - */
@@ -17,7 +17,7 @@ export interface Campaign {
   creator: string;
   /* the maker's Steam ID */
   creatorId: string;
-  /* the Maps by Workshop ID, or an Event board by its id (EVENTS), in the maker's order */
+  /* the Maps by Workshop ID, in the maker's order */
   maps: ReadonlyArray<string>;
   /* listed first wherever Campaigns are, whatever its player count */
   pinned?: boolean;
@@ -26,37 +26,22 @@ export interface Campaign {
   collection?: string;
 }
 
-/* An Event board (GLOSSARY.md) a Campaign can hold as one of its Maps: a one-off event's
-   Steam board, which the collector reads once (EVENT_BOARDS in tools/campaign_common.py). */
+/* An Event board (GLOSSARY.md): a one-off event's Steam board, which the collector reads
+   once (EVENT_BOARDS in tools/campaign_common.py). Leth Trial #1's is a Trial now
+   (lib/circuit.ts), drawn on its own board page. */
 export interface EventBoard {
-  /* how a Campaign's maps and its paths name it: lowercase words joined by - */
-  id: string;
   /* its Steam board */
   board: string;
   title: string;
-  /* its picture, one of the site's own files, in place of a Map's Workshop preview */
-  picture: string | null;
-  /* the folder of its own static page beside the site, which its card links in place of a
-     Map page (viewerHref) */
+  /* the folder of its own static page beside the site, which its card links (viewerHref) */
   viewer: string;
 }
 
 export const EVENTS: ReadonlyArray<EventBoard> = [
-  {
-    id: "leth-trial-1",
-    board: "Map_LethTrial_01",
-    title: "Leth Trial #1",
-    picture: "/leth/screenshot.jpg",
-    viewer: "leth",
-  },
+  { board: "Map_LethTrial_01", title: "Leth Trial #1", viewer: "leth" },
 ];
 
-export const eventOf = (id: string) => EVENTS.find((e) => e.id === id) ?? null;
-
 export const eventOfBoard = (board: string) => EVENTS.find((e) => e.board === board) ?? null;
-
-/* the board of one of a Campaign's Maps: an Event's own, else the Workshop Map's */
-export const campaignMapBoard = (id: string) => eventOf(id)?.board ?? mapBoard(id);
 
 /* makers of more than one Campaign, each written once */
 const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
@@ -310,8 +295,7 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
     if (c.collection !== undefined && !isPfid(c.collection))
       out.push(`"${c.slug}" names collection "${c.collection}", which is not a Workshop ID`);
     for (const pfid of c.maps) {
-      if (!isPfid(pfid) && !eventOf(pfid))
-        out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID or an Event`);
+      if (!isPfid(pfid)) out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID`);
       const home = homes.get(pfid);
       if (home !== undefined) out.push(`Map ${pfid} is in "${home}" and "${c.slug}"`);
       homes.set(pfid, c.slug);
@@ -424,14 +408,11 @@ export interface GetMapRow {
   pic: string;
 }
 
-/* the rows of the checklist: the page's Maps (getCampaign's, in the Campaign's order) that
-   are on the Workshop, since an Event board has no Workshop page to subscribe on */
+/* the rows of the checklist: the page's Maps (getCampaign's, in the Campaign's order) */
 export const getMapRows = (c: Campaign, maps: ReadonlyArray<WorkshopMap>): Array<GetMapRow> =>
-  maps
-    .filter((m) => !eventOf(m.pfid))
-    .map((m) => ({
-      pfid: m.pfid,
-      no: mapNo(c, m.pfid),
-      name: mapName(c, m.pfid, m.title),
-      pic: safeImg(m.preview),
-    }));
+  maps.map((m) => ({
+    pfid: m.pfid,
+    no: mapNo(c, m.pfid),
+    name: mapName(c, m.pfid, m.title),
+    pic: safeImg(m.preview),
+  }));

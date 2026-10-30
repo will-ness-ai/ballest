@@ -1,7 +1,6 @@
 // The site's navigation, from a path alone: the Section it is in (GLOSSARY.md), that
 // Section's sub-tabs with the lit one, what kind of page it is, and the breadcrumb trail
 // above its title. The header (components/Shell.tsx) draws it.
-import { eventOf } from "./campaigns";
 import { TRIALS_GROUP, circuitBoard } from "./circuit";
 import {
   boardHref,
@@ -185,8 +184,7 @@ function kindOf(section: SectionKey | null, path: string): string | null {
     case "campaigns": {
       const at = campaignPath(path);
       if (!at) return "Campaigns";
-      if (!at.map) return "Campaign";
-      return eventOf(at.map) ? "Event board" : "Campaign Map";
+      return at.map ? "Campaign Map" : "Campaign";
     }
     case "daily":
       return path.startsWith(dailyStandingsHref()) ? "Daily standings" : "Daily";

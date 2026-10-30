@@ -1,7 +1,7 @@
 // Get the Maps on a Campaign's page (spec #359, ticket #360): the floating button and the
 // checklist it opens, of the Campaign's Workshop Maps in its order with a Subscribe link to
 // each Map's Workshop page, a Steam collection's Subscribe to all where the Campaign has one,
-// then the steps in the game. Event boards have no Workshop page, so they are left out.
+// then the steps in the game.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 
@@ -14,7 +14,7 @@ const RUN: Campaign = {
   title: "Marble Run",
   creator: "Tenpin",
   creatorId: "76561199000000010",
-  maps: ["9000000001", "leth-trial-1", "9000000002"],
+  maps: ["9000000001", "9000000004", "9000000002"],
 };
 
 const map = (pfid: string, title: string, preview: string | null): WorkshopMap => ({
@@ -40,11 +40,10 @@ const map = (pfid: string, title: string, preview: string | null): WorkshopMap =
   voteScore: 0,
 });
 
-/* the page's Maps as getCampaign gives them: listed ones in the Campaign's order, an Event
-   board drawn as a Map */
+/* the page's Maps as getCampaign gives them: the ones the Workshop lists, in the Campaign's
+   order (its second has left the Workshop) */
 const MAPS = [
   map("9000000001", "Marble Run Hills", "https://images.example/hills.jpg"),
-  map("leth-trial-1", "Leth Trial #1", "/leth/screenshot.jpg"),
   map("9000000002", "Marble Run 03", null),
 ];
 
@@ -75,7 +74,7 @@ describe("the checklist", () => {
     const html = draw(RUN);
     expect(html).toContain(`href="${ws("9000000001")}" target="_blank"`);
     expect(html).toContain(`href="${ws("9000000002")}" target="_blank"`);
-    expect(html).not.toContain("leth-trial-1");
+    expect(html).not.toContain("9000000004");
     const t = text(html);
     expect(t).toContain("|Play Marble Run in Ballest|");
     expect(t).toContain("|0 of 2 opened|");
@@ -91,10 +90,8 @@ describe("the checklist", () => {
     expect(text(html)).toContain("|Subscribe to all 2 at once ↗|");
   });
 
-  test("is nothing for a Campaign with no Workshop Map", () => {
-    const html = renderToStaticMarkup(
-      <GetMaps c={{ ...RUN, slug: "leth-trials", maps: ["leth-trial-1"] }} rows={[]} />,
-    );
+  test("is nothing for a Campaign none of whose Maps the Workshop lists", () => {
+    const html = renderToStaticMarkup(<GetMaps c={{ ...RUN, maps: ["9000000004"] }} rows={[]} />);
     expect(html).toBe("");
   });
 });

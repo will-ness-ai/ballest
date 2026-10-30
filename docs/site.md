@@ -293,9 +293,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   board, the Trials `/trials`.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
-  as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
-  its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
-  page; no curated Campaign holds an Event board now). Lights the Campaigns Section. The proxy 404s a slug that
+  as a Track opens inside its season (a Map's row is on its own page). Lights the Campaigns
+  Section. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
@@ -428,22 +427,14 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
-**Event boards and pinning.** No curated Campaign holds one since Leth Trial #1 became a
-Trial (under "Pages": `/board/<board name>`), but a Campaign's `maps` may still name an Event
-board (GLOSSARY.md) by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
-screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
-since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
-from the site's root, and the share card fetches it from production) and the folder of the
-static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
-collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it
-counts toward its Campaign once it holds open Entries, and until then it is left out like a
-Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
-links the ghost viewer, it has no `/map/` page (`boardHref` sends its board, and a row on it,
-to the slot), and its slot canonicals to the Campaign, with its share card: robots.txt keeps
-crawlers off a Campaign's slots, so the Campaign's page is the one indexed. Its runs are
-its open Entries: the collector reads a board whole, so that is Steam's count give or take a
-run Steam dropped. The board API serves it by name; a player's own finishes leave it out, since their
-place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
+**Event boards and pinning.** A Campaign holds Workshop Maps only. Leth Trial #1, an Event
+board (GLOSSARY.md), was the Leth Trials Campaign's one Map until it became a Trial (under
+"Pages": `/board/<board name>`). `EVENTS` (`lib/campaigns.ts`) keeps each Event board's
+Steam board, title and the folder of the static page its Trial card links (`viewerHref`); a
+test holds it to the collector's `EVENT_BOARDS`. Its picture is the level's own screenshot
+from the game files, committed as `leth/screenshot.jpg` and served from the site (a JPEG, as
+the share card can't read WebP; `safeImg` takes a path from the site's root, and the share
+card fetches it from production). A Campaign with `pinned` is listed first wherever
 Campaigns are (`getCampaigns`), whatever its player count; none is now. `stress` reads Leth
 Trial #1's Event board, so its builds' Trial page and card have runs.
 
@@ -452,7 +443,7 @@ Trial #1's Event board, so its builds' Trial page and card have runs.
 `board_kind` with no special case, so every board piece (paging, search, You, plates, the
 Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
 Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
-open Entries of its Maps the Workshop lists (and its Event boards read), each place paying the Circuit's track points,
+open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
 equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
 place there. A player is ranked once they have a time on one Map.
 

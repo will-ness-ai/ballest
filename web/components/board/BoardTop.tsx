@@ -11,7 +11,7 @@ import { YouSpread } from "./YouSpread";
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
-import { eventOf, eventOfBoard, unitOf } from "../../lib/campaigns";
+import { eventOfBoard, unitOf } from "../../lib/campaigns";
 import { TRACKS, boardPicture, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
@@ -169,8 +169,6 @@ export function CampaignMapCard({
 }) {
   const lead = rows[0] as BoardRow | undefined;
   const pic = safeImg(m.preview);
-  /* an Event board has no Map page; its card links where the Event says instead */
-  const event = eventOf(m.pfid);
   return (
     <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
       {pic && <img className="bc-pic" src={pic} alt="" />}
@@ -179,12 +177,7 @@ export function CampaignMapCard({
           <div>
             <h2>{title}</h2>
             <span className="bc-by">
-              {group} · by {m.creator} ·{" "}
-              {event ? (
-                <a href={viewerHref(event.viewer)}>Ghost viewer</a>
-              ) : (
-                <Link href={mapHref(m.pfid)}>Map page</Link>
-              )}
+              {group} · by {m.creator} · <Link href={mapHref(m.pfid)}>Map page</Link>
             </span>
           </div>
           <Facts
@@ -199,7 +192,7 @@ export function CampaignMapCard({
           />
         </div>
         <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
-        {pic && !event && <p className="bc-cap">Workshop preview picture.</p>}
+        {pic && <p className="bc-cap">Workshop preview picture.</p>}
       </div>
     </div>
   );

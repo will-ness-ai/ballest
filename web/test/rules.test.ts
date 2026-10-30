@@ -38,7 +38,6 @@ import {
   campaignsHref,
   dailyHref,
   campaignPath,
-  campaignSlot,
   dailyStandingsHref,
   isDailyDate,
   legacyPath,
@@ -306,17 +305,9 @@ describe("Steam IDs and URLs", () => {
     });
   });
 
-  test("an Event's slot takes a row to mark, as a Map's own page does", () => {
-    // no curated Campaign holds an Event board now, so this one is made up
-    const held = { ...CAMPAIGNS[0], maps: [...CAMPAIGNS[0].maps, "leth-trial-1"] };
-    expect(campaignSlot(held, "leth-trial-1", ID)).toEqual({
-      map: "leth-trial-1",
-      focus: ID,
-      podiums: false,
-    });
-    // a Workshop Map's row is on its own page, /map/<pfid>/<steam id>
+  test("a Map's slot takes no row: its row is on its own page", () => {
+    // /map/<pfid>/<steam id>
     expect(campaignPath(`/campaign/solar-trials/3805391903/${ID}`)).toBeNull();
-    expect(campaignSlot(held, "leth-trial-1", "x")).toBeNull();
   });
 
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
