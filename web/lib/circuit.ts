@@ -119,32 +119,23 @@ export interface Trial {
   page: string;
 }
 
-/* the Trials in the order the Trials sub-tab and rail list them, each one of the Trials
-   group above: the Towers, read every Refresh, and Leth Trial #1, an Event board
-   (lib/campaigns.ts) read once */
-export const TRIALS: ReadonlyArray<Trial> = [
-  {
-    board: "Map_TheTower",
-    title: "The Tower",
-    blurb: "The climb to the top, no checkpoints.",
-    picture: null,
-    page: "/board/Map_TheTower",
-  },
-  {
-    board: "Map_TheTowerCP",
-    title: "The Tower (Checkpoints)",
-    blurb: "The same climb, with checkpoints.",
-    picture: null,
-    page: "/board/Map_TheTowerCP",
-  },
-  {
-    board: "Map_LethTrial_01",
-    title: "Leth Trial #1",
-    blurb: "Lethamyr's one-off event board.",
-    picture: "/leth/screenshot.jpg",
-    page: "/board/Map_LethTrial_01",
-  },
-];
+/* what CIRCUIT doesn't say of each Trial */
+const TRIAL_FACTS: Readonly<Record<string, Pick<Trial, "blurb" | "picture">>> = {
+  Map_TheTower: { blurb: "The climb to the top, no checkpoints.", picture: null },
+  Map_TheTowerCP: { blurb: "The same climb, with checkpoints.", picture: null },
+  Map_LethTrial_01: { blurb: "Lethamyr's one-off event board.", picture: "/leth/screenshot.jpg" },
+};
+
+/* the Trials in the order the Trials sub-tab and rail list them: CIRCUIT's Trials group, the
+   Towers, read every Refresh, and Leth Trial #1, an Event board (lib/campaigns.ts) read once */
+export const TRIALS: ReadonlyArray<Trial> = CIRCUIT.filter((b) => b.group === TRIALS_GROUP).map(
+  (b) => ({
+    board: b.name,
+    title: b.display,
+    page: `/board/${b.name}`,
+    ...TRIAL_FACTS[b.name],
+  }),
+);
 
 export const trialOf = (board: string) => TRIALS.find((t) => t.board === board) ?? null;
 
@@ -207,6 +198,15 @@ export const TRACKS: Readonly<Record<string, { img: string; medals: Array<number
     medals: [61, 46, 41, 38.053],
   },
 };
+
+/* a board's picture: a Track's screenshot, a Trial's once there is one, or null */
+export const boardPicture = (name: string) =>
+  name in TRACKS ? TRACKS[name].img : (trialOf(name)?.picture ?? null);
+
+/* what a page calls a board: a Trial by its name alone, any other by its season and display
+   name, `sep` between them */
+export const boardTitle = (b: Pick<CircuitBoard, "group" | "display">, sep = " ") =>
+  b.group === TRIALS_GROUP ? b.display : b.group + sep + b.display;
 
 /* the in-game number a Track's display name leads with, "08" of "08 Downhill" */
 export const trackNo = (display: string) => /^\d+/.exec(display)?.[0] ?? display;

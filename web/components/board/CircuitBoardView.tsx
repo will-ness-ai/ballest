@@ -29,7 +29,14 @@ import {
 } from "../../db/data";
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
-import { TRACKS, TRIALS_GROUP, circuitBoard, trackNo, trialOf } from "../../lib/circuit";
+import {
+  TRACKS,
+  TRIALS_GROUP,
+  boardPicture,
+  boardTitle,
+  circuitBoard,
+  trackNo,
+} from "../../lib/circuit";
 import { seasonsOf } from "../../lib/player";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { podiumRows } from "../../lib/podiums";
@@ -73,16 +80,16 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   ) : (
     <RailItems boards={own} current={name} podiums={site.podiums} />
   );
-  /* the page's title: a season's standings by name, a Track by its in-game number, a Trial
-     by its name */
-  const title = points ? `${b.group} ${b.display}` : trial ? b.display : `Track ${b.display}`;
+  /* the page's heading: a Track by its in-game number, any other board by its title */
+  const track = !points && !trial;
+  const title = track ? `Track ${b.display}` : boardTitle(b);
   const here = boardHref(name, podiums ? PODIUM_SORT : null);
 
   return (
     <>
       <PageHead path={here} title={title} />
       <div className="main">
-        <DocTitle title={trial ? b.display : `${b.group} ${b.display}`} />
+        <DocTitle title={boardTitle(b)} />
         {!trial && <SeasonTabs seasons={seasons} on={b.group} />}
         <aside className="rail">
           <h2 id="railhead">{b.group}</h2>
@@ -96,7 +103,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
           <div className="boardrow">
             <SeasonChip seasons={seasons} on={b.group} board={name} />
             <BoardSheet
-              img={t?.img ?? trialOf(name)?.picture ?? null}
+              img={boardPicture(name)}
               name={points || trial ? b.display : trackNo(b.display)}
               count={countText(b)}
               group={b.group}
@@ -154,11 +161,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
           )}
         </section>
         {points && <PointsDialog board={name} tracks={tracks} />}
-        <Remember
-          trail="board"
-          href={here}
-          label={points || trial ? title : `${b.group} ${title}`}
-        />
+        <Remember trail="board" href={here} label={track ? `${b.group} ${title}` : title} />
       </div>
     </>
   );

@@ -2,7 +2,7 @@
 // Map makers, Maps, Campaigns, Circuit Tracks, Dailies and Prefabs, how each hit scores, and
 // how the results are grouped under the filter chips. Pure: the route hands it what it read.
 import type { CampaignSummary } from "./campaigns";
-import { TRACKS, TRIALS_GROUP, trialOf } from "./circuit";
+import { TRIALS_GROUP, boardPicture, boardTitle } from "./circuit";
 import type { IndexBoard } from "./player";
 import type { DailyCell, NameHit } from "./rows";
 import {
@@ -179,12 +179,12 @@ function tracks(q: string, boards: SearchSources["boards"]): Array<Hit> {
       {
         kind: "tracks" as const,
         href: boardHref(b.name),
-        title: trial ? b.display : b.group + " · " + b.display,
+        title: boardTitle(b, " · "),
         meta: trial
           ? plural(b.entryCount, "run", "runs")
           : plural(b.entryCount, "player", "players"),
         tag: trial ? "Trial" : "Circuit",
-        img: b.name in TRACKS ? TRACKS[b.name].img : (trialOf(b.name)?.picture ?? null),
+        img: boardPicture(b.name),
         who: null,
         score: scoreOf(tier, b.entryCount),
       },

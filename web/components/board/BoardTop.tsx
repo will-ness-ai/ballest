@@ -12,7 +12,7 @@ import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import { eventOf, eventOfBoard, unitOf } from "../../lib/campaigns";
-import { TRACKS, trackNo, trialOf } from "../../lib/circuit";
+import { TRACKS, boardPicture, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
@@ -110,10 +110,10 @@ export function TrackCard({
   rows: Array<BoardRow>;
   scores: ReadonlyArray<number>;
 }) {
-  const t = TRACKS[b.name] as (typeof TRACKS)[string] | undefined;
   /* a Trial's picture, once there is one; an Event board's links its own page beside the
      site, Leth Trial #1's ghost viewer */
-  const pic = t?.img ?? trialOf(b.name)?.picture ?? null;
+  const pic = boardPicture(b.name);
+  const t = TRACKS[b.name] as (typeof TRACKS)[string] | undefined;
   const event = eventOfBoard(b.name);
   const lead = rows[0] as BoardRow | undefined;
   return (

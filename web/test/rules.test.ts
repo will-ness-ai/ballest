@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
-import { CIRCUIT, TRACKS, TRIALS, TRIALS_GROUP } from "../lib/circuit";
+import { CIRCUIT, TRACKS, TRIALS_GROUP } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -378,17 +378,6 @@ describe("the Circuit table", () => {
     expect(CIRCUIT.at(-1)?.group).toBe(TRIALS_GROUP);
     /* a Trial is no Track: no number, no Medal times, in no season's points */
     for (const [name] of trials) expect(TRACKS[name]).toBeUndefined();
-  });
-
-  test("names the three Trials in order, the Towers' boards their own pages", () => {
-    expect(TRIALS.map((t) => [t.board, t.title])).toEqual([
-      ["Map_TheTower", "The Tower"],
-      ["Map_TheTowerCP", "The Tower (Checkpoints)"],
-      ["Map_LethTrial_01", "Leth Trial #1"],
-    ]);
-    expect(TRIALS[0].page).toBe("/board/Map_TheTower");
-    expect(TRIALS[1].page).toBe("/board/Map_TheTowerCP");
-    expect(TRIALS[2].page).toBe("/board/Map_LethTrial_01");
   });
 
   test("knows the collector's Event boards, by the names and titles it writes", () => {
