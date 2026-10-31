@@ -1240,7 +1240,7 @@ const BOARD_TINT = [
 ];
 const BOARD_NAME = ["PLAYED", "AUTHOR", "WR", "TOP 5"];
 
-const protoChip = ({ board, place }: OverallRow["places"][number], i: number): El => {
+const protoChip = ({ place }: OverallRow["places"][number], i: number): El => {
   const ink = BOARD_INK[i] ?? C.text;
   const medalInk = place === null ? undefined : MEDAL_INK[place - 1];
   const base = { fontFamily: F.hud, fontWeight: 700, fontSize: 11 } as const;
@@ -1324,7 +1324,6 @@ const protoChip = ({ board, place }: OverallRow["places"][number], i: number): E
       ),
     );
   }
-  void board;
   return box({}, "");
 };
 
