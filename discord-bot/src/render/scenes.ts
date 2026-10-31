@@ -1195,27 +1195,255 @@ export const OVERALL_RULE =
 
 const MEDAL_INK = [C.gold, C.silver, C.bronze];
 
-/** A place on one of the four boards, on an Overall row: a podium place in its medal's colour. */
-const placeChip = ({ board, place }: OverallRow["places"][number]) => {
-  const medal = place === null ? undefined : MEDAL_INK[place - 1];
+// ================================================================ PROTOTYPE (grill-design)
+// Colour-coded standings, round 1: each of the four standings gets a colour, and Overall's
+// place chips use it instead of their small MP/AM/WR/T5 letters. Never merged.
+export const PROTO_VARIANTS: ReadonlyArray<readonly [string, string, string]> = [
+  [
+    "A",
+    "Tinted chips",
+    "Chips keep their place, tinted in their board's colour; letters gone. Board titles get a colour swatch. Podium places keep gold/silver/bronze numbers.",
+  ],
+  [
+    "B",
+    "Columns",
+    "Chips become four aligned columns, named once in colour above the top row; numbers in the board's colour, podium in a medal chip. Boards get a coloured rule under their title.",
+  ],
+  [
+    "C",
+    "Points bar",
+    "Chips become one bar per row, split by the points each standing gave, place inside each piece. Board titles in their colour. Places outside a top 10 just leave no piece.",
+  ],
+  [
+    "D",
+    "Panels",
+    "Each of the four boards is a panel edged and titled in its colour; chips are solid colour squares with the place; a colour key under Overall's title.",
+  ],
+  [
+    "E",
+    "Marbles",
+    "Chips become marbles in the board's colour with the place on them, empty socket outside a top 10; podium gets a medal ring. Board titles lead with their marble.",
+  ],
+];
+let proto = "A";
+export const setProtoVariant = (key: string) => {
+  proto = key;
+};
+/** The four standings' colours, in STATS order (played, author, wr, top5), and their marble hues. */
+const BOARD_INK = ["#4ad3bd", "#c18cf2", "#f76bb1", "#6b9cf7"];
+const BOARD_HUE = [170, 275, 330, 220];
+const BOARD_TINT = [
+  "rgba(74,211,189,0.16)",
+  "rgba(193,140,242,0.18)",
+  "rgba(247,107,177,0.17)",
+  "rgba(107,156,247,0.18)",
+];
+const BOARD_NAME = ["PLAYED", "AUTHOR", "WR", "TOP 5"];
+
+const protoChip = ({ board, place }: OverallRow["places"][number], i: number): El => {
+  const ink = BOARD_INK[i] ?? C.text;
+  const medalInk = place === null ? undefined : MEDAL_INK[place - 1];
+  const base = { fontFamily: F.hud, fontWeight: 700, fontSize: 11 } as const;
+  if (proto === "A")
+    return box(
+      {
+        ...base,
+        width: 30,
+        justifyContent: "center",
+        padding: "1px 0",
+        borderRadius: 4,
+        color: place === null ? C.faint : (medalInk ?? C.text),
+        backgroundColor: place === null ? "transparent" : (BOARD_TINT[i] ?? C.surface),
+        border: place === null ? `1px dashed ${C.line}` : `1px solid ${ink}`,
+      },
+      place === null ? "–" : String(place),
+    );
+  if (proto === "B")
+    return box(
+      { ...base, width: 44, justifyContent: "center" },
+      place === null
+        ? box({ color: C.faint }, "–")
+        : medalInk !== undefined
+          ? box(
+              { padding: "0 6px", borderRadius: 4, backgroundColor: medalInk, color: C.bg },
+              String(place),
+            )
+          : box({ color: ink }, String(place)),
+    );
+  if (proto === "D")
+    return box(
+      {
+        ...base,
+        width: 24,
+        height: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 4,
+        color: place === null ? C.faint : C.bg,
+        backgroundColor: place === null ? "transparent" : ink,
+        border:
+          place === null
+            ? `1px dashed ${C.line}`
+            : medalInk !== undefined
+              ? `2px solid ${medalInk}`
+              : "none",
+      },
+      place === null ? "·" : String(place),
+    );
+  if (proto === "E") {
+    const size = 20;
+    if (place === null)
+      return box(
+        { width: size + 4, height: size + 4, alignItems: "center", justifyContent: "center" },
+        box({
+          width: size - 6,
+          height: size - 6,
+          borderRadius: size,
+          border: `1px dashed ${C.line}`,
+        }),
+      );
+    return box(
+      {
+        width: size + 4,
+        height: size + 4,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: size,
+        border: medalInk !== undefined ? `2px solid ${medalInk}` : "2px solid transparent",
+      },
+      box(
+        {
+          position: "relative",
+          width: size,
+          height: size,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        marble(BOARD_HUE[i] ?? 0, size, { position: "absolute", top: 0, left: 0 }),
+        box({ ...base, fontSize: 11, color: "#fff", textShadow: OUTLINE }, String(place)),
+      ),
+    );
+  }
+  void board;
+  return box({}, "");
+};
+
+/** C: one bar split by the points each standing gave this row (10 for 1st down to 1 for 10th). */
+const pointsBar = (places: OverallRow["places"]) => {
+  const unit = 5.2; // px per point: 40 points fills 208px
   return box(
     {
-      width: 38,
-      justifyContent: "center",
-      gap: 2,
-      padding: "1px 0",
+      width: 40 * unit,
+      height: 18,
       borderRadius: 4,
-      fontFamily: F.hud,
-      fontWeight: 700,
-      fontSize: 10,
-      color: place === null ? C.faint : medal === undefined ? C.text : C.bg,
-      backgroundColor: place === null ? "transparent" : (medal ?? C.surface),
-      border: place === null ? `1px dashed ${C.line}` : "1px solid transparent",
+      overflow: "hidden",
+      backgroundColor: C.surface,
     },
-    box({ opacity: 0.7 }, board),
-    place === null ? "–" : String(place),
+    ...places.map(({ place }, i) =>
+      place === null
+        ? null
+        : box(
+            {
+              width: (11 - place) * unit,
+              height: 18,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: BOARD_INK[i] ?? C.text,
+              borderRight: `1px solid ${C.bg}`,
+              fontFamily: F.hud,
+              fontWeight: 700,
+              fontSize: 11,
+              color: C.bg,
+            },
+            (11 - place) * unit >= 16 ? String(place) : "",
+          ),
+    ),
   );
 };
+
+/** Overall's place cells, per variant. */
+const protoPlaces = (places: OverallRow["places"]) =>
+  proto === "C" ? pointsBar(places) : box({ gap: proto === "B" ? 0 : 4 }, ...places.map(protoChip));
+
+/** A board's title, per variant: `i` is its place in STATS order. */
+const protoTitle = (title: string, i: number) => {
+  const ink = BOARD_INK[i] ?? C.dim;
+  const t = { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 };
+  if (proto === "A")
+    return box(
+      { alignItems: "center", gap: 8, marginBottom: 6 },
+      box({ width: 10, height: 10, borderRadius: 3, backgroundColor: ink }),
+      label(title, { ...t, marginBottom: 0 }),
+    );
+  if (proto === "B")
+    return box(
+      { flexDirection: "column", gap: 5, marginBottom: 6 },
+      label(title, { ...t, marginBottom: 0 }),
+      box({ height: 3, borderRadius: 2, backgroundColor: ink }),
+    );
+  if (proto === "C") return label(title, { ...t, color: ink });
+  if (proto === "D")
+    return box(
+      {
+        padding: "6px 10px",
+        margin: "-10px -10px 6px",
+        backgroundColor: BOARD_TINT[i] ?? C.surface,
+        borderRadius: "8px 8px 0 0",
+      },
+      label(title, { ...t, marginBottom: 0, color: ink }),
+    );
+  return box(
+    { alignItems: "center", gap: 8, marginBottom: 6 },
+    marble(BOARD_HUE[i] ?? 0, 14),
+    label(title, { ...t, marginBottom: 0 }),
+  );
+};
+
+/** The panel D wraps each of the four boards in. */
+const protoBoardStyle = (i: number): Style =>
+  proto === "D"
+    ? {
+        padding: 10,
+        borderRadius: 8,
+        border: `1px solid ${BOARD_INK[i] ?? C.line}`,
+        backgroundColor: "rgba(255,255,255,0.02)",
+      }
+    : {};
+
+/** What sits on the right of Overall's title, per variant. */
+const protoOverallRight = () => {
+  if (proto === "B")
+    return box(
+      { gap: 0, marginRight: 66, marginBottom: 4 },
+      ...BOARD_NAME.map((n, i) =>
+        box(
+          {
+            width: 44,
+            justifyContent: "center",
+            fontFamily: F.hud,
+            fontWeight: 700,
+            fontSize: 9,
+            letterSpacing: 0.6,
+            color: BOARD_INK[i] ?? C.dim,
+          },
+          n,
+        ),
+      ),
+    );
+  if (proto === "D")
+    return box(
+      { gap: 10, marginBottom: 6, alignItems: "center" },
+      ...BOARD_NAME.map((n, i) =>
+        box(
+          { alignItems: "center", gap: 4, fontSize: 11, color: C.dim },
+          box({ width: 9, height: 9, borderRadius: 2, backgroundColor: BOARD_INK[i] ?? C.dim }),
+          n.toLowerCase(),
+        ),
+      ),
+    );
+  return box({ color: C.faint, fontSize: 11, marginBottom: 6 }, OVERALL_RULE);
+};
+// ================================================================ end PROTOTYPE
 
 /** A row on a board: its shared place, its move, the player, then what it counts. */
 const standingsRow = (
@@ -1281,9 +1509,9 @@ export const standingsScene = (
   { title, subtitle, boards, overall }: StandingsImage,
   pictures: SkinPictureUris,
 ): El => {
-  const column = (board: StandingsImage["boards"][number]) =>
+  const column = (board: StandingsImage["boards"][number], i: number) =>
     standingsBoard(
-      boardTitle(board.title),
+      protoTitle(board.title, i),
       board.rows.map((row, i) =>
         standingsRow(
           pictures,
@@ -1296,21 +1524,21 @@ export const standingsScene = (
         ),
       ),
       board.out,
-      { width: STANDINGS_COLUMN },
+      { width: STANDINGS_COLUMN, ...protoBoardStyle(i) },
     );
   // Overall runs the full width above the four (spec #373: variant A of the prototype).
   const overallBoard = standingsBoard(
     box(
       { justifyContent: "space-between", alignItems: "flex-end" },
       boardTitle("Overall"),
-      box({ color: C.faint, fontSize: 11, marginBottom: 6 }, OVERALL_RULE),
+      protoOverallRight(),
     ),
     overall.rows.map((row, i) =>
       standingsRow(
         pictures,
         i === 0,
         row,
-        box({ gap: 4 }, ...row.places.map(placeChip)),
+        protoPlaces(row.places),
         box(
           { width: 58, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
           String(row.points),
@@ -1323,7 +1551,8 @@ export const standingsScene = (
     ),
     overall.out,
   );
-  const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
+  const indexed = boards.map((b, i) => [b, i] as const);
+  const pairs = [indexed.slice(0, 2), indexed.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
     { padding: STANDINGS_PADDING, gap: 20 },
     box(
@@ -1332,7 +1561,7 @@ export const standingsScene = (
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
     overallBoard,
-    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(column))),
+    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(([b, i]) => column(b, i)))),
   );
 };
 
