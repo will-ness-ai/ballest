@@ -1504,6 +1504,241 @@ const standingsBoard = (
 const boardTitle = (title: string) =>
   label(title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 });
 
+// ================================================================ PROTOTYPE round 2
+// Most Daily wins in place of Most top 5s, and a sixth board: yesterday's Daily top 10 with its
+// Map. Chips stay round 1's A while the colour question is open. Never merged.
+export const PROTO2_VARIANTS: ReadonlyArray<readonly [string, string, string]> = [
+  [
+    "A",
+    "Daily last, picture beside the title",
+    "Yesterday's Daily runs full width under the four, its Map's picture and title as the heading, rows in two columns of five.",
+  ],
+  [
+    "B",
+    "Daily first, picture banner",
+    "Yesterday's Daily moves to the top, above Overall: the Map's picture as a wide banner with its title on it, rows in two columns of five.",
+  ],
+  [
+    "C",
+    "Daily beside a Map card",
+    "The four stay two by two; Yesterday's Daily is a column on the last row, beside a card of its Map (picture, title, players, winner).",
+  ],
+  [
+    "D",
+    "Picture behind the rows",
+    "Yesterday's Daily full width at the bottom, its Map's picture dimmed behind the whole board, title on a ribbon; one column of ten with gaps.",
+  ],
+  [
+    "E",
+    "Title tag only",
+    "Yesterday's Daily full width at the bottom, no picture: the Map is a tag with its title, date and players in the heading; rows in two columns of five.",
+  ],
+];
+let proto2 = "A";
+export const setProto2Variant = (key: string) => {
+  proto2 = key;
+};
+export interface ProtoDaily {
+  readonly title: string;
+  readonly date: string;
+  readonly players: number;
+  readonly picture: string;
+  readonly rows: ReadonlyArray<{
+    readonly place: number;
+    readonly name: string;
+    readonly time: string;
+    readonly gap: string | null;
+    readonly steamId: string;
+    readonly skin: ChosenSkin;
+  }>;
+}
+
+const dailyRow = (
+  pictures: SkinPictureUris,
+  row: ProtoDaily["rows"][number],
+  width: number | null,
+) =>
+  box(
+    {
+      alignItems: "center",
+      gap: STANDINGS_ROW_GAP,
+      fontSize: 15,
+      padding: "3px 8px",
+      borderRadius: 6,
+      backgroundColor: row.place === 1 ? C.upTint : C.surface,
+      ...(width === null ? {} : { width }),
+    },
+    box(
+      { width: 22, color: MEDAL_INK[row.place - 1] ?? C.faint, fontFamily: F.hud, fontWeight: 700 },
+      String(row.place),
+    ),
+    playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
+    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    row.gap === null ? null : box({ color: C.faint, fontFamily: F.hud, fontSize: 11 }, row.gap),
+    box(
+      { width: 54, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
+      row.time.replace(/^0:/, ""),
+    ),
+  );
+
+const twoColumns = (pictures: SkinPictureUris, rows: ProtoDaily["rows"]) =>
+  box(
+    { gap: STANDINGS_GAP },
+    box(
+      { flexDirection: "column", gap: 4, width: STANDINGS_COLUMN },
+      ...rows.slice(0, 5).map((r) => dailyRow(pictures, r, null)),
+    ),
+    box(
+      { flexDirection: "column", gap: 4, width: STANDINGS_COLUMN },
+      ...rows.slice(5).map((r) => dailyRow(pictures, r, null)),
+    ),
+  );
+
+const dailyMeta = (d: ProtoDaily) =>
+  box({ color: C.dim, fontSize: 12 }, `Daily · ${d.date} · ${d.players} players`);
+
+const protoDailyBoard = (d: ProtoDaily, pictures: SkinPictureUris): El | null => {
+  const full = STANDINGS_COLUMN * 2 + STANDINGS_GAP;
+  if (proto2 === "A")
+    return box(
+      { flexDirection: "column", gap: 6 },
+      box(
+        { alignItems: "center", gap: 12, marginBottom: 6 },
+        img(d.picture, 96, 65, { borderRadius: 6, objectFit: "cover" }),
+        box(
+          { flexDirection: "column", gap: 3 },
+          label("Yesterday's Daily", { fontSize: 11, letterSpacing: 1.4 }),
+          box({ fontFamily: F.marquee, fontSize: 20 }, d.title),
+          dailyMeta(d),
+        ),
+      ),
+      twoColumns(pictures, d.rows),
+    );
+  if (proto2 === "B")
+    return box(
+      { flexDirection: "column", gap: 8 },
+      box(
+        {
+          position: "relative",
+          width: full,
+          height: 110,
+          borderRadius: 8,
+          overflow: "hidden",
+          marginBottom: 4,
+        },
+        img(d.picture, full, 110, { position: "absolute", top: 0, left: 0, objectFit: "cover" }),
+        box({
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: full,
+          height: 110,
+          backgroundImage:
+            "linear-gradient(90deg, rgba(10,16,32,0.92) 0%, rgba(10,16,32,0.55) 55%, rgba(10,16,32,0.1) 100%)",
+        }),
+        box(
+          { position: "absolute", left: 16, bottom: 12, flexDirection: "column", gap: 3 },
+          label("Yesterday's Daily", { fontSize: 11, letterSpacing: 1.4, color: C.text }),
+          box({ fontFamily: F.marquee, fontSize: 24, textShadow: OUTLINE }, d.title),
+          dailyMeta(d),
+        ),
+      ),
+      twoColumns(pictures, d.rows),
+    );
+  if (proto2 === "D")
+    return box(
+      {
+        position: "relative",
+        flexDirection: "column",
+        width: full,
+        borderRadius: 10,
+        overflow: "hidden",
+      },
+      img(d.picture, full, 470, { position: "absolute", top: 0, left: 0, objectFit: "cover" }),
+      box({
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: full,
+        height: 470,
+        backgroundColor: "rgba(10,16,32,0.78)",
+      }),
+      box(
+        { flexDirection: "column", gap: 4, padding: 12 },
+        box(
+          { alignItems: "center", gap: 10, marginBottom: 8 },
+          box(
+            {
+              padding: "4px 10px",
+              borderRadius: 4,
+              backgroundColor: C.accent,
+              color: C.accentInk,
+              fontFamily: F.hud,
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: 1.2,
+            },
+            "YESTERDAY'S DAILY",
+          ),
+          box({ fontFamily: F.marquee, fontSize: 20 }, d.title),
+          box({ flexGrow: 1 }),
+          dailyMeta(d),
+        ),
+        ...d.rows.map((r) => dailyRow(pictures, r, null)),
+      ),
+    );
+  if (proto2 === "E")
+    return box(
+      { flexDirection: "column", gap: 6 },
+      box(
+        { alignItems: "center", gap: 10, marginBottom: 6 },
+        boardTitle("Yesterday's Daily"),
+        box(
+          {
+            padding: "2px 9px",
+            borderRadius: 999,
+            border: `1px solid ${C.line}`,
+            fontSize: 13,
+            marginBottom: 6,
+            color: C.text,
+          },
+          d.title,
+        ),
+        box({ flexGrow: 1 }),
+        box({ marginBottom: 6, display: "flex" }, dailyMeta(d)),
+      ),
+      twoColumns(pictures, d.rows),
+    );
+  return null; // C draws it in the grid
+};
+
+/** C: the Map's card beside the Daily column. */
+const protoMapCard = (d: ProtoDaily) =>
+  box(
+    { flexDirection: "column", gap: 8, width: STANDINGS_COLUMN, paddingTop: 26 },
+    img(d.picture, STANDINGS_COLUMN, Math.round(STANDINGS_COLUMN * 0.675), {
+      borderRadius: 8,
+      objectFit: "cover",
+    }),
+    box({ fontFamily: F.marquee, fontSize: 20 }, d.title),
+    dailyMeta(d),
+    box(
+      { color: C.dim, fontSize: 13 },
+      `Won by ${d.rows[0]?.name ?? "nobody"} in ${(d.rows[0]?.time ?? "").replace(/^0:/, "")}`,
+    ),
+  );
+const protoDailyColumn = (d: ProtoDaily, pictures: SkinPictureUris) =>
+  box(
+    { flexDirection: "column", gap: 4, width: STANDINGS_COLUMN },
+    boardTitle("Yesterday's Daily"),
+    ...d.rows.map((r) => dailyRow(pictures, r, null)),
+  );
+let protoDaily: ProtoDaily | null = null;
+export const setProtoDaily = (d: ProtoDaily) => {
+  protoDaily = d;
+};
+// ================================================================ end PROTOTYPE round 2
+
 export const standingsScene = (
   { title, subtitle, boards, overall }: StandingsImage,
   pictures: SkinPictureUris,
@@ -1559,8 +1794,22 @@ export const standingsScene = (
       box({ fontFamily: F.marquee, fontSize: 28 }, title),
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
+    ...(protoDaily !== null && proto2 === "B" ? [protoDailyBoard(protoDaily, pictures)] : []),
     overallBoard,
     ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(([b, i]) => column(b, i)))),
+    ...(protoDaily === null
+      ? []
+      : proto2 === "C"
+        ? [
+            box(
+              { gap: STANDINGS_GAP },
+              protoDailyColumn(protoDaily, pictures),
+              protoMapCard(protoDaily),
+            ),
+          ]
+        : proto2 === "B"
+          ? []
+          : [protoDailyBoard(protoDaily, pictures)]),
   );
 };
 
