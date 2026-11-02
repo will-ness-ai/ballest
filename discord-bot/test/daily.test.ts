@@ -8,7 +8,7 @@ import { Renderer } from "../src/render/renderer.js";
 import type { StandingsImage } from "../src/render/scenes.js";
 import { ReportChannel, ReportPostFailed, ThreadPostFailed } from "../src/report/channel.js";
 import { dailyLoop, ReportLogLive } from "../src/report/daily.js";
-import { GhostDates } from "../src/report/records.js";
+import { GhostDates } from "../src/steam/ghosts.js";
 import { DAY_MS, type YesterdayDaily } from "../src/report/report.js";
 import { ReportDataUnavailable, ReportSource } from "../src/report/source.js";
 import { StandingsSource } from "../src/report/standings.js";
