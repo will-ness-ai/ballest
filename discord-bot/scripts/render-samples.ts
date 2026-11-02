@@ -7,7 +7,6 @@ import { Effect } from "effect";
 import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js";
 import type { CardView } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
-import { BOARD_SHORT } from "../src/report/messages.js";
 import { STATS } from "../src/report/report.js";
 import { cupStandingsImage } from "../src/weeklyCup/messages.js";
 import type { CupMap, StandingsView } from "../src/weeklyCup/model.js";
@@ -319,7 +318,7 @@ const program = Effect.gen(function* () {
     points,
     place,
     move,
-    places: STATS.map((stat, i) => ({ board: BOARD_SHORT[stat], place: places[i] ?? null })),
+    places: STATS.map((_, i) => places[i] ?? null),
   });
   yield* save(
     "standings",
@@ -343,6 +342,7 @@ const program = Effect.gen(function* () {
           ],
           out: ["Low5ive"],
         },
+        { title: "Most Author Medals", rows: [], out: [] },
         {
           title: "Most world records",
           rows: [
@@ -352,7 +352,6 @@ const program = Effect.gen(function* () {
           ],
           out: [],
         },
-        { title: "Most Author Medals", rows: [], out: [] },
         {
           title: "Most top 5s",
           rows: [row("a_name_far_too_long_for_its_row", 608, 1, 0, 9), row("Chaos", 243, 2, 0)],

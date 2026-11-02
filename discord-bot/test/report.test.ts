@@ -140,13 +140,10 @@ describe("the Daily Report's standings", () => {
   });
 
   it("marks a player new to a top 10, and names who fell out of it", () => {
-    const ten = Array.from({ length: 10 }, (_, i): Row => [
-      player(i),
-      20 - i,
-      20 - i,
-      i + 2,
-      i + 1,
-    ]);
+    const ten = Array.from(
+      { length: 10 },
+      (_, i): Row => [player(i), 20 - i, 20 - i, i + 2, i + 1],
+    );
     // zoe is new, and p09 drops to 11th
     const r = build(data({}), { played: [["zoe", 30, 0, 1, 12], ...ten] });
     const played = r.boards.find((x) => x.stat === "played");
@@ -252,13 +249,10 @@ describe("the Daily Report's standings", () => {
 
   it("scores a shared place that runs past tenth on a standing for everyone on it", () => {
     // three share 9th on Maps played: the eleventh row still holds 9th, and scores 2
-    const eight = Array.from({ length: 8 }, (_, i): Row => [
-      player(i),
-      20 - i,
-      20 - i,
-      i + 1,
-      i + 1,
-    ]);
+    const eight = Array.from(
+      { length: 8 },
+      (_, i): Row => [player(i), 20 - i, 20 - i, i + 1, i + 1],
+    );
     const tied = ["amy", "bob", "cat"].map((id): Row => [id, 5, 5, 9, 9]);
     const r = build(data({}), { played: [...eight, ...tied, ["dan", 4, 4, 12, 12]] });
     const points = new Map(r.overall.rows.map((x) => [x.steamId, x.points]));
@@ -268,13 +262,10 @@ describe("the Daily Report's standings", () => {
   });
 
   it("moves Overall rows by yesterday's points, marks newcomers, and names who fell out", () => {
-    const nine = Array.from({ length: 9 }, (_, i): Row => [
-      player(i),
-      20 - i,
-      20 - i,
-      i + 1,
-      i + 1,
-    ]);
+    const nine = Array.from(
+      { length: 9 },
+      (_, i): Row => [player(i), 20 - i, 20 - i, i + 1, i + 1],
+    );
     const r = build(data({}), {
       // p09 slips from 10th to 11th on Maps played; zoe takes amy's world-record lead
       played: [...nine, ["p09", 10, 10, 11, 10]],
@@ -297,12 +288,7 @@ describe("the Daily Report's standings", () => {
       ["P06", 4, 9, -1],
       ["P07", 3, 10, -1],
     ]);
-    expect(image.rows[1]?.places).toEqual([
-      { board: "MP", place: null },
-      { board: "AM", place: null },
-      { board: "WR", place: 1 },
-      { board: "T5", place: null },
-    ]);
+    expect(image.rows[1]?.places).toEqual([null, null, 1, null]);
     // P08 is 11th Overall now; P09 was 11th yesterday too, so never in the top 10
     expect(image.out).toEqual(["P08"]);
   });

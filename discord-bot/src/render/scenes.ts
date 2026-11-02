@@ -1115,13 +1115,13 @@ export interface OverallRow {
   readonly points: number;
   readonly place: number;
   readonly move: number | "new";
-  /** Their place on each of the four boards ("MP" 1), in the boards' order; null outside its top 10. */
-  readonly places: ReadonlyArray<{ readonly board: string; readonly place: number | null }>;
+  /** Their place on each of the four boards, in the boards' order; null outside its top 10. */
+  readonly places: ReadonlyArray<number | null>;
 }
 
 /**
  * The Daily Report's boards (src/report/): Overall across the top, then the four two by two, ten
- * rows each.
+ * rows each. Each of the four takes its colour from its place in `boards`.
  */
 export interface StandingsImage {
   readonly title: string;
@@ -1195,25 +1195,52 @@ export const OVERALL_RULE =
 
 const MEDAL_INK = [C.gold, C.silver, C.bronze];
 
-/** A place on one of the four boards, on an Overall row: a podium place in its medal's colour. */
-const placeChip = ({ board, place }: OverallRow["places"][number]) => {
-  const medal = place === null ? undefined : MEDAL_INK[place - 1];
+/**
+ * The four standings' marble hues, in the boards' order: Maps played teal, Author Medals purple,
+ * world records pink, the fourth blue. A board's title leads with its marble, the image's key to
+ * the places on Overall.
+ */
+const BOARD_HUE = [170, 275, 330, 220];
+const boardHue = (i: number) => BOARD_HUE[i] ?? 0;
+
+const PLACE_MARBLE = 20;
+
+/**
+ * A place on one of the four boards, on an Overall row: the place on a marble in the board's
+ * colour, ringed in its medal's colour on the podium; an empty socket outside the top 10.
+ */
+const placeMarble = (place: number | null, i: number) => {
+  const cell = {
+    width: PLACE_MARBLE + 4,
+    height: PLACE_MARBLE + 4,
+    alignItems: "center",
+    justifyContent: "center",
+  } as const;
+  if (place === null)
+    return box(
+      cell,
+      box({
+        width: PLACE_MARBLE - 6,
+        height: PLACE_MARBLE - 6,
+        borderRadius: PLACE_MARBLE,
+        border: `1px dashed ${C.line}`,
+      }),
+    );
+  const medal = MEDAL_INK[place - 1];
   return box(
     {
-      width: 38,
-      justifyContent: "center",
-      gap: 2,
-      padding: "1px 0",
-      borderRadius: 4,
-      fontFamily: F.hud,
-      fontWeight: 700,
-      fontSize: 10,
-      color: place === null ? C.faint : medal === undefined ? C.text : C.bg,
-      backgroundColor: place === null ? "transparent" : (medal ?? C.surface),
-      border: place === null ? `1px dashed ${C.line}` : "1px solid transparent",
+      ...cell,
+      borderRadius: PLACE_MARBLE,
+      border: medal === undefined ? "2px solid transparent" : `2px solid ${medal}`,
     },
-    box({ opacity: 0.7 }, board),
-    place === null ? "–" : String(place),
+    box(
+      { ...cell, position: "relative", width: PLACE_MARBLE, height: PLACE_MARBLE },
+      marble(boardHue(i), PLACE_MARBLE, { position: "absolute", top: 0, left: 0 }),
+      box(
+        { fontFamily: F.hud, fontWeight: 700, fontSize: 11, color: "#fff", textShadow: OUTLINE },
+        String(place),
+      ),
+    ),
   );
 };
 
@@ -1277,13 +1304,21 @@ const standingsBoard = (
 const boardTitle = (title: string) =>
   label(title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 });
 
+/** One of the four boards' titles, led by its marble. */
+const keyedTitle = (title: string, i: number) =>
+  box(
+    { alignItems: "center", gap: 8, marginBottom: 6 },
+    marble(boardHue(i), 14),
+    label(title, { fontSize: 13, letterSpacing: 1.4 }),
+  );
+
 export const standingsScene = (
   { title, subtitle, boards, overall }: StandingsImage,
   pictures: SkinPictureUris,
 ): El => {
-  const column = (board: StandingsImage["boards"][number]) =>
+  const column = (board: StandingsImage["boards"][number], i: number) =>
     standingsBoard(
-      boardTitle(board.title),
+      keyedTitle(board.title, i),
       board.rows.map((row, i) =>
         standingsRow(
           pictures,
@@ -1310,7 +1345,7 @@ export const standingsScene = (
         pictures,
         i === 0,
         row,
-        box({ gap: 4 }, ...row.places.map(placeChip)),
+        box({ gap: 4 }, ...row.places.map(placeMarble)),
         box(
           { width: 58, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
           String(row.points),
@@ -1323,7 +1358,8 @@ export const standingsScene = (
     ),
     overall.out,
   );
-  const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
+  const keyed = boards.map((board, i) => column(board, i));
+  const pairs = [keyed.slice(0, 2), keyed.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
     { padding: STANDINGS_PADDING, gap: 20 },
     box(
@@ -1332,7 +1368,7 @@ export const standingsScene = (
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
     overallBoard,
-    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(column))),
+    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair)),
   );
 };
 

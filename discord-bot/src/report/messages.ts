@@ -33,14 +33,6 @@ export const BOARD_TITLE: Record<Stat, string> = {
   top5: "Most top 5s",
 };
 
-/** The four standings' short names, on each Overall row's chips. */
-export const BOARD_SHORT: Record<Stat, string> = {
-  played: "MP",
-  author: "AM",
-  wr: "WR",
-  top5: "T5",
-};
-
 /** The Track's board on the site. */
 const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -162,7 +154,7 @@ export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsIma
       points: row.points,
       place: row.place,
       move: moveOf(row),
-      places: STATS.map((stat) => ({ board: BOARD_SHORT[stat], place: row.places[stat] })),
+      places: STATS.map((stat) => row.places[stat]),
     })),
     out: r.overall.out.map((o) => o.persona),
   },
