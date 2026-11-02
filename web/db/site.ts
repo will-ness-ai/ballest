@@ -25,6 +25,7 @@ import type {
   DailyCell,
   DailyDay,
   DailyFinish,
+  DailyWin,
   DailyStandings,
   DerivedStanding,
   DerivedStandings,
@@ -671,6 +672,23 @@ export async function dailyStandings(db: Db): Promise<DailyStandings> {
   return standingsOf(
     final.map((r) => r.date),
     finishes,
+  );
+}
+
+/* Each final Daily's 1st, ranked as dailyStandings ranks them, with when its final Refresh
+   finished (Unix ms): the Daily wins GET /api/standings counts (withDailyWins in
+   lib/workshop-standings.ts) */
+export async function dailyWins(db: Db): Promise<Array<DailyWin>> {
+  return rows<DailyWin>(
+    db,
+    sql`select r.steam_id as "steamId", ${personaSql} as persona,
+        (extract(epoch from coalesce(f.finished_at, f.started_at)) * 1000)::float8 as "finalAt"
+      from (${rankedSql(sql`e.board in (select board from dailies where final_refresh is not null)`)}) r
+      join dailies d on d.board = r.board
+      join refreshes f on f.id = d.final_refresh
+      join players p on p.steam_id = r.steam_id
+      where r.rank = 1
+      order by d.date`,
   );
 }
 
