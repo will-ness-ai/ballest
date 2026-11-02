@@ -110,8 +110,9 @@ const SiteStandingRow = Schema.transform(
 );
 const SiteStandingList = Schema.Array(SiteStandingRow);
 
-/** The leaderboard site's GET /api/standings (web/lib/rows.ts, WorkshopStandings): the four
- * Workshop standings now and at a baseline, each list in the site's order. */
+/** The leaderboard site's GET /api/standings (web/lib/rows.ts, StandingsPayload): the Workshop
+ * standings the report draws and, beside them, Most Daily wins, now and at a baseline, each list
+ * in the site's order. The site also serves top 5s, which the report no longer reads. */
 export const SiteStandings = Schema.Struct({
   readAt: Schema.NullOr(Schema.String),
   since: Schema.String,
@@ -121,8 +122,8 @@ export const SiteStandings = Schema.Struct({
     played: SiteStandingList,
     author: SiteStandingList,
     wr: SiteStandingList,
-    top5: SiteStandingList,
   }),
+  daily: Schema.Struct({ wins: SiteStandingList }),
 });
 export type SiteStandings = typeof SiteStandings.Type;
 

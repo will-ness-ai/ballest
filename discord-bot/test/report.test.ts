@@ -91,8 +91,8 @@ const payload = (lists: Lists): typeof SiteStandings.Encoded => {
       played: index(lists.played),
       author: index(lists.author),
       wr: index(lists.wr),
-      top5: index(lists.top5),
     },
+    daily: { wins: index(lists.wins) },
   };
 };
 /** The payload read as the bot reads it: decoded, then its players named. */
@@ -112,11 +112,30 @@ describe("the Daily Report's standings", () => {
       ],
       wr: [["bob", 1, 1, 1, 1]],
     });
-    expect(r.boards.map((b) => b.stat)).toEqual(["played", "author", "wr", "top5"]);
+    expect(r.boards.map((b) => b.stat)).toEqual(["played", "author", "wr", "wins"]);
     expect(r.boards.find((b) => b.stat === "wr")?.rows).toEqual([
       { steamId: "bob", persona: "BOB", n: 1, place: 1, placeBefore: 1, gain: 0 },
     ]);
     expect(r.players).toBe(3);
+  });
+
+  it("takes Most Daily wins from the site's Daily side, with yesterday's win as a gain", () => {
+    const r = build(data({}), {
+      wins: [
+        ["dan", 3, 2, 1, 1],
+        ["amy", 2, 2, 2, 1],
+      ],
+    });
+    expect(r.boards.find((b) => b.stat === "wins")?.rows).toEqual([
+      { steamId: "dan", persona: "DAN", n: 3, place: 1, placeBefore: 1, gain: 1 },
+      { steamId: "amy", persona: "AMY", n: 2, place: 2, placeBefore: 1, gain: 0 },
+    ]);
+    expect(
+      standingsImage(r, new Map()).boards[3]?.rows.map((x) => [x.name, x.place, x.move, x.gain]),
+    ).toEqual([
+      ["DAN", 1, 0, 1],
+      ["AMY", 2, -1, 0],
+    ]);
   });
 
   it("moves each row by its shared place, so a tie shows no move", () => {
@@ -215,6 +234,18 @@ describe("the Daily Report's standings", () => {
     const bad = payload({ played: [["amy", 1, 1, 1, 1]] });
     const wr: (typeof SiteStandings.Encoded)["lists"]["wr"] = [[5, 1, 1, 1, 1]];
     expect(Either.isLeft(fromSite({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
+    expect(Either.isLeft(fromSite({ ...bad, daily: { wins: wr } }))).toBe(true);
+  });
+
+  it("refuses a payload without the Daily side, and reads one that still lists top 5s", () => {
+    const { daily: _, ...workshopOnly } = payload({});
+    expect(Either.isLeft(Schema.decodeUnknownEither(SiteStandings)(workshopOnly))).toBe(true);
+    const site = payload({ wins: [["amy", 1, 1, 1, 1]] });
+    const served = { ...site, lists: { ...site.lists, top5: [[0, 5, 5, 1, 1]] } };
+    const read = Either.getOrThrow(standingsFrom(Schema.decodeUnknownSync(SiteStandings)(served)));
+    expect(read.wins).toEqual([
+      { steamId: "amy", persona: "AMY", n: 1, nBefore: 1, place: 1, placeBefore: 1 },
+    ]);
   });
 
   it("scores Overall 10 for 1st down to 1 for 10th on each standing, nothing outside a top 10", () => {
@@ -228,22 +259,22 @@ describe("the Daily Report's standings", () => {
         ["amy", 5, 5, 1, 1],
         ["slati", 4, 4, 2, 2],
       ],
-      top5: [
+      wins: [
         ["slati", 9, 9, 1, 1],
         ["bob", 1, 1, 10, 10],
       ],
     });
     expect(r.overall.rows.map((x) => [x.persona, x.points, x.place, x.places])).toEqual([
-      ["SLATI", 39, 1, { played: 1, author: 1, wr: 2, top5: 1 }],
-      ["AMY", 10, 2, { played: null, author: null, wr: 1, top5: null }],
-      ["BOB", 1, 3, { played: null, author: null, wr: null, top5: 10 }],
+      ["SLATI", 39, 1, { played: 1, author: 1, wr: 2, wins: 1 }],
+      ["AMY", 10, 2, { played: null, author: null, wr: 1, wins: null }],
+      ["BOB", 1, 3, { played: null, author: null, wr: null, wins: 10 }],
     ]);
   });
 
   it("scores everyone tied on a standing, and shares Overall places over exactly ten rows", () => {
     // twelve tied for 1st on world records: all twelve score 10, and share 1st Overall
     const twelve = Array.from({ length: 12 }, (_, i): Row => [player(i), 1, 1, 1, 1]);
-    const r = build(data({}), { wr: twelve, top5: [["zed", 1, 1, 1, 1]] });
+    const r = build(data({}), { wr: twelve, wins: [["zed", 1, 1, 1, 1]] });
     expect(r.overall.rows).toHaveLength(10);
     expect(r.overall.rows.map((x) => [x.steamId, x.points, x.place])).toEqual(
       twelve.slice(0, 10).map((x) => [x[0], 10, 1]),
@@ -301,7 +332,7 @@ describe("the Daily Report's standings", () => {
       { board: "MP", place: null },
       { board: "AM", place: null },
       { board: "WR", place: 1 },
-      { board: "T5", place: null },
+      { board: "DW", place: null },
     ]);
     // P08 is 11th Overall now; P09 was 11th yesterday too, so never in the top 10
     expect(image.out).toEqual(["P08"]);

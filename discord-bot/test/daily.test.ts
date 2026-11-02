@@ -49,7 +49,7 @@ const setup = Effect.gen(function* () {
               return yield* Effect.fail(
                 new ReportDataUnavailable({ reason: "the site's standings: ResponseError" }),
               );
-            return { played: [], author: [], wr: [], top5: [] };
+            return { played: [], author: [], wr: [], wins: [] };
           }),
       }),
     ),

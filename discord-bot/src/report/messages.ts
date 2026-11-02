@@ -25,12 +25,12 @@ import {
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
 
-/** The four Workshop standings' headings, in the image. */
+/** The four standings' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {
   played: "Most Maps played",
   author: "Most Author Medals",
   wr: "Most world records",
-  top5: "Most top 5s",
+  wins: "Most Daily wins",
 };
 
 /** The four standings' short names, on each Overall row's chips. */
@@ -38,7 +38,7 @@ export const BOARD_SHORT: Record<Stat, string> = {
   played: "MP",
   author: "AM",
   wr: "WR",
-  top5: "T5",
+  wins: "DW",
 };
 
 /** The Track's board on the site. */
