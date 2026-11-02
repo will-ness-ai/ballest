@@ -1047,6 +1047,45 @@ describe("the Weekly Cup's racing and results", () => {
     }),
   );
 
+  it.scoped("takes a Ghost dated before the last read for the old run's, still attached", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* run(t, boards[1], 30, 4 * MINUTE + 50_000); // set 09:04:50, seen 09:05
+      yield* TestClock.adjust(3 * HOUR);
+      // A PB at 12:01, read at 12:05 with the 09:04:50 Ghost still on it.
+      yield* run(t, boards[1], 29, 4 * MINUTE + 50_000);
+      yield* TestClock.adjust(5 * MINUTE);
+      const flags = yield* flagsOf(t);
+      expect(flags).toHaveLength(1);
+      expect(flags[0]).toContain("about 180 minutes after their first time on it");
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("reads a PB's Ghost only when it could make a Flag", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* run(t, boards[1], 30, 1 * MINUTE); // seen 09:05: its Ghost read
+      yield* TestClock.adjust(5 * MINUTE);
+      yield* run(t, boards[1], 29, 6 * MINUTE); // seen 09:10, set by then: under 30 minutes
+      yield* TestClock.adjust(5 * MINUTE);
+      expect(t.steam.ghostReads()).toBe(1);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("gives up on a Ghost read that never answers, and reads on", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* t.steam.failGhosts("hang");
+      yield* run(t, boards[1], 30, 1 * MINUTE);
+      yield* TestClock.adjust(5 * MINUTE);
+      yield* TestClock.adjust(1 * MINUTE);
+      expect((yield* shown(t)).maps?.[1]?.[0]).toEqual(["alice", tk(30), 40000]);
+      yield* bot.stop;
+    }),
+  );
+
   it.scoped("keeps the last standings through a failed read, and picks the time up next", () =>
     Effect.gen(function* () {
       const { t, bot, boards } = yield* racing();

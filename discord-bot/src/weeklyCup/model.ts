@@ -31,6 +31,8 @@ export const LATE_READ_AFTER = 60_000;
 export const FLAG_AFTER = 30 * 60_000;
 /** How far a Ghost's date, from the player's PC clock, may sit outside when its run could be. */
 export const GHOST_CLOCK_SLACK = 60_000;
+/** A Ghost read that takes longer gives no date, so a stalled download never holds the Cup. */
+export const GHOST_READ_TIMEOUT = "30 seconds";
 
 export const CUP_STATES = ["open", "voting", "racing", "final", "cancelled", "skipped"] as const;
 export type CupState = (typeof CUP_STATES)[number];

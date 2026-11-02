@@ -59,8 +59,10 @@ export interface FakeSteamControl {
     seconds: number,
     ghostAt?: number,
   ) => Effect.Effect<void>;
-  /** While true, every Ghost read fails as if Steam's file host didn't answer. */
-  readonly failGhosts: (fail: boolean) => Effect.Effect<void>;
+  /** While set, every Ghost read fails as if Steam's file host refused, or never answers. */
+  readonly failGhosts: (fail: boolean | "hang") => Effect.Effect<void>;
+  /** How many Ghosts have been read so far. */
+  readonly ghostReads: () => number;
   /** The next n per-player reads fail as if Steam dropped the reply. */
   readonly failNextReads: (n: number) => Effect.Effect<void>;
   readonly setCatalogue: (maps: ReadonlyArray<FakeMap>) => Effect.Effect<void>;
@@ -77,7 +79,8 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
     const ghostIds = new Map<string, string>();
     /** Each Ghost's stamp, by UGC id. */
     const stamps = new Map<string, number>();
-    let ghostsDown = false;
+    let ghostsDown: boolean | "hang" = false;
+    let ghostReads = 0;
     const failures = yield* Ref.make(0);
     const catalogue = yield* Ref.make<ReadonlyArray<FakeMap>>([]);
     const readDelay = yield* Ref.make<Duration.DurationInput>(0);
@@ -135,6 +138,7 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
         Effect.sync(() => {
           ghostsDown = fail;
         }),
+      ghostReads: () => ghostReads,
       failNextReads: (n) => Ref.set(failures, n),
       setCatalogue: (maps) => Ref.set(catalogue, maps),
       setReadDelay: (delay) => Ref.set(readDelay, delay),
@@ -142,9 +146,13 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
     };
     const ghosts = GhostDates.of({
       setAt: (ugcId) =>
-        ghostsDown
-          ? Effect.fail(new GhostUnavailable({ reason: "file host down" }))
-          : Effect.succeed(Option.fromNullable(stamps.get(ugcId))),
+        Effect.suspend(() => {
+          ghostReads++;
+          if (ghostsDown === "hang") return Effect.never;
+          return ghostsDown
+            ? Effect.fail(new GhostUnavailable({ reason: "file host down" }))
+            : Effect.succeed(Option.fromNullable(stamps.get(ugcId)));
+        }),
     });
     return { port, control, ghosts };
   });

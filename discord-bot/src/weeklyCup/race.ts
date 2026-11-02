@@ -9,6 +9,7 @@
 import { Effect, Option } from "effect";
 import { formatTime } from "../domain.js";
 import { mapName } from "../links.js";
+import { GhostUnavailable } from "../steam/ghosts.js";
 import type { SteamUnavailable } from "../ports.js";
 import type { CupKit } from "./kit.js";
 import {
@@ -16,6 +17,7 @@ import {
   FINAL_WAIT,
   FLAG_AFTER,
   GHOST_CLOCK_SLACK,
+  GHOST_READ_TIMEOUT,
   LATE_READ_AFTER,
   READ_EVERY,
   RETRY_EVERY,
@@ -69,10 +71,17 @@ export const makeRace = (kit: CupKit) => {
   const { guildId, log, steam, ghosts, links } = kit;
 
   /**
-   * When a run was set, by its Ghost: none when the entry has no Ghost, its read fails, or its date
-   * can't be this run's. A Ghost is attached after its score lands, so a read can still see the
-   * old run's; a run beating a time seen at `after` was set after then, and none is set after
-   * `now` (give or take GHOST_CLOCK_SLACK: the stamp comes from the player's PC clock).
+   * When each Cup Map's last read landed, so a new time's run is known to be set after it; lost on
+   * a restart, when the time it beat bounds it instead.
+   */
+  const lastReads = new Map<string, number>();
+
+  /**
+   * When a run first seen `now` was set, by its Ghost: none when the entry has no Ghost, the read
+   * fails or takes over GHOST_READ_TIMEOUT, or its date can't be this run's. A Ghost is attached
+   * after its score lands, so a read can still see the old run's; this run was set after `after`
+   * (the last read that didn't show it), and not after `now`, give or take a second for the
+   * stamp's rounding and GHOST_CLOCK_SLACK on the late side for the player's PC clock.
    */
   const setAtOf = Effect.fn("WeeklyCup.setAtOf")(function* (
     ugcId: string | undefined,
@@ -80,16 +89,18 @@ export const makeRace = (kit: CupKit) => {
     now: number,
   ) {
     if (ugcId === undefined) return Option.none<number>();
-    const at = yield* ghosts
-      .setAt(ugcId)
-      .pipe(
-        Effect.catchTag("GhostUnavailable", (e) =>
-          Effect.logWarning(`weekly cup: no date for a Ghost (${e.reason})`).pipe(
-            Effect.as(Option.none<number>()),
-          ),
+    const at = yield* ghosts.setAt(ugcId).pipe(
+      Effect.timeoutFail({
+        duration: GHOST_READ_TIMEOUT,
+        onTimeout: () => new GhostUnavailable({ reason: "timed out" }),
+      }),
+      Effect.catchTag("GhostUnavailable", (e) =>
+        Effect.logWarning(`weekly cup: no date for a Ghost (${e.reason})`).pipe(
+          Effect.as(Option.none<number>()),
         ),
-      );
-    return Option.filter(at, (a) => a > after - GHOST_CLOCK_SLACK && a <= now + GHOST_CLOCK_SLACK);
+      ),
+    );
+    return Option.filter(at, (a) => a > after - 1000 && a <= now + GHOST_CLOCK_SLACK);
   });
 
   /** The week's Cup Maps in rank order, each with its votes; none before the vote closes. */
@@ -155,6 +166,7 @@ export const makeRace = (kit: CupKit) => {
     now: number,
     week: CupWeek,
     race: Race,
+    barsAt: number | null,
   ) {
     const entrants = yield* log.entrants(guildId, week.week);
     const signedUpAt = new Map(entrants.map((e) => [e.discordId, e.signedUpAt]));
@@ -177,25 +189,32 @@ export const makeRace = (kit: CupKit) => {
         const before = held.get(key);
         if (bar !== undefined && entry.ticks >= bar.ticks) continue;
         if (before !== undefined && entry.ticks >= before.ticks) continue;
-        // A first counted time beats the bar taken as racing opened or as they signed up.
+        const lastRead = lastReads.get(map.pfid) ?? 0;
+        // A first counted time beats the bar, taken as racing opened or as they signed up.
         const firstSetAt =
           before === undefined
             ? Option.getOrNull(
                 yield* setAtOf(
                   entry.ugcId,
-                  Math.max(week.voteClosesAt, signedUpAt.get(entry.discordId) ?? 0),
+                  Math.max(
+                    barsAt ?? week.voteClosesAt,
+                    signedUpAt.get(entry.discordId) ?? 0,
+                    lastRead,
+                  ),
                   now,
                 ),
               )
             : before.firstSetAt;
+        // Its Ghost is read only when it could make a Flag: dated by `now` at the latest.
         const gap =
           before === undefined || before.flagged
             ? null
             : flagGap(
                 before,
-                before.firstSetAt === null
+                before.firstSetAt === null ||
+                  now + GHOST_CLOCK_SLACK - before.firstSetAt <= FLAG_AFTER
                   ? Option.none()
-                  : yield* setAtOf(entry.ugcId, before.seenAt, now),
+                  : yield* setAtOf(entry.ugcId, Math.max(before.seenAt, lastRead), now),
                 now,
               );
         const flag = gap !== null && gap.ms > FLAG_AFTER;
@@ -215,6 +234,7 @@ export const makeRace = (kit: CupKit) => {
             `Weekly Cup Flag for ${week.week} in ${guildId}: <@${entry.discordId}> set ${formatTime(entry.ticks)} on ${mapName(map)}, ${describeGap(gap)} after their first time on it, ${gap.byGhosts ? "by their Ghosts" : "by the bot's reads"}. It still counts.`,
           );
       }
+      lastReads.set(map.pfid, now);
     }
     yield* kit.attempt(
       "read",
@@ -256,7 +276,7 @@ export const makeRace = (kit: CupKit) => {
   /** Racing: read the Cup Maps, show the standings, and read again in 5 minutes. */
   const live = Effect.fn("WeeklyCup.live")(function* (now: number, week: CupWeek, cup: CupRecord) {
     const race = yield* raceOf(week.week);
-    yield* readTimes(now, week, race);
+    yield* readTimes(now, week, race, cup.barsAt);
     const view = yield* standingsOf(week, race, false);
     yield* kit.show(week, cup, "standings", view, "update the Weekly Cup's standings");
     return Math.min(now + READ_EVERY, week.endsAt);
@@ -278,7 +298,9 @@ export const makeRace = (kit: CupKit) => {
       const race = yield* raceOf(week.week);
       const missing = race.maps.filter((m) => current.finalReads[m.pfid] === undefined);
       const landed =
-        missing.length === 0 ? [] : yield* readTimes(now, week, { ...race, maps: missing });
+        missing.length === 0
+          ? []
+          : yield* readTimes(now, week, { ...race, maps: missing }, current.barsAt);
       if (landed.length > 0) {
         const finalReads = { ...current.finalReads };
         for (const pfid of landed) finalReads[pfid] = now;
