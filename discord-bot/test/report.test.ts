@@ -238,7 +238,9 @@ describe("the Daily Report's standings", () => {
   });
 
   it("refuses a payload without the Daily side, and reads one that still lists top 5s", () => {
-    const { daily: _, ...workshopOnly } = payload({});
+    const workshopOnly = Object.fromEntries(
+      Object.entries(payload({})).filter(([key]) => key !== "daily"),
+    );
     expect(Either.isLeft(Schema.decodeUnknownEither(SiteStandings)(workshopOnly))).toBe(true);
     const site = payload({ wins: [["amy", 1, 1, 1, 1]] });
     const served = { ...site, lists: { ...site.lists, top5: [[0, 5, 5, 1, 1]] } };
