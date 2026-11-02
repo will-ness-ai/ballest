@@ -199,6 +199,7 @@ const dailyRow = (place: number, name: string, gap: string | null, time: string)
   time,
 });
 const DAILY: Daily = {
+  heading: "Yesterday's Daily",
   title: "Happy Halloween",
   meta: "Daily · Sat 31 Oct · 291 players",
   preview: null,
@@ -239,6 +240,17 @@ describe("yesterday's Daily on the standings image", () => {
       ...["5", "Laney", "+0.231", "11.835"],
       ...["6", "acheeks", "+0.255", "11.859"],
     ]);
+  });
+
+  it("heads an older Daily with the heading it is given", () => {
+    expect(textsOf(dailyScene({ ...DAILY, heading: "Latest Daily" }))).toContain("Latest Daily");
+  });
+
+  it("clips a long name with an ellipsis, and keeps a time over a minute whole", () => {
+    const long = dailyRow(7, "a_name_far_too_long_for_its_row", "+59.896", "1:11.500");
+    const texts = textsOf(dailyScene({ ...DAILY, rows: [...DAILY.rows, long] }));
+    expect(texts).toContain("a_name_far_…");
+    expect(texts).toContain("1:11.500");
   });
 
   it("splits its top 10 into two columns of five", () => {

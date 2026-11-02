@@ -693,8 +693,9 @@ export async function dailyWins(db: Db): Promise<Array<DailyWin>> {
   );
 }
 
-/* The newest final Daily (by date), with its Map as dailyDay reads it, its player count and
-   its top 10 as its board ranks it, or null when no Daily is final: the Daily Report's
+/* The newest final Daily (by date) with at least one open Entry, with its Map as dailyDay reads
+   it, its player count and its top 10 as its board ranks it, or null when there is none (a
+   final Daily whose board closed down to nobody is passed over): the Daily Report's
    yesterday's Daily (withDaily in lib/workshop-standings.ts) */
 export async function latestDaily(db: Db): Promise<LatestDaily | null> {
   const found = await rows<Omit<LatestDaily, "top">>(
@@ -705,6 +706,7 @@ export async function latestDaily(db: Db): Promise<LatestDaily | null> {
       from dailies d
       ${dailyMapSql}
       where d.final_refresh is not null
+        and exists (select 1 from entries e where e.board = d.board and e.closed_refresh is null)
       order by d.date desc limit 1`,
   );
   const day = found.at(0);

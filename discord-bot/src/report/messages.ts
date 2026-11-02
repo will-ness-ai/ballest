@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   ComponentType,
 } from "discord.js";
+import { dailyTime, shortDay } from "../dailyPost/card.js";
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import { escape, mapLink, SITE_URL, siteLink } from "../links.js";
 import { type ChosenSkinPicks, chosenSkinOf } from "../ports.js";
@@ -83,7 +84,7 @@ export const headMessage = (r: Report): string => {
     r.refreshedAt === null ? "" : ` · data as of <t:${Math.floor(r.refreshedAt / 1000)}:R>`;
   const head = [
     `# ${dayTitle(r.at)}`,
-    `-# Workshop standings · ${counts(r)}${asOf}`,
+    `-# Standings · ${counts(r)}${asOf}`,
     "## 📅 Since yesterday",
   ];
   const circuit = r.circuitChanges.map(changeLine);
@@ -106,9 +107,9 @@ export const headMessage = (r: Report): string => {
 
 /**
  * The channel message's one button, under the standings image: a link to the site's /you, where
- * each reader finds their own place on the four Workshop standings (spec #221: the one link button
- * under the image). A link
- * button carries no custom_id and the bot never hears a press, so nothing handles it.
+ * each reader finds their own place on the four standings (spec #221: the one link button under
+ * the image). A link button carries no custom_id and the bot never hears a press, so nothing
+ * handles it.
  */
 export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonComponentWithURL>> = [
   {
@@ -128,28 +129,23 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
 const moveOf = (row: { readonly place: number; readonly placeBefore: number | null }) =>
   row.placeBefore === null ? ("new" as const) : row.placeBefore - row.place;
 
-/**
- * What the standings image shows: the day, the counts and the four Workshop standings, each row
- * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
- */
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-/** "Sat 31 Oct", for a day written "2026-10-31" */
-const dailyDate = (date: string) => {
-  const d = new Date(`${date}T00:00:00Z`);
-  return `${WEEKDAYS[d.getUTCDay()] ?? ""} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()] ?? ""}`;
-};
+/** "2026-10-03", the UTC day before `at`. */
+const dayBefore = (at: number) => new Date(at - DAY_MS).toISOString().slice(0, 10);
 
-/** Yesterday's Daily as the image draws it: each time as the game shows it ("11.604" under a
- * minute), and its gap to 1st. */
+/** The Daily as the image draws it, headed "Yesterday's Daily" when it is the report's day
+ * before and "Latest Daily" when it is older (its date line says which day): each time as the game
+ * shows it ("9.604" under a minute, "1:09.500" over), and its gap to 1st. */
 const dailyBoard = (
   d: YesterdayDaily,
+  at: number,
   chosen: ChosenSkinPicks,
   preview: string | null,
 ): DailyBoard => {
   const first = d.top[0]?.score ?? 0;
   return {
+    heading: d.date === dayBefore(at) ? "Yesterday's Daily" : "Latest Daily",
     title: d.title,
-    meta: `Daily · ${dailyDate(d.date)} · ${plural(d.players, "player")}`,
+    meta: `Daily · ${shortDay(d.date)} · ${plural(d.players, "player")}`,
     preview,
     rows: d.top.map((row, i) => ({
       steamId: row.steamId,
@@ -157,20 +153,24 @@ const dailyBoard = (
       name: row.persona,
       place: row.rank,
       gap: i === 0 ? null : `+${formatGap(row.score - first)}`,
-      time: formatTime(row.score).replace(/^0:/, ""),
+      time: dailyTime(row.score).replace(/^0:0?/, ""),
     })),
   };
 };
 
-/** The standings image, with yesterday's Daily's preview as a data URI (null: the stand-in). */
+/**
+ * What the standings image shows: the day, the counts, the latest Daily (its preview as a data
+ * URI, null for the stand-in), Overall and the four standings, each row in its player's Chosen
+ * Skin out of `chosen` (every pick, as it stands when the report is built).
+ */
 export const standingsImage = (
   r: Report,
   chosen: ChosenSkinPicks,
   preview: string | null = null,
 ): StandingsImage => ({
   title: dayTitle(r.at),
-  subtitle: `Workshop standings · ${counts(r)}`,
-  daily: r.yesterday === null ? null : dailyBoard(r.yesterday, chosen, preview),
+  subtitle: `Standings · ${counts(r)}`,
+  daily: r.yesterday === null ? null : dailyBoard(r.yesterday, r.at, chosen, preview),
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
     rows: b.rows.map((row) => ({

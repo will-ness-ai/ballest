@@ -1127,12 +1127,14 @@ export interface DailyRow {
   readonly place: number;
   /** Behind 1st, "+0.026", or null for 1st. */
   readonly gap: string | null;
-  /** "11.604" */
+  /** "9.604", "11.604", "1:11.500" */
   readonly time: string;
 }
 
-/** Yesterday's Daily (round 2's B): its Map's banner and its top 10. */
+/** The latest Daily (round 2's B): its Map's banner and its top 10. */
 export interface DailyBoard {
+  /** "Yesterday's Daily", or "Latest Daily" for an older one. */
+  readonly heading: string;
   readonly title: string;
   /** "Daily · Sat 31 Oct · 291 players", under the title. */
   readonly meta: string;
@@ -1211,8 +1213,8 @@ const movePill = (move: StandingsRow["move"]) =>
       ? null
       : pill(move > 0, triangle(move > 0), String(Math.abs(move)));
 
-const clipName = (name: string) =>
-  name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
+const clipName = (name: string, longest = STANDINGS_NAME) =>
+  name.length > longest ? `${name.slice(0, longest - 1)}…` : name;
 
 /** The overall standing's rule, under its heading. */
 export const OVERALL_RULE =
@@ -1342,6 +1344,10 @@ const STANDINGS_FULL = STANDINGS_COLUMN * 2 + STANDINGS_GAP;
 const DAILY_BANNER = 110;
 /** Yesterday's Daily rows in each of its two columns. */
 const DAILY_COLUMN_ROWS = 5;
+/** A Daily row's time, wide enough for "1:11.500". */
+const DAILY_TIME = 70;
+/** Widest a name gets on a Daily row, beside its gap and time, before it is clipped. */
+const DAILY_NAME = 12;
 
 /** A row of yesterday's Daily: place (the podium in its medals' colours), marble, name, gap, time. */
 const dailyRow = (pictures: SkinPictureUris, row: DailyRow) =>
@@ -1359,9 +1365,12 @@ const dailyRow = (pictures: SkinPictureUris, row: DailyRow) =>
       String(row.place),
     ),
     playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
-    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name, DAILY_NAME)),
     row.gap === null ? null : box({ color: C.faint, fontFamily: F.hud, fontSize: 11 }, row.gap),
-    box({ width: 54, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 }, row.time),
+    box(
+      { width: DAILY_TIME, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
+      row.time,
+    ),
   );
 
 /**
@@ -1402,7 +1411,7 @@ const dailyBoard = (daily: DailyBoard, pictures: SkinPictureUris) => {
       }),
       box(
         { position: "absolute", left: 16, bottom: 12, flexDirection: "column", gap: 3 },
-        label("Yesterday's Daily", { fontSize: 11, letterSpacing: 1.4, color: C.text }),
+        label(daily.heading, { fontSize: 11, letterSpacing: 1.4, color: C.text }),
         box({ fontFamily: F.marquee, fontSize: 24, textShadow: OUTLINE }, daily.title),
         box({ color: C.dim, fontSize: 12 }, daily.meta),
       ),

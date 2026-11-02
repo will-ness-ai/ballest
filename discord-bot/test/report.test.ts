@@ -210,35 +210,51 @@ describe("the Daily Report's standings", () => {
     ]);
   });
 
+  const dailyTop = (steamId: string, seconds: number, rank: number) => ({
+    steamId,
+    persona: steamId.toUpperCase(),
+    score: ticks(seconds),
+    rank,
+  });
+  const dailyOn = (date: string) => ({
+    date,
+    title: "Happy Halloween",
+    preview: "https://images.example.invalid/hh.jpg",
+    players: 291,
+    top: [dailyTop("amy", 9.604, 1), dailyTop("bob", 11.63, 2), dailyTop("cy", 69.5, 3)],
+  });
+
   it("draws yesterday's Daily with each row's gap to 1st and time, in its Chosen Skin", () => {
-    const top = (steamId: string, seconds: number, rank: number) => ({
-      steamId,
-      persona: steamId.toUpperCase(),
-      score: ticks(seconds),
-      rank,
-    });
-    const yesterday = {
-      date: "2026-10-31",
-      title: "Happy Halloween",
-      preview: "https://images.example.invalid/hh.jpg",
-      players: 291,
-      top: [top("amy", 11.604, 1), top("bob", 11.63, 2), top("cy", 71.5, 3)],
-    };
-    const r = buildReport(data({}), { ...standings(), yesterday }, AT);
+    // AT is Sunday 4 October, so Saturday 3 October's Daily is yesterday's.
+    const r = buildReport(data({}), { ...standings(), yesterday: dailyOn("2026-10-03") }, AT);
     const pink = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
     const uri = "data:image/jpeg;base64,AAAA";
     expect(standingsImage(r, new Map([["bob", pink]]), uri).daily).toEqual({
+      heading: "Yesterday's Daily",
       title: "Happy Halloween",
-      meta: "Daily · Sat 31 Oct · 291 players",
+      meta: "Daily · Sat 3 Oct · 291 players",
       preview: uri,
       rows: [
-        { steamId: "amy", skin: null, name: "AMY", place: 1, gap: null, time: "11.604" },
-        { steamId: "bob", skin: pink, name: "BOB", place: 2, gap: "+0.026", time: "11.630" },
-        { steamId: "cy", skin: null, name: "CY", place: 3, gap: "+59.896", time: "1:11.500" },
+        { steamId: "amy", skin: null, name: "AMY", place: 1, gap: null, time: "9.604" },
+        { steamId: "bob", skin: pink, name: "BOB", place: 2, gap: "+2.026", time: "11.630" },
+        { steamId: "cy", skin: null, name: "CY", place: 3, gap: "+59.896", time: "1:09.500" },
       ],
     });
     expect(standingsImage(r, new Map()).daily?.preview).toBeNull();
     expect(standingsImage(build(data({})), new Map()).daily).toBeNull();
+  });
+
+  it("heads an older Daily as the latest, its date line saying which day", () => {
+    const r = buildReport(data({}), { ...standings(), yesterday: dailyOn("2026-10-01") }, AT);
+    const daily = standingsImage(r, new Map()).daily;
+    expect(daily?.heading).toBe("Latest Daily");
+    expect(daily?.meta).toBe("Daily · Thu 1 Oct · 291 players");
+  });
+
+  it("subtitles the image with the counts as Standings, since it leads with a Daily", () => {
+    expect(standingsImage(build(data({})), new Map()).subtitle).toBe(
+      "Standings · 0 Workshop Maps · 0 players",
+    );
   });
 
   it("keeps exactly ten rows in the site's order when a tie runs past tenth", () => {
@@ -503,9 +519,7 @@ describe("the Daily Report's messages", () => {
 
   it("heads the post with the day, and fits Since yesterday under Discord's limit", () => {
     const text = headMessage(busyDay());
-    expect(text.startsWith("# Sunday 4 October\n-# Workshop standings · 60 Workshop Maps")).toBe(
-      true,
-    );
+    expect(text.startsWith("# Sunday 4 October\n-# Standings · 60 Workshop Maps")).toBe(true);
     expect(text.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
     expect(text).toMatch(/…and \d+ more on smaller Workshop Maps/);
     expect(text).toContain("NEW\\_HOLDER @​EVERYONE");
@@ -515,7 +529,7 @@ describe("the Daily Report's messages", () => {
   it("dates the data with a Discord timestamp", () => {
     const r = build(data({ refreshedAt: Date.UTC(2026, 9, 4, 14) }));
     expect(headMessage(r).split("\n")[1]).toBe(
-      "-# Workshop standings · 0 Workshop Maps · 0 players · data as of <t:1791122400:R>",
+      "-# Standings · 0 Workshop Maps · 0 players · data as of <t:1791122400:R>",
     );
   });
 

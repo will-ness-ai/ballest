@@ -72,6 +72,7 @@ describe("the Renderer", () => {
           "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
         const row = { steamId: ALICE.steamId, skin: null, name: "Alice", place: 1, gap: null };
         const daily = (preview: string | null) => ({
+          heading: "Yesterday's Daily",
           title: "Gully",
           meta: "Daily · Sat 3 Oct · 1 player",
           preview,

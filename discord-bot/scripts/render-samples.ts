@@ -329,15 +329,19 @@ const program = Effect.gen(function* () {
     skin: skinOf(`s-${name}`),
     name,
     place,
-    gap: place === 1 ? null : `+${(seconds - 11.604).toFixed(3)}`,
-    time: seconds.toFixed(3),
+    gap: place === 1 ? null : `+${(seconds - 9.604).toFixed(3)}`,
+    time:
+      seconds < 60
+        ? seconds.toFixed(3)
+        : `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`,
   });
   const daily = {
+    heading: "Yesterday's Daily",
     title: "Happy Halloween",
     meta: "Daily · Sat 31 Oct · 291 players",
     preview,
     rows: [
-      dailyRow("Sparro", 11.604, 1),
+      dailyRow("Sparro", 9.604, 1),
       dailyRow("snayK", 11.63, 2),
       dailyRow("[TC] Sailent", 11.732, 3),
       dailyRow("Slati Jnr", 11.773, 4),
@@ -346,15 +350,15 @@ const program = Effect.gen(function* () {
       dailyRow("Action Jackson", 11.878, 7),
       dailyRow("Chaos", 11.905, 8),
       dailyRow("a_name_far_too_long_for_its_row", 11.934, 9),
-      dailyRow("vincentkelley29", 11.938, 10),
+      dailyRow("vincentkelley29", 71.5, 10),
     ],
   };
   yield* save(
     "standings-daily-stand-in",
     yield* renderer.standings({
       title: "Saturday 10 October",
-      subtitle: "Workshop standings · 1,286 Workshop Maps · 4,778 players",
-      daily: { ...daily, preview: null, rows: daily.rows.slice(0, 7) },
+      subtitle: "Standings · 1,286 Workshop Maps · 4,778 players",
+      daily: { ...daily, heading: "Latest Daily", preview: null, rows: daily.rows.slice(0, 7) },
       boards: [],
       overall: { rows: [], out: [] },
     }),
@@ -363,7 +367,7 @@ const program = Effect.gen(function* () {
     "standings",
     yield* renderer.standings({
       title: "Saturday 10 October",
-      subtitle: "Workshop standings · 1,286 Workshop Maps · 4,778 players",
+      subtitle: "Standings · 1,286 Workshop Maps · 4,778 players",
       daily,
       boards: [
         {

@@ -185,17 +185,41 @@ describe("GET /api/standings: the newest final Daily", () => {
     ]);
   });
 
-  test("is null while no Daily is final", async () => {
+  /** latestDaily after `change`, which is rolled back. */
+  const latestAfter = async (change: ReturnType<typeof sql>) => {
     let got: unknown = "unread";
     await t.db
       .transaction(async (tx) => {
-        await tx.execute(sql`update dailies set final_refresh = null`);
+        await tx.execute(change);
         got = await latestDaily(tx as unknown as Db);
         tx.rollback();
       })
       .catch((e: unknown) => {
         if (!(e instanceof TransactionRollbackError)) throw e;
       });
+    return got as Awaited<ReturnType<typeof latestDaily>>;
+  };
+
+  test("is null while no Daily is final", async () => {
+    expect(await latestAfter(sql`update dailies set final_refresh = null`)).toBeNull();
+  });
+
+  test("passes over a final Daily with no open Entries, to the newest one with some", async () => {
+    // 08-31's board closed down to nobody: 08-30 (Loop de Loop) is the newest with a time
+    const got = await latestAfter(
+      sql`update entries set closed_refresh = (select max(id) from refreshes)
+        where board = (select board from dailies where date = '2026-08-31')
+          and closed_refresh is null`,
+    );
+    expect(got && [got.date, got.title, got.players]).toEqual(["2026-08-30", "Loop de Loop", 4]);
+  });
+
+  test("is null while every final Daily has no open Entries", async () => {
+    const got = await latestAfter(
+      sql`update entries set closed_refresh = (select max(id) from refreshes)
+        where board in (select board from dailies where final_refresh is not null)
+          and closed_refresh is null`,
+    );
     expect(got).toBeNull();
   });
 });
