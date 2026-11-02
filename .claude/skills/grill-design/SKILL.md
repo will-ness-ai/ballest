@@ -41,6 +41,15 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
    out: every image read stays in context for the session. A message takes 6 files: the
    overview and `page.jpg` first, then the cards.
 
+   A round that isn't a page (a Multiballs image, a game screenshot) goes through the same
+   command: save one picture per variant, named by its key (`A.png`, `B.png`, ...), in a
+   folder with a `variants.json` beside them in the picker's shape
+   (`[["A", "<name>", "<what it changes>"], ...]`), then run
+   `node .claude/skills/grill-design/scripts/sheet.mjs --images <folder> --pick <key> --title "<the round's question>" --out /mnt/project-files/<feature>/round<N>`.
+   It writes the overview (each picture under its letter, name and note, side by side when
+   they are tall) and a card per variant with the whole picture. Never post pictures put
+   side by side by hand: without the letters the user can't say which one they mean.
+
 ## Each round
 
 - Build **5 radically different** variants of the current design question inside the

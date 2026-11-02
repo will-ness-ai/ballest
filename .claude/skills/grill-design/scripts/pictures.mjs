@@ -2,7 +2,11 @@
 // in the thread without opening the preview. Each variant gets a card (its name and note over
 // its desktop shot in a browser window and its phone shot in a phone, side by side, at a size
 // that reads on a phone), and the round gets an overview (a row per variant, small) to compare
-// them at a glance. Both are drawn as HTML in the browser and saved as JPEG.
+// them at a glance. Both are drawn as HTML in the browser and saved as JPEG. A round that isn't
+// a page (a Multiballs image, a game screenshot) brings one picture per variant instead, drawn
+// the same way: its letter, name and note over each, the overview side by side when they are tall.
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 export const SHEET_WIDTH = 1400;
 // the tallest stretch of a shot a picture shows; the rest is cut, and the cut says how much
@@ -60,21 +64,61 @@ export function variantsOf(published, { variants: flag, pick } = {}) {
   return { variants: chosen };
 }
 
+const PICTURE_TYPES = [".png", ".jpg", ".jpeg", ".webp"];
+
+/**
+ * A round drawn as pictures rather than a page: `dir` holds `variants.json` (the picker's
+ * shape, [key, name, note] each) and one picture per variant, named by its key (`A.png`,
+ * `B.jpg`, ...). Gives each variant with its picture's path, cut to --variants, or says what
+ * is missing and how to add it.
+ * @param {string} dir
+ * @param {{ variants?: string, pick?: string }} flags
+ * @returns {{ variants: Array<{ key: string, name: string, note: string, file: string }> } |
+ *   { error: string, help: string }}
+ */
+export function imagesOf(dir, flags = {}) {
+  if (!existsSync(dir) || !statSync(dir).isDirectory())
+    return { error: `no folder ${dir}`, help: "--images names the folder holding the pictures" };
+  const listFile = join(dir, "variants.json");
+  if (!existsSync(listFile))
+    return {
+      error: `no ${listFile}`,
+      help: `write it beside the pictures: [["A", "<name>", "<what it changes>"], ...], one entry a picture (A.png, B.png, ...)`,
+    };
+  const asked = variantsOf(readFileSync(listFile, "utf8"), flags);
+  if ("error" in asked) return asked;
+  const variants = [];
+  for (const v of asked.variants) {
+    const file = PICTURE_TYPES.map((t) => join(dir, v.key + t)).find((f) => existsSync(f));
+    if (!file)
+      return {
+        error: `no picture for ${v.key}`,
+        help: `save it as ${join(dir, v.key + ".png")} (or .jpg, .jpeg, .webp)`,
+      };
+    variants.push({ ...v, file });
+  }
+  return { variants };
+}
+
 const esc = (s) =>
   String(s).replace(
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
   );
+/* a picture as a data URI; the browser reads PNG, JPEG and WebP from their bytes whatever the type says */
 const uri = (png) => `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
-const label = (v) => `${esc(v.key)}${v.name ? " · " + esc(v.name) : ""}`;
+/* the variant's letter, big, then its name */
+const label = (v) => `<b class="key">${esc(v.key)}</b>${v.name ? `<b>${esc(v.name)}</b>` : ""}`;
 
 const STYLE = `
 *{box-sizing:border-box}
 body{margin:0;width:${String(SHEET_WIDTH)}px;background:#0d1020;color:#eef0fa;font:18px/1.35 system-ui,sans-serif}
 .head{display:flex;gap:16px;align-items:baseline;padding:18px 24px 12px}
 .head b{font-size:34px}
+.key{display:inline-grid;place-items:center;min-width:1.5em;height:1.5em;padding:0 .25em;border-radius:12px;background:#eef0fa;color:#0d1020;font-weight:800;line-height:1}
+.head .key{font-size:34px}
 .head span{color:#a9b0cf;font-size:20px}
-.pick{margin-left:auto;padding:4px 12px;border-radius:99px;background:#9be15d;color:#132;font-weight:700;font-size:18px}
+.pick{margin-left:auto;white-space:nowrap;font-style:normal;padding:4px 12px;border-radius:99px;background:#9be15d;color:#132;font-weight:700;font-size:18px}
 .shots{display:flex;gap:24px;align-items:flex-start;padding:0 24px 24px}
 figure{margin:0;display:grid;gap:6px}
 figcaption{color:#7d85a8;font-size:15px}
@@ -96,8 +140,17 @@ figcaption{color:#7d85a8;font-size:15px}
 .cut{position:absolute;inset:auto 0 0;padding:28px 10px 8px;background:linear-gradient(transparent,#0d1020 70%);color:#a9b0cf;font-size:14px;text-align:center}
 .row{display:grid;grid-template-columns:200px 1fr 260px;gap:16px;align-items:start;padding:14px 24px;border-top:1px solid #2c3355}
 .row b{font-size:24px;display:block}
+.row .key{display:inline-grid;font-size:40px;margin-bottom:6px}
 .row span{color:#a9b0cf;font-size:15px}
 .row.on{background:#17202e}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));gap:16px;align-items:start;padding:0 24px 24px}
+.cell{display:grid;gap:8px;padding:10px;border-radius:12px}
+.cell.on{background:#17202e;outline:2px solid #9be15d}
+.cell .name{display:flex;gap:10px;align-items:center;font-size:22px}
+.cell .key{font-size:40px}
+.cell span{color:#a9b0cf;font-size:15px}
+.cell img,.picture img{display:block;width:100%}
+.picture{margin:0 24px 24px;width:fit-content;max-width:${String(SHEET_WIDTH - 48)}px}
 `;
 
 /* a shot on a screen `width` wide, cut at `max` px of the screen's height (or where the
@@ -147,7 +200,7 @@ export function cardHtml(v, shots, { pick = false, title = "", badge = "", addre
   const dw = shots.desktopWidth ?? 1280;
   const pw = shots.phoneWidth ?? 390;
   return `<!doctype html><style>${STYLE}</style><body>
-<div class="head"><b>${label(v)}</b><span>${esc(badge || v.note || title)}</span>${pick ? '<em class="pick">my pick</em>' : ""}</div>
+<div class="head">${label(v)}<span>${esc(badge || v.note || title)}</span>${pick ? '<em class="pick">my pick</em>' : ""}</div>
 <div class="shots">
 <figure><figcaption>Desktop, ${String(dw)} px</figcaption>${inBrowser(shots.desktop, dw, 900, CARD_MAX, shots.desktopUpTo, address)}</figure>
 <figure><figcaption>Phone, ${String(pw)} px</figcaption>${inPhone(shots.phone, pw, 414, CARD_MAX, shots.phoneUpTo)}</figure>
@@ -164,7 +217,7 @@ export function overviewHtml(list, { pick, title = "", address = "" } = {}) {
   const rows = list
     .map(
       (r) => `<div class="row${r.v.key === pick ? " on" : ""}">
-<div><b>${label(r.v)}</b><span>${esc(r.v.note)}</span>${r.v.key === pick ? '<br><em class="pick">my pick</em>' : ""}</div>
+<div>${label(r.v)}<span>${esc(r.v.note)}</span>${r.v.key === pick ? '<br><em class="pick">my pick</em>' : ""}</div>
 ${inBrowser(r.desktop, r.desktopWidth ?? 1280, 860, ROW_MAX, undefined, address)}
 ${inPhone(r.phone, r.phoneWidth ?? 390, 260, ROW_MAX)}
 </div>`,
@@ -173,6 +226,54 @@ ${inPhone(r.phone, r.phoneWidth ?? 390, 260, ROW_MAX)}
   return `<!doctype html><style>${STYLE}</style><body>
 <div class="head"><b>${esc(title || "Variants")}</b><span>${String(list.length)} variants · desktop, then phone</span></div>
 ${rows}`;
+}
+
+/**
+ * One variant's card from its picture: its letter, name and note over the whole picture, at its
+ * own size up to the sheet's width.
+ * @param {{ key: string, name: string, note: string }} v
+ * @param {Buffer} picture
+ * @param {{ pick?: boolean, title?: string }} opts
+ */
+export function pictureCardHtml(v, picture, { pick = false, title = "" } = {}) {
+  return `<!doctype html><style>${STYLE}</style><body>
+<div class="head">${label(v)}<span>${esc(v.note || title)}</span>${pick ? '<em class="pick">my pick</em>' : ""}</div>
+<div class="picture"><img src="${uri(picture)}"></div>`;
+}
+
+/**
+ * Every variant's picture in one overview, each under its letter, name and note: side by side
+ * when they are tall (up to five a row), fewer a row as they get wider (see `arrange`).
+ * @param {Array<{ v: { key: string, name: string, note: string }, picture: Buffer }>} list
+ * @param {{ pick?: string, title?: string }} opts
+ */
+export function pictureOverviewHtml(list, { pick, title = "" } = {}) {
+  const cells = list
+    .map(
+      (r) => `<div class="cell${r.v.key === pick ? " on" : ""}">
+<div class="name">${label(r.v)}${r.v.key === pick ? '<em class="pick">my pick</em>' : ""}</div>
+${r.v.note ? `<span>${esc(r.v.note)}</span>` : ""}
+<img src="${uri(r.picture)}">
+</div>`,
+    )
+    .join("\n");
+  return `<!doctype html><style>${STYLE}</style><body>
+<div class="head"><b>${esc(title || "Variants")}</b><span>${String(list.length)} variants</span></div>
+<div class="grid">${cells}</div>`;
+}
+
+/* sets each overview grid's columns from its pictures' shape: up to five a row when tall,
+   three when about square, two when wide, one when very wide; rows kept even (6 -> 3 + 3) */
+function arrange() {
+  for (const g of document.querySelectorAll(".grid")) {
+    const imgs = [...g.querySelectorAll("img")];
+    if (!imgs.length) continue;
+    const aspect =
+      imgs.reduce((a, i) => a + i.naturalWidth / Math.max(1, i.naturalHeight), 0) / imgs.length;
+    const most = aspect < 0.75 ? 5 : aspect < 1.3 ? 3 : aspect < 1.8 ? 2 : 1;
+    const per = Math.min(imgs.length, most);
+    g.style.setProperty("--cols", String(Math.ceil(imgs.length / Math.ceil(imgs.length / per))));
+  }
 }
 
 /**
@@ -188,6 +289,7 @@ export async function compose(browser, html) {
   try {
     await page.setContent(html, { waitUntil: "load" });
     await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode())));
+    await page.evaluate(arrange);
     await page.evaluate(markCuts);
     return await page.screenshot({ type: "jpeg", quality: 82, fullPage: true });
   } finally {

@@ -2,17 +2,26 @@
 // the thread. Follows the agent-tools skill (AXI style: rows, only what is wrong, a next step
 // after every answer, errors on stdout, exit 1 for a failure and 2 for a usage error). It
 // leans on nothing in `pnpm qa`: this folder and web/'s playwright-core are all it needs.
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { draw, launch, pickerList } from "./draw.mjs";
-import { cardHtml, compose, overviewHtml, variantsOf } from "./pictures.mjs";
+import {
+  cardHtml,
+  compose,
+  imagesOf,
+  overviewHtml,
+  pictureCardHtml,
+  pictureOverviewHtml,
+  variantsOf,
+} from "./pictures.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const OUT = ROOT + "scratch/grill-design/";
 const CMD = "node .claude/skills/grill-design/scripts/sheet.mjs";
 const HELP = `usage: ${CMD} <url> [--el <selector>] [--variants A,B] [--pick A] [--title <text>] [--out <dir>]
+       ${CMD} --images <dir> [--variants A,B] [--pick A] [--title <text>] [--out <dir>]
   draws each of a prototype's variants (<url>?variant=<key>) at 1280 and 390 px and writes,
   to scratch/grill-design/, overview.jpg (every variant small, a row each), page.jpg (with
   --el: the pick, or the first, as the whole page down to the feature) and
@@ -27,10 +36,16 @@ const HELP = `usage: ${CMD} <url> [--el <selector>] [--variants A,B] [--pick A] 
   --pick      the variant to mark as your pick
   --title     the round's question, over the overview
   --out       also copy the pictures here (e.g. /mnt/project-files/<feature>/round1)
+  --images    instead of a page, a round that is pictures (a Multiballs image, a game
+              screenshot): a folder of one picture per variant named by its key (A.png,
+              B.jpg, ...) and variants.json ([key, name, note] each, like data-variants);
+              writes overview.jpg (each under its letter, name and note, side by side when
+              tall) and variant-<key>.jpg (the whole picture)
 examples:
   ${CMD} http://localhost:3311/trials --el .tp --pick A --title "What Trials opens"
-  ${CMD} https://<preview>/players --variants A,C --out /mnt/project-files/players/round2`;
-const FLAGS = ["el", "variants", "pick", "title", "out"];
+  ${CMD} https://<preview>/players --variants A,C --out /mnt/project-files/players/round2
+  ${CMD} --images discord-bot/.logs/proto --pick B --title "Where yesterday's Daily goes"`;
+const FLAGS = ["el", "variants", "pick", "title", "out", "images"];
 
 const say = (lines) => {
   console.log(lines.join("\n"));
@@ -93,7 +108,60 @@ for (let i = 0; i < argv.length; i++) {
   else flags[a.slice(2)] = argv[++i];
 }
 
-await sheet();
+/* writes the round's pictures to scratch/grill-design/ (emptied first) and --out, listing each */
+function writer() {
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
+  const images = [];
+  const write = (variant, name, jpeg) => {
+    writeFileSync(OUT + name, jpeg);
+    if (flags.out) {
+      mkdirSync(flags.out, { recursive: true });
+      writeFileSync(resolvePath(flags.out, name), jpeg);
+    }
+    images.push({ variant, file: flags.out ? resolvePath(flags.out, name) : rel(OUT + name) });
+  };
+  return { images, write };
+}
+
+if (flags.images) {
+  if (positional.length || flags.el) usage("--images takes no <url> and no --el", HELP);
+  await picturesSheet(flags.images);
+} else await sheet();
+
+async function picturesSheet(dir) {
+  const asked = imagesOf(resolvePath(dir), flags);
+  if ("error" in asked) fail(asked.error, asked.help);
+  const drawn = asked.variants.map((v) => ({ v, picture: readFileSync(v.file) }));
+  const browser = await launch();
+  try {
+    const { images, write } = writer();
+    const title = flags.title ?? "Variants";
+    write(
+      "all",
+      "overview.jpg",
+      await compose(browser, pictureOverviewHtml(drawn, { pick: flags.pick, title })),
+    );
+    for (const d of drawn)
+      write(
+        d.v.key,
+        `variant-${d.v.key}.jpg`,
+        await compose(
+          browser,
+          pictureCardHtml(d.v, d.picture, { pick: d.v.key === flags.pick, title }),
+        ),
+      );
+    say([
+      `sheet: ${dir}, ${String(drawn.length)} variant${drawn.length === 1 ? "" : "s"}`,
+      ...rows("images", ["variant", "file"], images),
+      "next:",
+      `  read ${images[0].file}   # the overview, to check every variant is there and labelled`,
+      "  attach the overview and the cards to the round's message (6 files a message: the overview first)",
+    ]);
+  } finally {
+    await browser.close();
+  }
+}
 
 async function sheet() {
   let base;
@@ -162,18 +230,7 @@ async function sheet() {
       ]);
       inPage = { v, desktop: d.shot, phone: p.shot, desktopUpTo: d.ends, phoneUpTo: p.ends };
     }
-    const dir = OUT;
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    const images = [];
-    const write = (variant, name, jpeg) => {
-      writeFileSync(dir + name, jpeg);
-      if (flags.out) {
-        mkdirSync(flags.out, { recursive: true });
-        writeFileSync(resolvePath(flags.out, name), jpeg);
-      }
-      images.push({ variant, file: flags.out ? resolvePath(flags.out, name) : rel(dir + name) });
-    };
+    const { images, write } = writer();
     const title = flags.title ?? base.pathname;
     write(
       "all",
