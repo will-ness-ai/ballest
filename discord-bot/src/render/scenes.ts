@@ -1253,6 +1253,7 @@ const placeMarble = (place: number | null, i: number) => {
         border: `1px dashed ${C.line}`,
       }),
     );
+  if (flat()) return flatPlace(place, i);
   const medal = MEDAL_INK[place - 1];
   return box(
     {
@@ -1270,6 +1271,64 @@ const placeMarble = (place: number | null, i: number) => {
     ),
   );
 };
+
+// ================================================================ PROTOTYPE round 3 (never merged)
+// R23's legibility notes on the posted report: flat circles, bigger titles, dividers.
+export const PROTO_VARIANTS: ReadonlyArray<readonly [string, string, string]> = [
+  ["A", "All three", "Flat circles in the board colour with the place in white, titles 18px, a line under the Daily and under Overall."],
+  ["B", "Flat + bigger titles", "Flat circles, titles 18px, no lines."],
+  ["C", "Rings", "Outlined circles in the board colour, place in that colour, titles 18px, lines."],
+  ["D", "Marquee titles", "Flat circles, titles in the big marquee font in the board colour, lines."],
+  ["E", "Marbles kept", "Today's marbles, titles 18px, lines."],
+];
+let proto = "A";
+export const setProtoVariant = (k: string) => {
+  proto = k;
+};
+const BOARD_INK = ["#3fd0bd", "#b98af0", "#f26aae", "#6b9cf7"];
+const flat = () => proto !== "E";
+const flatPlace = (place: number, i: number) => {
+  const ink = BOARD_INK[i] ?? C.text;
+  const medal = MEDAL_INK[place - 1];
+  const ring = proto === "C";
+  return box(
+    {
+      width: PLACE_MARBLE + 4,
+      height: PLACE_MARBLE + 4,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: PLACE_MARBLE,
+      border: medal === undefined ? "2px solid transparent" : `2px solid ${medal}`,
+    },
+    box(
+      {
+        width: PLACE_MARBLE,
+        height: PLACE_MARBLE,
+        borderRadius: PLACE_MARBLE,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: ring ? "transparent" : ink,
+        border: ring ? `2px solid ${ink}` : "none",
+        fontFamily: F.hud,
+        fontWeight: 700,
+        fontSize: 12,
+        color: ring ? ink : C.bg,
+      },
+      String(place),
+    ),
+  );
+};
+const TITLE = () =>
+  proto === "D"
+    ? { fontFamily: F.marquee, fontWeight: 400, fontSize: 20, letterSpacing: 0.4 }
+    : { fontSize: 18, letterSpacing: 1.6 };
+const protoDot = (i: number) =>
+  flat()
+    ? box({ width: 14, height: 14, borderRadius: 14, backgroundColor: BOARD_INK[i] ?? C.dim })
+    : marble(boardHue(i), 16);
+const divider = () =>
+  proto === "B" ? null : box({ height: 1, backgroundColor: C.line, marginTop: 2 });
+// ================================================================ end PROTOTYPE
 
 /** A row on a board: its shared place, its move, the player, then what it counts. */
 const standingsRow = (
@@ -1328,15 +1387,14 @@ const standingsBoard = (
     rows.length + out.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
   );
 
-const boardTitle = (title: string) =>
-  label(title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 });
+const boardTitle = (title: string) => label(title, { ...TITLE(), marginBottom: 6 });
 
 /** One of the four boards' titles, led by its marble. */
 const keyedTitle = (title: string, i: number) =>
   box(
     { alignItems: "center", gap: 8, marginBottom: 6 },
-    marble(boardHue(i), 14),
-    label(title, { fontSize: 13, letterSpacing: 1.4 }),
+    protoDot(i),
+    label(title, { ...TITLE(), ...(proto === "D" ? { color: BOARD_INK[i] } : {}) }),
   );
 
 /** The full width of the image inside its padding, which Overall and yesterday's Daily span. */
@@ -1480,7 +1538,9 @@ export const standingsScene = (
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
     daily === null ? null : dailyBoard(daily, pictures),
+    daily === null ? null : divider(),
     overallBoard,
+    divider(),
     ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair)),
   );
 };
