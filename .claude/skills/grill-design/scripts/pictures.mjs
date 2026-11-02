@@ -9,6 +9,8 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export const SHEET_WIDTH = 1400;
+// an overview's shots are drawn small, so it is drawn at twice the pixels to stay sharp
+export const OVERVIEW_SCALE = 2;
 // the tallest stretch of a shot a picture shows; the rest is cut, and the cut says how much
 const CARD_MAX = 1100;
 const ROW_MAX = 520;
@@ -295,21 +297,23 @@ function arrange() {
 }
 
 /**
- * Draws a sheet's HTML as a JPEG the sheet's width, as tall as it runs.
+ * Draws a sheet's HTML as a JPEG the sheet's width times `scale`, as tall as it runs. An
+ * overview shrinks every shot to fit, so it is drawn at OVERVIEW_SCALE to keep their text sharp.
  * @param {import("playwright-core").Browser} browser
  * @param {string} html
+ * @param {{ scale?: number }} opts
  */
-export async function compose(browser, html) {
+export async function compose(browser, html, { scale = 1 } = {}) {
   const page = await browser.newPage({
     viewport: { width: SHEET_WIDTH, height: 400 },
-    deviceScaleFactor: 1,
+    deviceScaleFactor: scale,
   });
   try {
     await page.setContent(html, { waitUntil: "load" });
     await page.evaluate(() => Promise.all([...document.images].map((i) => i.decode())));
     await page.evaluate(arrange);
     await page.evaluate(markCuts);
-    return await page.screenshot({ type: "jpeg", quality: 82, fullPage: true });
+    return await page.screenshot({ type: "jpeg", quality: 88, fullPage: true });
   } finally {
     await page.close();
   }

@@ -11,6 +11,7 @@ import {
   cardHtml,
   compose,
   imagesOf,
+  OVERVIEW_SCALE,
   overviewHtml,
   pictureCardHtml,
   pictureOverviewHtml,
@@ -142,9 +143,9 @@ async function picturesSheet(dir) {
   try {
     const title = flags.title ?? "";
     /* a picture the browser can't draw names its file, not a stack trace */
-    const drawOne = async (what, html) => {
+    const drawOne = async (what, html, options) => {
       try {
-        return await compose(browser, html);
+        return await compose(browser, html, options);
       } catch (e) {
         return fail(
           `couldn't draw ${what}: ${String(e).split("\n")[0]}`,
@@ -164,6 +165,7 @@ async function picturesSheet(dir) {
     const overview = await drawOne(
       "the overview",
       pictureOverviewHtml(drawn, { pick: flags.pick, title }),
+      { scale: OVERVIEW_SCALE },
     );
     const { images, write } = writer();
     write("all", "overview.jpg", overview);
@@ -254,7 +256,9 @@ async function sheet() {
     write(
       "all",
       "overview.jpg",
-      await compose(browser, overviewHtml(drawn, { pick: flags.pick, title, address })),
+      await compose(browser, overviewHtml(drawn, { pick: flags.pick, title, address }), {
+        scale: OVERVIEW_SCALE,
+      }),
     );
     if (inPage)
       write(

@@ -1,4 +1,5 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -285,5 +286,33 @@ describe("the pictures", () => {
     expect(card?.w).toBe(1400);
     // shown at its own size, not cut
     expect(card?.h).toBeGreaterThan(2000);
+  });
+
+  it("draws a round of pictures' overview at twice the pixels, so its small pictures stay sharp", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sheet-round-"));
+    const out = mkdtempSync(join(tmpdir(), "sheet-out-"));
+    writeFileSync(
+      join(dir, "variants.json"),
+      JSON.stringify([
+        ["A", "One"],
+        ["B", "Two"],
+      ]),
+    );
+    for (const key of ["A", "B"])
+      writeFileSync(join(dir, `${key}.png`), await png(browser, 700, 1600));
+    execFileSync(
+      "node",
+      [
+        join(__dirname, "../../.claude/skills/grill-design/scripts/sheet.mjs"),
+        "--images",
+        dir,
+        "--out",
+        out,
+      ],
+      { encoding: "utf8" },
+    );
+    expect(jpegSize(readFileSync(join(out, "overview.jpg")))?.w).toBe(2800);
+    // a card shows its picture at its own size, so it needs no more pixels than the sheet's
+    expect(jpegSize(readFileSync(join(out, "variant-A.jpg")))?.w).toBe(1400);
   });
 });
