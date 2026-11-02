@@ -150,8 +150,9 @@ closes. A lead held by one player on it is a Reign, as on the site.
 _Avoid_: daily challenge post, Daily Report (that is the stats post)
 
 **Daily Report**:
-Multiballs' once-a-day post of four standings (Maps played, Author Medals and world records
-from the Workshop standings, and Daily wins) and the overall standing over them, what changed
+Multiballs' once-a-day post of yesterday's Daily (the newest final Daily's top 10), four
+standings (Maps played, Author Medals and world records from the Workshop standings, and Daily
+wins) and the overall standing over them, what changed
 since the day before, Maps nobody has finished, unclaimed Author Medals and the longest-standing
 records. A creator counts on their own Map only by
 beating its Author Medal, since the Author time is their publishing run.

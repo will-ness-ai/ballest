@@ -351,7 +351,8 @@ Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoar
 player's record (`getPlayer`) and the Players counts (`getStandings`), the Workshop standings
 at a baseline (`getWorkshopStandings`, keyed by the baseline, which `GET /api/standings` keeps
 to the hour and the last week), each final Daily's 1st for the route's Daily wins
-(`getDailyWins`), and one Daily by its date (`getDaily`, checked against
+(`getDailyWins`), the newest final Daily and its top 10 for the route's yesterday's Daily
+(`getLatestDaily`), and one Daily by its date (`getDaily`, checked against
 `getDailyDates` first), whose board is read like any other. Searches
 (`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
 the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).

@@ -4,12 +4,13 @@
 // R3), p10 4800000 and p1 5000000 (from R3); Map B (Author 58.25 s, by p9) holds p10 6100000
 // and p2 6900000; Map C has left the Workshop. Nobody beats an Author Medal, and p10's own
 // time on Map A is no finish.
+import { sql, TransactionRollbackError } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 
 import { GET } from "../app/api/standings/route";
 import type { Db } from "../db/client";
 import { seed } from "../db/seed/harness";
-import { workshopStandings } from "../db/site";
+import { latestDaily, workshopStandings } from "../db/site";
 import type { LadderRow, YouLadders } from "../lib/ladder";
 import type { StandingsPayload, WorkshopStandings } from "../lib/rows";
 import { freshDb } from "./pg";
@@ -161,6 +162,41 @@ describe("GET /api/standings: the Daily wins", () => {
     for (const stat of ["played", "author", "wr", "top5"] as const)
       expect(named(body, stat)).toEqual(named(s, stat));
     expect([body.readAt, body.since, body.maps]).toEqual([s.readAt, s.since, s.maps]);
+  });
+});
+
+describe("GET /api/standings: the newest final Daily", () => {
+  // 09-01 (Fresh Fields) is live, so the newest final one is 08-31 (Gone Gully, Map C, whose
+  // catalogue row has no picture): p1 2900000 (improved from 3100000), p2 3000000, p7 3500000
+  test("its date, Map, player count and top 10 as its board ranks it", async () => {
+    const { body } = await get();
+    const latest = body.daily.latest;
+    expect(latest && { ...latest, top: [] }).toEqual({
+      date: "2026-08-31",
+      title: "Gone Gully",
+      preview: null,
+      players: 3,
+      top: [],
+    });
+    expect(latest?.top.map((r) => [...body.players[r.player], r.score, r.rank])).toEqual([
+      [p(1), "Rolling Rae", 2_900_000, 1],
+      [p(2), "Justy Sparks", 3_000_000, 2],
+      [p(7), "Steady Ed", 3_500_000, 3],
+    ]);
+  });
+
+  test("is null while no Daily is final", async () => {
+    let got: unknown = "unread";
+    await t.db
+      .transaction(async (tx) => {
+        await tx.execute(sql`update dailies set final_refresh = null`);
+        got = await latestDaily(tx as unknown as Db);
+        tx.rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof TransactionRollbackError)) throw e;
+      });
+    expect(got).toBeNull();
   });
 });
 

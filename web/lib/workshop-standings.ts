@@ -6,6 +6,7 @@
 import { CREATOR_BEAT_MARGIN_TICKS } from "./rules";
 import type {
   DailyWin,
+  LatestDaily,
   StandingsPayload,
   StandingsStat,
   WorkshopStandingRow,
@@ -207,16 +208,20 @@ export function countStandings(
   };
 }
 
-/* GET /api/standings' payload: `standings` with the Daily wins beside its lists, counted
-   from each final Daily's 1st, now and at `since` (a Daily counts there once its final
-   Refresh had finished). The winners join `players`, which stays in Steam ID order, so the
-   lists' indices are moved to match; the lists themselves are unchanged. */
-export function withDailyWins(
+/* GET /api/standings' payload: `standings` with the Daily side beside its lists: the Daily
+   wins, counted from each final Daily's 1st, now and at `since` (a Daily counts there once
+   its final Refresh had finished), and the newest final Daily, `latest`. The winners and
+   `latest`'s top 10 join `players`, which stays in Steam ID order, so the lists' indices are
+   moved to match; the lists themselves are unchanged. */
+export function withDaily(
   standings: WorkshopStandings,
   wins: ReadonlyArray<DailyWin>,
+  latest: LatestDaily | null,
   since: number,
 ): StandingsPayload {
   const names = new Map(standings.players);
+  for (const { player } of latest?.top ?? [])
+    if (!names.has(player.steamId)) names.set(player.steamId, player.persona);
   const now = new Map<string, number>();
   const before = new Map<string, number>();
   for (const w of wins) {
@@ -256,6 +261,10 @@ export function withDailyWins(
             placeBefore: placeBefore.get(r.nBefore) ?? 0,
           }),
         ),
+      latest: latest && {
+        ...latest,
+        top: latest.top.map((r) => ({ ...r, player: index.get(r.player.steamId) ?? -1 })),
+      },
     },
   };
 }

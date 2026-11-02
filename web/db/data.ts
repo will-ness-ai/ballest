@@ -36,6 +36,7 @@ import type {
   DailyDay,
   DailyStandings,
   DailyWin,
+  LatestDaily,
   BoardRow,
   PlayerCampaignRow,
   PlayerDailies,
@@ -383,6 +384,15 @@ export async function getDailyWins(): Promise<Array<DailyWin>> {
   cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyWins(db());
+}
+
+/* the newest final Daily and its top 10, which GET /api/standings serves beside the Daily
+   wins */
+export async function getLatestDaily(): Promise<LatestDaily | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, DAILY_TAG);
+  cacheLife("max");
+  return q.latestDaily(db());
 }
 
 /* a player's Daily record (their place on each Daily, their runs); only a Steam ID the
