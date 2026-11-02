@@ -76,14 +76,12 @@ export const postReport = Effect.fn("DailyReport.post")(function* (report: Repor
   const tracks = yield* oldestTrackRecords(report.trackRecords);
   const maps = yield* oldestMapRecords(report.mapRecords);
   // yesterday's Daily's preview, or the stand-in art when there is none or Steam won't give it
-  const preview = yield* (yield* MapPreviews).of(report.yesterday?.preview ?? "");
-  const image = yield* renderer.standings(
-    standingsImage(
-      report,
-      yield* chosenSkins.all,
-      Option.getOrNull(Option.map(preview, previewUri)),
-    ),
-  );
+  const url = report.yesterday?.preview ?? null;
+  const preview =
+    url === null
+      ? null
+      : Option.getOrNull(Option.map(yield* (yield* MapPreviews).of(url), previewUri));
+  const image = yield* renderer.standings(standingsImage(report, yield* chosenSkins.all, preview));
   return yield* channel.post({
     content: headMessage(report),
     image,
