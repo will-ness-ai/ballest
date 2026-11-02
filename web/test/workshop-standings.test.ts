@@ -6,6 +6,7 @@ import { describe, expect, test } from "vitest";
 import type { StandingsStat } from "../lib/rows";
 import {
   countStandings,
+  withDailyWins,
   youBaseline,
   type StandingsEntry,
   type StandingsMap,
@@ -196,6 +197,46 @@ describe("listing order", () => {
       ["bob", 2, 2, 1, 1],
       ["zed", 2, 2, 1, 1],
       ["amy", 1, 1, 3, 3],
+    ]);
+  });
+});
+
+const served = (s: ReturnType<typeof countStandings>) => ({ readAt: null, since: "", ...s });
+
+describe("the Daily wins beside them", () => {
+  test("a winner on no Workshop list joins the players in Steam ID order, the lists kept", () => {
+    const s = served(
+      countStandings([map("A")], [entry("A", "ann", 100), entry("A", "cat", 200)], SINCE),
+    );
+    const w = (steamId: string, finalAt: number) => ({ steamId, persona: "B", finalAt });
+    const got = withDailyWins(s, [w("bob", BEFORE), w("cat", AFTER), w("bob", AFTER)], SINCE);
+    expect(got.players).toEqual([
+      ["ann", "ANN"],
+      ["bob", "B"],
+      ["cat", "CAT"],
+    ]);
+    const as = (rows: typeof got.daily.wins) =>
+      rows.map(([i, ...rest]) => [got.players[i][0], ...rest]);
+    expect(as(got.lists.wr)).toEqual([["ann", 1, 1, 1, 1]]);
+    expect(as(got.lists.played)).toEqual([
+      ["ann", 1, 1, 1, 1],
+      ["cat", 1, 1, 1, 1],
+    ]);
+    // cat's win came after the baseline
+    expect(as(got.daily.wins)).toEqual([
+      ["bob", 2, 1, 1, 1],
+      ["cat", 1, 0, 2, 2],
+    ]);
+  });
+
+  test("level on wins share a place and list by Steam ID", () => {
+    const s = served(countStandings([], [], SINCE));
+    const w = (steamId: string) => ({ steamId, persona: steamId, finalAt: BEFORE });
+    const got = withDailyWins(s, [w("zed"), w("amy"), w("zed"), w("amy"), w("kim")], SINCE);
+    expect(got.daily.wins.map(([i, ...rest]) => [got.players[i][0], ...rest])).toEqual([
+      ["amy", 2, 2, 1, 1],
+      ["zed", 2, 2, 1, 1],
+      ["kim", 1, 1, 3, 3],
     ]);
   });
 });

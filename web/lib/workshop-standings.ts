@@ -4,7 +4,13 @@
 // Daily Report's counting in discord-bot/src/report/report.ts, and Multiballs reads the result
 // from GET /api/standings. Times are Unix ms.
 import { CREATOR_BEAT_MARGIN_TICKS } from "./rules";
-import type { StandingsStat, WorkshopStandingRow, WorkshopStandings } from "./rows";
+import type {
+  DailyWin,
+  StandingsPayload,
+  StandingsStat,
+  WorkshopStandingRow,
+  WorkshopStandings,
+} from "./rows";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -198,6 +204,59 @@ export function countStandings(
     maps: maps.length,
     players: ids.map((id): [string, string] => [id, names.get(id) ?? ""]),
     lists,
+  };
+}
+
+/* GET /api/standings' payload: `standings` with the Daily wins beside its lists, counted
+   from each final Daily's 1st, now and at `since` (a Daily counts there once its final
+   Refresh had finished). The winners join `players`, which stays in Steam ID order, so the
+   lists' indices are moved to match; the lists themselves are unchanged. */
+export function withDailyWins(
+  standings: WorkshopStandings,
+  wins: ReadonlyArray<DailyWin>,
+  since: number,
+): StandingsPayload {
+  const names = new Map(standings.players);
+  const now = new Map<string, number>();
+  const before = new Map<string, number>();
+  for (const w of wins) {
+    if (!names.has(w.steamId)) names.set(w.steamId, w.persona);
+    now.set(w.steamId, (now.get(w.steamId) ?? 0) + 1);
+    if (w.finalAt <= since) before.set(w.steamId, (before.get(w.steamId) ?? 0) + 1);
+  }
+  const ids = [...names.keys()].sort(bySteamId);
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const moved = (rows: ReadonlyArray<WorkshopStandingRow>) =>
+    rows.map((row) => {
+      const r = standingOf(row);
+      return standingRow({ ...r, player: index.get(standings.players[r.player][0]) ?? -1 });
+    });
+  const lists = Object.fromEntries(
+    Object.entries(standings.lists).map(([stat, rows]) => [stat, moved(rows)]),
+  ) as Record<StandingsStat, Array<WorkshopStandingRow>>;
+
+  const on = [...now.keys()].map((id) => ({
+    player: index.get(id) ?? -1,
+    n: now.get(id) ?? 0,
+    nBefore: before.get(id) ?? 0,
+  }));
+  const placeNow = placesOf(on.map((r) => r.n));
+  const placeBefore = placesOf(on.map((r) => r.nBefore));
+  return {
+    ...standings,
+    players: ids.map((id): [string, string] => [id, names.get(id) ?? ""]),
+    lists,
+    daily: {
+      wins: on
+        .sort((x, y) => y.n - x.n || x.player - y.player)
+        .map((r) =>
+          standingRow({
+            ...r,
+            place: placeNow.get(r.n) ?? 0,
+            placeBefore: placeBefore.get(r.nBefore) ?? 0,
+          }),
+        ),
+    },
   };
 }
 

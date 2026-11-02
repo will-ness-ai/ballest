@@ -11,7 +11,7 @@ import type { Db } from "../db/client";
 import { seed } from "../db/seed/harness";
 import { workshopStandings } from "../db/site";
 import type { LadderRow, YouLadders } from "../lib/ladder";
-import type { WorkshopStandings } from "../lib/rows";
+import type { StandingsPayload, WorkshopStandings } from "../lib/rows";
 import { freshDb } from "./pg";
 
 /* the cached reads run uncached outside Next, on this file's database */
@@ -70,8 +70,12 @@ describe("the Workshop standings at a baseline", () => {
 
 async function get(query = "") {
   const res = await GET(new Request(`http://site.invalid/api/standings${query}`));
-  return { status: res.status, body: (await res.json()) as WorkshopStandings };
+  return { status: res.status, body: (await res.json()) as StandingsPayload };
 }
+
+/* the Daily wins as [steam ID, persona, now, at the baseline, place now, place at the baseline] */
+const wins = (s: StandingsPayload) =>
+  s.daily.wins.map(([i, ...rest]) => [...s.players[i], ...rest]);
 
 describe("GET /api/standings", () => {
   test("defaults to the /you baseline, before which no listed board had been read", async () => {
@@ -119,6 +123,46 @@ const ladders = async (query: string) => {
   const { status, body } = await read(query);
   return { status, body: body as YouLadders };
 };
+
+describe("GET /api/standings: the Daily wins", () => {
+  // final: 08-29 won by p1 and 08-30 by p2 (both in R1, done 00:05), 08-31 by p1 (R2, done
+  // 03:05); 09-01 is live, led by p8, so counts on neither side
+  test("count 1st places on final Dailies, a Daily on the baseline side once final by then", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-02T05:00:00Z"));
+    // R2 started at 03:00 but finished at 03:05, so 08-31 was not final yet
+    const { body } = await get("?since=2026-09-01T03:00:00Z");
+    expect(wins(body)).toEqual([
+      [p(1), "Rolling Rae", 2, 1, 1, 1],
+      [p(2), "Justy Sparks", 1, 1, 2, 1],
+    ]);
+    const later = await get("?since=2026-09-01T04:00:00Z");
+    expect(wins(later.body)).toEqual([
+      [p(1), "Rolling Rae", 2, 2, 1, 1],
+      [p(2), "Justy Sparks", 1, 1, 2, 2],
+    ]);
+  });
+
+  test("before any Daily was final, everyone is level on none", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-02T05:00:00Z"));
+    const { body } = await get();
+    expect(wins(body)).toEqual([
+      [p(1), "Rolling Rae", 2, 0, 1, 1],
+      [p(2), "Justy Sparks", 1, 0, 2, 1],
+    ]);
+  });
+
+  test("leave the Workshop standings as they are", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-02T05:00:00Z"));
+    const { body } = await get("?since=2026-09-01T04:00:00Z");
+    const s = await workshopStandings(t.db, R2_AND_A_BIT);
+    for (const stat of ["played", "author", "wr", "top5"] as const)
+      expect(named(body, stat)).toEqual(named(s, stat));
+    expect([body.readAt, body.since, body.maps]).toEqual([s.readAt, s.since, s.maps]);
+  });
+});
 
 describe("GET /api/standings?ladders: You's four cards", () => {
   test("each list's ladder around the player, against the /you baseline", async () => {
