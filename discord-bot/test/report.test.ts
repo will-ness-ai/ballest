@@ -92,7 +92,7 @@ const payload = (lists: Lists): typeof SiteStandings.Encoded => {
       author: index(lists.author),
       wr: index(lists.wr),
     },
-    daily: { wins: index(lists.wins) },
+    daily: { wins: index(lists.wins), latest: null },
   };
 };
 /** The payload read as the bot reads it: decoded, then its players named. */
@@ -210,6 +210,37 @@ describe("the Daily Report's standings", () => {
     ]);
   });
 
+  it("draws yesterday's Daily with each row's gap to 1st and time, in its Chosen Skin", () => {
+    const top = (steamId: string, seconds: number, rank: number) => ({
+      steamId,
+      persona: steamId.toUpperCase(),
+      score: ticks(seconds),
+      rank,
+    });
+    const yesterday = {
+      date: "2026-10-31",
+      title: "Happy Halloween",
+      preview: "https://images.example.invalid/hh.jpg",
+      players: 291,
+      top: [top("amy", 11.604, 1), top("bob", 11.63, 2), top("cy", 71.5, 3)],
+    };
+    const r = buildReport(data({}), { ...standings(), yesterday }, AT);
+    const pink = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+    const uri = "data:image/jpeg;base64,AAAA";
+    expect(standingsImage(r, new Map([["bob", pink]]), uri).daily).toEqual({
+      title: "Happy Halloween",
+      meta: "Daily · Sat 31 Oct · 291 players",
+      preview: uri,
+      rows: [
+        { steamId: "amy", skin: null, name: "AMY", place: 1, gap: null, time: "11.604" },
+        { steamId: "bob", skin: pink, name: "BOB", place: 2, gap: "+0.026", time: "11.630" },
+        { steamId: "cy", skin: null, name: "CY", place: 3, gap: "+59.896", time: "1:11.500" },
+      ],
+    });
+    expect(standingsImage(r, new Map()).daily?.preview).toBeNull();
+    expect(standingsImage(build(data({})), new Map()).daily).toBeNull();
+  });
+
   it("keeps exactly ten rows in the site's order when a tie runs past tenth", () => {
     const twelve = Array.from({ length: 12 }, (_, i): Row => [player(i), 1, 1, 1, 1]);
     const wr = build(data({}), { wr: twelve }).boards.find((x) => x.stat === "wr");
@@ -234,7 +265,7 @@ describe("the Daily Report's standings", () => {
     const bad = payload({ played: [["amy", 1, 1, 1, 1]] });
     const wr: (typeof SiteStandings.Encoded)["lists"]["wr"] = [[5, 1, 1, 1, 1]];
     expect(Either.isLeft(fromSite({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
-    expect(Either.isLeft(fromSite({ ...bad, daily: { wins: wr } }))).toBe(true);
+    expect(Either.isLeft(fromSite({ ...bad, daily: { wins: wr, latest: null } }))).toBe(true);
   });
 
   it("refuses a payload without the Daily side, and reads one that still lists top 5s", () => {
@@ -248,6 +279,41 @@ describe("the Daily Report's standings", () => {
     expect(read.wins).toEqual([
       { steamId: "amy", persona: "AMY", n: 1, nBefore: 1, place: 1, placeBefore: 1 },
     ]);
+  });
+
+  it("carries yesterday's Daily from the site, its top 10 named, and none while none is final", () => {
+    const site = payload({ wins: [["amy", 1, 1, 1, 1]] });
+    const latest = {
+      date: "2026-10-03",
+      title: "Happy Halloween",
+      preview: "https://images.example.invalid/hh.jpg",
+      players: 291,
+      top: [
+        { player: 1, score: 1_160_400, rank: 1 },
+        { player: 0, score: 1_163_000, rank: 2 },
+      ],
+    };
+    const served = {
+      ...site,
+      players: [...site.players, ["bob", "BOB"] as [string, string]],
+      daily: { ...site.daily, latest },
+    };
+    const r = buildReport(data({}), Either.getOrThrow(fromSite(served)), AT);
+    expect(r.yesterday).toEqual({
+      date: "2026-10-03",
+      title: "Happy Halloween",
+      preview: "https://images.example.invalid/hh.jpg",
+      players: 291,
+      top: [
+        { steamId: "bob", persona: "BOB", score: 1_160_400, rank: 1 },
+        { steamId: "amy", persona: "AMY", score: 1_163_000, rank: 2 },
+      ],
+    });
+    expect(build(data({})).yesterday).toBeNull();
+    const nobody = { ...latest, top: [{ player: 7, score: 1, rank: 1 }] };
+    expect(Either.isLeft(fromSite({ ...site, daily: { ...site.daily, latest: nobody } }))).toBe(
+      true,
+    );
   });
 
   it("scores Overall 10 for 1st down to 1 for 10th on each standing, nothing outside a top 10", () => {

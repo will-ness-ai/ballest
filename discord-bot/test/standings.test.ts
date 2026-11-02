@@ -15,13 +15,16 @@ const NO_OVERALL: Image["overall"] = { rows: [], out: [] };
 const scene = (board: Image["boards"][number]) =>
   textsOf(
     standingsScene(
-      { title: "Daily Report", subtitle: "", boards: [board], overall: NO_OVERALL },
+      { title: "Daily Report", subtitle: "", daily: null, boards: [board], overall: NO_OVERALL },
       NO_SKIN_PICTURES,
     ),
   );
 const overallScene = (overall: Image["overall"]) =>
   textsOf(
-    standingsScene({ title: "Daily Report", subtitle: "", boards: [], overall }, NO_SKIN_PICTURES),
+    standingsScene(
+      { title: "Daily Report", subtitle: "", daily: null, boards: [], overall },
+      NO_SKIN_PICTURES,
+    ),
   );
 
 /** Every marble's hue in the scene, in drawing order (a player's hue marble included). */
@@ -114,7 +117,7 @@ describe("the standings image", () => {
 
   it("leads each of the four boards' titles with a marble in its own colour", () => {
     const el = standingsScene(
-      { title: "", subtitle: "", boards: FOUR.map(BOARD), overall: NO_OVERALL },
+      { title: "", subtitle: "", daily: null, boards: FOUR.map(BOARD), overall: NO_OVERALL },
       NO_SKIN_PICTURES,
     );
     const hues = huesOf(el);
@@ -133,14 +136,20 @@ describe("the standings image", () => {
       places,
     });
     const keyed = standingsScene(
-      { title: "", subtitle: "", boards: FOUR.map(BOARD), overall: NO_OVERALL },
+      { title: "", subtitle: "", daily: null, boards: FOUR.map(BOARD), overall: NO_OVERALL },
       NO_SKIN_PICTURES,
     );
     const key = huesOf(keyed);
     const overall = (places: Array<number | null>) =>
       huesOf(
         standingsScene(
-          { title: "", subtitle: "", boards: [], overall: { rows: [row(places)], out: [] } },
+          {
+            title: "",
+            subtitle: "",
+            daily: null,
+            boards: [],
+            overall: { rows: [row(places)], out: [] },
+          },
           NO_SKIN_PICTURES,
         ),
       );
@@ -154,6 +163,7 @@ describe("the standings image", () => {
       {
         title: "",
         subtitle: "",
+        daily: null,
         boards: [],
         overall: {
           rows: [
@@ -176,5 +186,92 @@ describe("the standings image", () => {
       String(e.props.style?.border ?? "").startsWith("2px solid #"),
     ).map((e) => e.props.style?.border);
     expect(rings).toEqual(["2px solid #ffd447", "2px solid #d3dcea", "2px solid #ef9a52"]);
+  });
+});
+
+type Daily = NonNullable<Image["daily"]>;
+const dailyRow = (place: number, name: string, gap: string | null, time: string) => ({
+  steamId: `s-${name}`,
+  skin: null,
+  name,
+  place,
+  gap,
+  time,
+});
+const DAILY: Daily = {
+  title: "Happy Halloween",
+  meta: "Daily · Sat 31 Oct · 291 players",
+  preview: null,
+  rows: [
+    dailyRow(1, "Sparro", null, "11.604"),
+    dailyRow(2, "snayK", "+0.026", "11.630"),
+    dailyRow(3, "Sailent", "+0.128", "11.732"),
+    dailyRow(4, "Slati Jnr", "+0.169", "11.773"),
+    dailyRow(5, "Laney", "+0.231", "11.835"),
+    dailyRow(6, "acheeks", "+0.255", "11.859"),
+  ],
+};
+const dailyScene = (daily: Daily, preview: Daily["preview"] = null) =>
+  standingsScene(
+    {
+      title: "Daily Report",
+      subtitle: "",
+      daily: { ...daily, preview },
+      boards: [],
+      overall: NO_OVERALL,
+    },
+    NO_SKIN_PICTURES,
+  );
+
+describe("yesterday's Daily on the standings image", () => {
+  it("heads the image above Overall: its banner, then each row's place, name, gap and time", () => {
+    const texts = textsOf(dailyScene(DAILY));
+    expect(texts.slice(0, texts.indexOf("Overall"))).toEqual([
+      "Daily Report",
+      "",
+      "Yesterday's Daily",
+      "Happy Halloween",
+      "Daily · Sat 31 Oct · 291 players",
+      ...["1", "Sparro", "11.604"],
+      ...["2", "snayK", "+0.026", "11.630"],
+      ...["3", "Sailent", "+0.128", "11.732"],
+      ...["4", "Slati Jnr", "+0.169", "11.773"],
+      ...["5", "Laney", "+0.231", "11.835"],
+      ...["6", "acheeks", "+0.255", "11.859"],
+    ]);
+  });
+
+  it("splits its top 10 into two columns of five", () => {
+    const columns = findAll(
+      dailyScene(DAILY),
+      (e) => e.props.style?.flexDirection === "column" && textsOf(e).includes("Sparro"),
+    ).at(-1);
+    const left = columns === undefined ? [] : textsOf(columns);
+    expect(left).toContain("Laney");
+    expect(left).not.toContain("acheeks");
+  });
+
+  it("colours the podium's places as medals", () => {
+    const inks = findAll(dailyScene(DAILY), (e) => /^[1-6]$/.test(textsOf(e).join("")))
+      .filter((e) => (e.props.children ?? []).every((c) => typeof c === "string"))
+      .map((e) => e.props.style?.color);
+    expect(inks).toEqual(["#ffd447", "#d3dcea", "#ef9a52", "#63719a", "#63719a", "#63719a"]);
+  });
+
+  it("draws the Map's preview in the banner, or the stand-in art without one", () => {
+    const uri = "data:image/png;base64,AAAA";
+    const pictured = findAll(
+      dailyScene(DAILY, uri),
+      (e) => e.type === "img" && e.props.src === uri,
+    );
+    expect(pictured).toHaveLength(1);
+    const standIn = findAll(dailyScene(DAILY), (e) =>
+      String(e.props.style?.backgroundImage ?? "").startsWith("linear-gradient(170deg"),
+    );
+    expect(standIn).toHaveLength(1);
+  });
+
+  it("draws no board without a final Daily", () => {
+    expect(scene(BOARD("Most Maps played"))).not.toContain("Yesterday's Daily");
   });
 });

@@ -1119,13 +1119,38 @@ export interface OverallRow {
   readonly places: ReadonlyArray<number | null>;
 }
 
+/** A row of yesterday's Daily: its place on the Daily's board, the player, and their time. */
+export interface DailyRow {
+  readonly steamId: string;
+  readonly skin: ChosenSkin;
+  readonly name: string;
+  readonly place: number;
+  /** Behind 1st, "+0.026", or null for 1st. */
+  readonly gap: string | null;
+  /** "11.604" */
+  readonly time: string;
+}
+
+/** Yesterday's Daily (round 2's B): its Map's banner and its top 10. */
+export interface DailyBoard {
+  readonly title: string;
+  /** "Daily · Sat 31 Oct · 291 players", under the title. */
+  readonly meta: string;
+  /** The Map's preview as a data URI, or null for the stand-in art. */
+  readonly preview: string | null;
+  readonly rows: ReadonlyArray<DailyRow>;
+}
+
 /**
- * The Daily Report's boards (src/report/): Overall across the top, then the four two by two, ten
- * rows each. Each of the four takes its colour from its place in `boards`.
+ * The Daily Report's boards (src/report/): yesterday's Daily first when one is final, Overall
+ * across the full width, then the four two by two, ten rows each. Each of the four takes its
+ * colour from its place in `boards`.
  */
 export interface StandingsImage {
   readonly title: string;
   readonly subtitle: string;
+  /** Yesterday's Daily, or null while no Daily is final (no board then). */
+  readonly daily: DailyBoard | null;
   readonly boards: ReadonlyArray<{
     readonly title: string;
     readonly rows: ReadonlyArray<StandingsRow>;
@@ -1312,8 +1337,86 @@ const keyedTitle = (title: string, i: number) =>
     label(title, { fontSize: 13, letterSpacing: 1.4 }),
   );
 
+/** The full width of the image inside its padding, which Overall and yesterday's Daily span. */
+const STANDINGS_FULL = STANDINGS_COLUMN * 2 + STANDINGS_GAP;
+const DAILY_BANNER = 110;
+/** Yesterday's Daily rows in each of its two columns. */
+const DAILY_COLUMN_ROWS = 5;
+
+/** A row of yesterday's Daily: place (the podium in its medals' colours), marble, name, gap, time. */
+const dailyRow = (pictures: SkinPictureUris, row: DailyRow) =>
+  box(
+    {
+      alignItems: "center",
+      gap: STANDINGS_ROW_GAP,
+      fontSize: 15,
+      padding: "3px 8px",
+      borderRadius: 6,
+      backgroundColor: row.place === 1 ? C.upTint : C.surface,
+    },
+    box(
+      { width: 22, color: MEDAL_INK[row.place - 1] ?? C.faint, fontFamily: F.hud, fontWeight: 700 },
+      String(row.place),
+    ),
+    playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
+    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    row.gap === null ? null : box({ color: C.faint, fontFamily: F.hud, fontSize: 11 }, row.gap),
+    box({ width: 54, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 }, row.time),
+  );
+
+/**
+ * Yesterday's Daily: its Map's preview as a banner, darkened from the left under its title, then
+ * its top 10 in two columns of five.
+ */
+const dailyBoard = (daily: DailyBoard, pictures: SkinPictureUris) => {
+  const fill: Style = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: STANDINGS_FULL,
+    height: DAILY_BANNER,
+  };
+  const column = (rows: ReadonlyArray<DailyRow>) =>
+    box(
+      { flexDirection: "column", gap: 4, width: STANDINGS_COLUMN },
+      ...rows.map((row) => dailyRow(pictures, row)),
+    );
+  return box(
+    { flexDirection: "column", gap: 8 },
+    box(
+      {
+        position: "relative",
+        width: STANDINGS_FULL,
+        height: DAILY_BANNER,
+        borderRadius: 8,
+        overflow: "hidden",
+        marginBottom: 4,
+      },
+      daily.preview === null
+        ? box({ ...fill, backgroundImage: ART })
+        : img(daily.preview, STANDINGS_FULL, DAILY_BANNER, { ...fill, objectFit: "cover" }),
+      box({
+        ...fill,
+        backgroundImage:
+          "linear-gradient(90deg, rgba(10,16,32,0.92) 0%, rgba(10,16,32,0.55) 55%, rgba(10,16,32,0.1) 100%)",
+      }),
+      box(
+        { position: "absolute", left: 16, bottom: 12, flexDirection: "column", gap: 3 },
+        label("Yesterday's Daily", { fontSize: 11, letterSpacing: 1.4, color: C.text }),
+        box({ fontFamily: F.marquee, fontSize: 24, textShadow: OUTLINE }, daily.title),
+        box({ color: C.dim, fontSize: 12 }, daily.meta),
+      ),
+    ),
+    box(
+      { gap: STANDINGS_GAP },
+      column(daily.rows.slice(0, DAILY_COLUMN_ROWS)),
+      column(daily.rows.slice(DAILY_COLUMN_ROWS, DAILY_COLUMN_ROWS * 2)),
+    ),
+  );
+};
+
 export const standingsScene = (
-  { title, subtitle, boards, overall }: StandingsImage,
+  { title, subtitle, daily, boards, overall }: StandingsImage,
   pictures: SkinPictureUris,
 ): El => {
   const column = (board: StandingsImage["boards"][number], i: number) =>
@@ -1367,6 +1470,7 @@ export const standingsScene = (
       box({ fontFamily: F.marquee, fontSize: 28 }, title),
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
+    daily === null ? null : dailyBoard(daily, pictures),
     overallBoard,
     ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair)),
   );

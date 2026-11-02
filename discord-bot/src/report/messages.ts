@@ -10,7 +10,8 @@ import {
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import { escape, mapLink, SITE_URL, siteLink } from "../links.js";
 import { type ChosenSkinPicks, chosenSkinOf } from "../ports.js";
-import type { StandingsImage } from "../render/scenes.js";
+import { formatGap } from "../present.js";
+import type { DailyBoard, StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
 import {
   CHANGES_SHOWN,
@@ -20,6 +21,7 @@ import {
   type Report,
   type Stat,
   STATS,
+  type YesterdayDaily,
 } from "./report.js";
 
 /** Discord's cap on a bot message's text. */
@@ -130,9 +132,45 @@ const moveOf = (row: { readonly place: number; readonly placeBefore: number | nu
  * What the standings image shows: the day, the counts and the four Workshop standings, each row
  * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
  */
-export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsImage => ({
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "Sat 31 Oct", for a day written "2026-10-31" */
+const dailyDate = (date: string) => {
+  const d = new Date(`${date}T00:00:00Z`);
+  return `${WEEKDAYS[d.getUTCDay()] ?? ""} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()] ?? ""}`;
+};
+
+/** Yesterday's Daily as the image draws it: each time as the game shows it ("11.604" under a
+ * minute), and its gap to 1st. */
+const dailyBoard = (
+  d: YesterdayDaily,
+  chosen: ChosenSkinPicks,
+  preview: string | null,
+): DailyBoard => {
+  const first = d.top[0]?.score ?? 0;
+  return {
+    title: d.title,
+    meta: `Daily · ${dailyDate(d.date)} · ${plural(d.players, "player")}`,
+    preview,
+    rows: d.top.map((row, i) => ({
+      steamId: row.steamId,
+      skin: chosenSkinOf(chosen, row.steamId),
+      name: row.persona,
+      place: row.rank,
+      gap: i === 0 ? null : `+${formatGap(row.score - first)}`,
+      time: formatTime(row.score).replace(/^0:/, ""),
+    })),
+  };
+};
+
+/** The standings image, with yesterday's Daily's preview as a data URI (null: the stand-in). */
+export const standingsImage = (
+  r: Report,
+  chosen: ChosenSkinPicks,
+  preview: string | null = null,
+): StandingsImage => ({
   title: dayTitle(r.at),
   subtitle: `Workshop standings · ${counts(r)}`,
+  daily: r.yesterday === null ? null : dailyBoard(r.yesterday, chosen, preview),
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
     rows: b.rows.map((row) => ({
