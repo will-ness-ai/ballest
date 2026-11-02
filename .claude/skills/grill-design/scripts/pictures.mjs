@@ -85,7 +85,16 @@ export function imagesOf(dir, flags = {}) {
       error: `no ${listFile}`,
       help: `write it beside the pictures: [["A", "<name>", "<what it changes>"], ...], one entry a picture (A.png, B.png, ...)`,
     };
-  const asked = variantsOf(readFileSync(listFile, "utf8"), flags);
+  const shape = `[["A", "<name>", "<what it changes>"], ...]`;
+  let listed;
+  try {
+    listed = JSON.parse(readFileSync(listFile, "utf8"));
+  } catch (e) {
+    return { error: `${listFile} isn't JSON: ${String(e.message)}`, help: `write it as ${shape}` };
+  }
+  if (!Array.isArray(listed) || !listed.some((e) => Array.isArray(e) && e.length > 0))
+    return { error: `${listFile} lists no variants`, help: `write it as ${shape}` };
+  const asked = variantsOf(JSON.stringify(listed), flags);
   if ("error" in asked) return asked;
   const variants = [];
   for (const v of asked.variants) {
@@ -105,8 +114,17 @@ const esc = (s) =>
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
   );
-/* a picture as a data URI; the browser reads PNG, JPEG and WebP from their bytes whatever the type says */
-const uri = (png) => `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+/* a picture as a data URI, its type read from its first bytes (JPEG, WebP, else PNG) */
+const uri = (bytes) => {
+  const b = Buffer.from(bytes);
+  const type =
+    b[0] === 0xff && b[1] === 0xd8
+      ? "jpeg"
+      : b.toString("latin1", 8, 12) === "WEBP"
+        ? "webp"
+        : "png";
+  return `data:image/${type};base64,${b.toString("base64")}`;
+};
 /* the variant's letter, big, then its name */
 const label = (v) => `<b class="key">${esc(v.key)}</b>${v.name ? `<b>${esc(v.name)}</b>` : ""}`;
 
@@ -258,18 +276,18 @@ ${r.v.note ? `<span>${esc(r.v.note)}</span>` : ""}
     )
     .join("\n");
   return `<!doctype html><style>${STYLE}</style><body>
-<div class="head"><b>${esc(title || "Variants")}</b><span>${String(list.length)} variants</span></div>
+<div class="head"><b>${esc(title || "Variants")}</b><span>${String(list.length)} variant${list.length === 1 ? "" : "s"}</span></div>
 <div class="grid">${cells}</div>`;
 }
 
-/* sets each overview grid's columns from its pictures' shape: up to five a row when tall,
-   three when about square, two when wide, one when very wide; rows kept even (6 -> 3 + 3) */
+/* sets each overview grid's columns from its widest picture's shape, so none is drawn too
+   small to read: up to five a row when tall, three when about square, two when wide, one
+   when very wide; rows kept even (6 -> 3 + 3) */
 function arrange() {
   for (const g of document.querySelectorAll(".grid")) {
     const imgs = [...g.querySelectorAll("img")];
     if (!imgs.length) continue;
-    const aspect =
-      imgs.reduce((a, i) => a + i.naturalWidth / Math.max(1, i.naturalHeight), 0) / imgs.length;
+    const aspect = Math.max(...imgs.map((i) => i.naturalWidth / Math.max(1, i.naturalHeight)));
     const most = aspect < 0.75 ? 5 : aspect < 1.3 ? 3 : aspect < 1.8 ? 2 : 1;
     const per = Math.min(imgs.length, most);
     g.style.setProperty("--cols", String(Math.ceil(imgs.length / Math.ceil(imgs.length / per))));

@@ -130,27 +130,46 @@ if (flags.images) {
 } else await sheet();
 
 async function picturesSheet(dir) {
+  if (`${resolvePath(dir)}/`.startsWith(OUT))
+    usage(
+      `--images ${dir} is inside ${rel(OUT)}, which each run empties`,
+      "keep the pictures in another folder, e.g. scratch/<feature>/round1",
+    );
   const asked = imagesOf(resolvePath(dir), flags);
   if ("error" in asked) fail(asked.error, asked.help);
   const drawn = asked.variants.map((v) => ({ v, picture: readFileSync(v.file) }));
   const browser = await launch();
   try {
-    const { images, write } = writer();
-    const title = flags.title ?? "Variants";
-    write(
-      "all",
-      "overview.jpg",
-      await compose(browser, pictureOverviewHtml(drawn, { pick: flags.pick, title })),
-    );
+    const title = flags.title ?? "";
+    /* a picture the browser can't draw names its file, not a stack trace */
+    const drawOne = async (what, html) => {
+      try {
+        return await compose(browser, html);
+      } catch (e) {
+        return fail(
+          `couldn't draw ${what}: ${String(e).split("\n")[0]}`,
+          "check each picture is a PNG, JPEG or WebP that opens",
+        );
+      }
+    };
+    /* the cards first, so a picture that won't draw is named before anything is written */
+    const cards = [];
     for (const d of drawn)
-      write(
-        d.v.key,
-        `variant-${d.v.key}.jpg`,
-        await compose(
-          browser,
+      cards.push(
+        await drawOne(
+          rel(d.v.file),
           pictureCardHtml(d.v, d.picture, { pick: d.v.key === flags.pick, title }),
         ),
       );
+    const overview = await drawOne(
+      "the overview",
+      pictureOverviewHtml(drawn, { pick: flags.pick, title }),
+    );
+    const { images, write } = writer();
+    write("all", "overview.jpg", overview);
+    drawn.forEach((d, n) => {
+      write(d.v.key, `variant-${d.v.key}.jpg`, cards[n]);
+    });
     say([
       `sheet: ${dir}, ${String(drawn.length)} variant${drawn.length === 1 ? "" : "s"}`,
       ...rows("images", ["variant", "file"], images),

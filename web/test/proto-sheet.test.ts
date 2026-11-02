@@ -134,6 +134,16 @@ describe("imagesOf", () => {
     );
   });
 
+  it("says what is wrong with a variants.json that isn't a list of variants", () => {
+    for (const body of ['[["A", "As is"],]', "[]"]) {
+      const dir = folder({ "variants.json": body, "A.png": "a" });
+      expect(imagesOf(dir, { variants: "A" })).toHaveProperty(
+        "error",
+        expect.stringMatching(/variants\.json (isn't JSON|lists no variants)/) as unknown,
+      );
+    }
+  });
+
   it("names a variant whose picture is missing", () => {
     const dir = folder({ "variants.json": JSON.stringify(LIST), "A.png": "a" });
     expect(imagesOf(dir)).toEqual({
