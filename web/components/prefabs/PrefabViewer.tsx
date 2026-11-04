@@ -10,6 +10,9 @@ import { VIEW_FOV, angleNow, buildScene, framing, loadThree, planesFor } from ".
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 
+/* the event that turns the view one frame, for a script; scripts/map-spin.ts names it too */
+export const TURN_EVENT = "viewer-turn";
+
 export function PrefabViewer({
   file,
   className,
@@ -102,7 +105,23 @@ export function PrefabViewer({
         controls.update();
         renderer.render(scene, camera);
       });
+      /* a script drawing the view a frame at a time (scripts/map-spin.ts) sends the host
+         TURN_EVENT: the first stops the loop for good, and each one turns the camera around
+         the target by its detail in radians, the way a drag to the right does, and draws once,
+         counting them in data-turns */
+      let turns = 0;
+      const turn = (e: Event) => {
+        renderer.setAnimationLoop(null);
+        const by = Number((e as CustomEvent<unknown>).detail) || 0;
+        const offset = camera.position.clone().sub(controls.target);
+        camera.position.copy(controls.target).add(offset.applyAxisAngle(camera.up, -by));
+        camera.lookAt(controls.target);
+        renderer.render(scene, camera);
+        el.dataset.turns = String(++turns);
+      };
+      el.addEventListener(TURN_EVENT, turn);
       stop = () => {
+        el.removeEventListener(TURN_EVENT, turn);
         attach?.(null);
         goHome.current = null;
         ro.disconnect();
