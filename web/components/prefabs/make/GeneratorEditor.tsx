@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Controls } from "./Controls";
+import { PRESETS, ProtoPicker, useVariant } from "../../prototype/Proto";
 import { FONTS, fontAt, letteringOf } from "./lettering";
 import { HelpDialog } from "../HowTo";
 import { PrefabViewer } from "../PrefabViewer";
@@ -45,6 +46,15 @@ const metres = (m: number) => (m >= 10 ? m.toFixed(0) : String(Number(m.toFixed(
 
 export function GeneratorEditor({ generator }: { generator: string }) {
   const g = generatorOf(generator);
+  /* PROTOTYPE: each variant opens Shape fill on its own defaults */
+  const variant = useVariant() ?? "A";
+  if (g?.key === "shape-fill")
+    return (
+      <>
+        <Editor key={variant} g={{ ...g, defaults: { ...g.defaults, ...PRESETS[variant] } }} />
+        <ProtoPicker />
+      </>
+    );
   return g ? <Editor g={g} /> : null;
 }
 

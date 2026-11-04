@@ -1,0 +1,62 @@
+/* the picker: plainly not part of the design */
+:root {
+  --proto-ink: oklch(0% 0 none);
+  --proto-pill: oklch(96.8% 0.211 109.77);
+  --proto-white: oklch(100% 0 none);
+}
+.proto-picker {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9999;
+  display: grid;
+  gap: 6px;
+  max-width: calc(100vw - 28px);
+  padding: 8px 10px;
+  border: 2px solid var(--proto-ink);
+  border-radius: 14px;
+  background: var(--proto-pill);
+  color: var(--proto-ink);
+  font:
+    600 calc(13rem / 16) system-ui,
+    sans-serif;
+  box-shadow: 0 6px 24px var(--proto-ink) 8;
+  cursor: grab;
+  touch-action: none;
+}
+.pp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.proto-picker button {
+  padding: 3px 8px;
+  border: 1px solid var(--proto-ink);
+  border-radius: 8px;
+  background: var(--proto-white);
+  color: var(--proto-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.proto-picker button[aria-pressed="true"] {
+  background: var(--proto-ink);
+  color: var(--proto-pill);
+}
+/* the phone view: the same page at 390px, in a frame over the page */
+.proto-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+}
+.proto-frame iframe {
+  inline-size: 390px;
+  block-size: min(844px, calc(100dvh - 32px));
+  border: 3px solid var(--proto-ink);
+  border-radius: 28px;
+  background: var(--bg);
+}
