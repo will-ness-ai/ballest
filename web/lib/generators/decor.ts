@@ -1,8 +1,9 @@
-// Decor (lib/generators/index.ts): Lamp post, Fountain, Trophy, Fence and Finish arch, things to
-// stand round a course. Anything with a front faces -X, toward the camera that spawns it; a row
-// of lamps or a line of fence runs across it, along Y.
-import type { PrefabItem } from "../prefab";
+// Decor (lib/generators/index.ts): Lamp post, Fountain, Trophy, Fence, Finish arch and Shape
+// fill, things to stand round a course. Anything with a front faces -X, toward the camera that
+// spawns it; a row of lamps or a line of fence runs across it, along Y.
+import { rotationRows, type PrefabItem } from "../prefab";
 import {
+  SHUFFLE,
   add,
   ball,
   boxAt,
@@ -16,9 +17,11 @@ import {
   numberIn,
   piece,
   pyramid,
+  random,
   stick,
   type Colour,
   type Generator,
+  type Kind,
   type V3,
 } from "./pieces";
 
@@ -426,5 +429,130 @@ export const finishArch: Generator = {
               ),
             );
     return fileOf(items);
+  },
+};
+
+/* ---------- shape fill ---------- */
+const FILL_SHAPES = ["Spheres", "Cubes", "Cylinders", "Cones", "Pyramids", "Mixed"] as const;
+const KIND_OF: Record<string, Kind> = {
+  Spheres: "sphere",
+  Cubes: "cube",
+  Cylinders: "cylinder",
+  Cones: "cone",
+  Pyramids: "pyramid",
+};
+const MIXED: ReadonlyArray<Kind> = ["sphere", "cube", "cylinder", "cone", "pyramid"];
+const PALETTES: Record<string, ReadonlyArray<Colour>> = {
+  Rainbow: ["Red", "Orange", "Yellow", "Lime", "Sky blue", "Blue", "Purple"],
+  Warm: ["Red", "Orange", "Yellow", "Wine"],
+  Cool: ["Blue", "Sky blue", "Purple", "Lime"],
+  Metals: ["Iron", "Copper", "Aluminum"],
+};
+const ONE_COLOUR = "One colour";
+
+/* one shape `s` cm across, centred at `c`, turned by `rot` about its centre (the pieces turn
+   about their bottom centre, so that sits half a size down its own up axis) */
+const centred = (kind: Kind, c: V3, s: number, colour: Colour, rot: V3) =>
+  piece(kind, add(c, mul(rotationRows(rot)[2], -s / 2)), [s, s, s], colour, rot);
+
+/* a shape as the fill places it: its centre and how far it reaches each way, in cm (a sphere
+   by its radius, anything else by the box round it, turned or not) */
+interface Placed {
+  c: V3;
+  half: number;
+  round: boolean;
+}
+const clash = (a: Placed, b: Placed) =>
+  a.round && b.round
+    ? Math.hypot(a.c[0] - b.c[0], a.c[1] - b.c[1], a.c[2] - b.c[2]) < a.half + b.half
+    : [0, 1, 2].every((k) => Math.abs(a.c[k] - b.c[k]) < a.half + b.half);
+
+export const shapeFill: Generator = {
+  key: "shape-fill",
+  loose: true,
+  name: "Shape fill",
+  category: "Decor",
+  blurb: "A box of space filled with shapes of random sizes in random places.",
+  file: "shape_fill",
+  defaults: {
+    shape: "Spheres",
+    width: 6,
+    depth: 6,
+    height: 12,
+    count: 150,
+    smallest: 0.2,
+    largest: 2,
+    palette: "Rainbow",
+    colour: "Purple",
+    overlap: false,
+    turn: true,
+    hole: 0,
+    seed: 1,
+  },
+  controls: (v) => [
+    choice("shape", "Shape", FILL_SHAPES),
+    num("width", "Width", 1, 60, 0.5, "m"),
+    num("depth", "Depth", 1, 60, 0.5, "m"),
+    num("height", "Height", 1, 60, 0.5, "m"),
+    num("count", "How many", 2, 1000, 1),
+    num("smallest", "Smallest", 0.1, 10, 0.1, "m"),
+    num("largest", "Largest", 0.1, 10, 0.1, "m"),
+    choice("palette", "Colours", [...Object.keys(PALETTES), ONE_COLOUR]),
+    ...(v.palette === ONE_COLOUR ? [colour("colour", "Colour")] : []),
+    { key: "overlap", label: "Let shapes overlap", kind: "toggle", more: true },
+    { key: "turn", label: "Turn shapes", kind: "toggle", more: true },
+    num("hole", "Clear middle", 0, 90, 5, "%", true),
+    SHUFFLE,
+  ],
+  build: (v) => {
+    const r = random(numberIn(v, "seed"));
+    /* depth runs along x, toward the camera; width across it, along y */
+    const box: V3 = [metresIn(v, "depth"), metresIn(v, "width"), metresIn(v, "height")];
+    const [a, b] = [metresIn(v, "smallest"), metresIn(v, "largest")];
+    const most = Math.min(Math.max(a, b), ...box);
+    const least = Math.min(a, b, most);
+    /* the clear middle's half-width along x and y, a column the full height, leaving room
+       round it for the smallest shape turned any way */
+    const hole = (numberIn(v, "hole") / 100) * 0.5;
+    const core = [0, 1].map((k) => Math.max(0, Math.min(box[k] * hole, box[k] / 2 - least * 2)));
+    const one = (KIND_OF as Partial<Record<string, Kind>>)[String(v.shape)];
+    const kinds = one ? [one] : MIXED;
+    const palette =
+      v.palette === ONE_COLOUR
+        ? [colourIn(v, "colour")]
+        : (PALETTES[String(v.palette)] ?? PALETTES.Rainbow);
+    const count = numberIn(v, "count");
+    /* sizes drawn first, biggest placed first so the small ones fill the gaps between them */
+    const sizes = Array.from({ length: count }, () => least + (most - least) * r() ** 2).sort(
+      (p, q) => q - p,
+    );
+    const placed: Array<Placed> = [];
+    const items: Array<PrefabItem> = [];
+    for (const s0 of sizes) {
+      const kind = kinds[Math.floor(r() * kinds.length)];
+      const rot: V3 =
+        v.turn && kind !== "sphere"
+          ? [r() * 360 - 180, r() * 360 - 180, r() * 360 - 180]
+          : [0, 0, 0];
+      const round = kind === "sphere";
+      /* a turned shape can reach out to its corners, √3 of its half-size */
+      const reach = round || !v.turn ? 0.5 : Math.sqrt(3) / 2;
+      const colourOf = palette[Math.floor(r() * palette.length)];
+      for (let s = s0, tries = 0; tries < 60; tries++) {
+        if (tries > 0 && tries % 15 === 0) s = Math.max(least, s * 0.8);
+        const half = Math.min(s * reach, ...box.map((d) => d / 2));
+        const c = [0, 1, 2].map((k) => {
+          const room = box[k] / 2 - half;
+          return (k === 2 ? box[2] / 2 : 0) + (r() * 2 - 1) * room;
+        }) as V3;
+        if (Math.abs(c[0]) < core[0] + half && Math.abs(c[1]) < core[1] + half) continue;
+        const p = { c, half, round };
+        if (!v.overlap && placed.some((q) => clash(p, q))) continue;
+        placed.push(p);
+        items.push(centred(kind, c, Math.min(s, half / reach), colourOf, rot));
+        break;
+      }
+    }
+    return items.length > 1 ? fileOf(items) : null;
   },
 };

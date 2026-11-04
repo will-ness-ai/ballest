@@ -673,7 +673,14 @@ describe("the categories", () => {
       "floor-tiles",
     ]);
     expect(under("Racing")).toEqual(["spiral", "loop", "jump", "plinko", "rollers"]);
-    expect(under("Decor")).toEqual(["lamp", "fountain", "trophy", "fence", "finish-arch"]);
+    expect(under("Decor")).toEqual([
+      "lamp",
+      "fountain",
+      "trophy",
+      "fence",
+      "finish-arch",
+      "shape-fill",
+    ]);
   });
 });
 
@@ -773,6 +780,87 @@ describe("the decor", () => {
     const file = make("finish-arch", { width: 8, banner: 1, rows: 2, flags: false });
     const checks = file.items.filter((it) => Math.abs(it.transform.scale[0] * CUBE - 4) < 0.01);
     expect(checks).toHaveLength(2 * 16);
+  });
+});
+
+describe("the shape fill", () => {
+  /* each piece's box in metres on three's axes (x, up, Unreal's y), and its centre */
+  const boxesOf = (file: PrefabFile) =>
+    shapesOf(file).map((sh) => {
+      const m = sh.matrix;
+      const half = [0, 1, 2].map(
+        (i) => (Math.abs(m[i]) + Math.abs(m[4 + i]) + Math.abs(m[8 + i])) / 2,
+      );
+      const mid = [m[12], m[13], m[14]];
+      return { mid, lo: mid.map((c, i) => c - half[i]), hi: mid.map((c, i) => c + half[i]) };
+    });
+
+  test("fills its box with as many shapes as asked, every one inside it", () => {
+    const file = make("shape-fill", { width: 6, depth: 4, height: 10, count: 80, overlap: true });
+    expect(file.items.length).toBe(80);
+    for (const b of boxesOf(file)) {
+      /* depth runs along x (toward the camera), height up, width along Unreal's y */
+      expect(b.lo[0]).toBeGreaterThanOrEqual(-2.01);
+      expect(b.hi[0]).toBeLessThanOrEqual(2.01);
+      expect(b.lo[1]).toBeGreaterThanOrEqual(-0.01);
+      expect(b.hi[1]).toBeLessThanOrEqual(10.01);
+      expect(b.lo[2]).toBeGreaterThanOrEqual(-3.01);
+      expect(b.hi[2]).toBeLessThanOrEqual(3.01);
+    }
+  });
+
+  test("sizes its shapes between the smallest and the largest", () => {
+    const file = make("shape-fill", { shape: "Spheres", smallest: 0.5, largest: 1.5 });
+    for (const b of boxesOf(file)) {
+      const across = b.hi[0] - b.lo[0];
+      expect(across).toBeGreaterThanOrEqual(0.49);
+      expect(across).toBeLessThanOrEqual(1.51);
+    }
+  });
+
+  test("makes only the shape picked, and a mix of them when mixed", () => {
+    expect(
+      make("shape-fill", { shape: "Cubes" }).items.every((it) => it.class.includes("Cube")),
+    ).toBe(true);
+    const mixed = new Set(make("shape-fill", { shape: "Mixed" }).items.map((it) => it.class));
+    expect(mixed.size).toBeGreaterThanOrEqual(4);
+  });
+
+  test("keeps its spheres apart unless they may overlap", () => {
+    const apart = (file: PrefabFile) => {
+      const balls = boxesOf(file).map((b) => ({ c: b.mid, r: (b.hi[0] - b.lo[0]) / 2 }));
+      return balls.every((a, i) =>
+        balls
+          .slice(i + 1)
+          .every((b) => Math.hypot(...a.c.map((v, k) => v - b.c[k])) >= a.r + b.r - 0.01),
+      );
+    };
+    expect(apart(make("shape-fill", { shape: "Spheres", overlap: false }))).toBe(true);
+    expect(apart(make("shape-fill", { shape: "Spheres", overlap: true, count: 300 }))).toBe(false);
+  });
+
+  test("leaves its middle clear for a pillar when asked", () => {
+    const file = make("shape-fill", { width: 8, depth: 8, hole: 50, count: 150 });
+    /* the clear middle is half the box across: no shape reaches inside 2 m of the centre */
+    for (const b of boxesOf(file))
+      expect(b.hi[0] <= -1.99 || b.lo[0] >= 1.99 || b.hi[2] <= -1.99 || b.lo[2] >= 1.99).toBe(true);
+  });
+
+  test("paints one colour when asked, and a mix of colours otherwise", () => {
+    const colours = (change: Values) =>
+      new Set(make("shape-fill", change).items.map((it) => it.paint?.colors[0]));
+    expect(colours({ palette: "One colour", colour: "Purple" }).size).toBe(1);
+    expect(colours({ palette: "Rainbow" }).size).toBeGreaterThanOrEqual(5);
+    expect(
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { palette: "Rainbow" }))
+        .map((c) => c.key),
+    ).not.toContain("colour");
+  });
+
+  test("draws the same shapes from the same seed and new ones from another", () => {
+    expect(make("shape-fill", { seed: 3 })).toEqual(make("shape-fill", { seed: 3 }));
+    expect(make("shape-fill", { seed: 3 })).not.toEqual(make("shape-fill", { seed: 4 }));
   });
 });
 

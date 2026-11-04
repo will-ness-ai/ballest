@@ -137,6 +137,7 @@ export const GENERATOR_KEYS = [
   "trophy",
   "fence",
   "finish-arch",
+  "shape-fill",
   "tree",
   "pine",
   "block-tree",
