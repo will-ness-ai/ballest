@@ -16,6 +16,7 @@ import { execFileSync } from "node:child_process";
 import { eq, sql } from "drizzle-orm";
 import { chromium } from "playwright-core";
 
+import { TURN_EVENT } from "../components/prefabs/scene";
 import { connect } from "../db/client";
 import { mapFiles, mapSpins } from "../db/schema";
 
@@ -24,8 +25,6 @@ const FRAMES = 160;
 const FPS = 12.8;
 const SIZE = 640; // the page's viewport, square
 const GIF_WIDTH = 360;
-/* components/prefabs/PrefabViewer.tsx's TURN_EVENT: not imported, which would bring React */
-const TURN_EVENT = "viewer-turn";
 
 const args = process.argv.slice(2);
 const option = (name: string) => {

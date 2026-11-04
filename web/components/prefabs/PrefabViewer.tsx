@@ -6,12 +6,9 @@
 // and angleNow() reads the view it shows now.
 import { useCallback, useEffect, useRef } from "react";
 
-import { VIEW_FOV, angleNow, buildScene, framing, loadThree, planesFor } from "./scene";
+import { TURN_EVENT, VIEW_FOV, angleNow, buildScene, framing, loadThree, planesFor } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
-
-/* the event that turns the view one frame, for a script; scripts/map-spin.ts names it too */
-export const TURN_EVENT = "viewer-turn";
 
 export function PrefabViewer({
   file,
@@ -95,7 +92,11 @@ export function PrefabViewer({
         renderer.setSize(width, height, false);
         camera.aspect = width / Math.max(height, 1);
         camera.updateProjectionMatrix();
+        /* a resize clears the canvas, which the loop would draw again but a turned view
+           (below) has stopped */
+        if (turns > 0) renderer.render(scene, camera);
       };
+      let turns = 0;
       const ro = new ResizeObserver(resize);
       ro.observe(el);
       resize();
@@ -108,20 +109,23 @@ export function PrefabViewer({
       /* a script drawing the view a frame at a time (scripts/map-spin.ts) sends the host
          TURN_EVENT: the first stops the loop for good, and each one turns the camera around
          the target by its detail in radians, the way a drag to the right does, and draws once,
-         counting them in data-turns */
-      let turns = 0;
+         counting them in data-turns. Without the spin or easing, the controls take the
+         camera where it was put, so a later home() still starts from the view drawn. */
       const turn = (e: Event) => {
         renderer.setAnimationLoop(null);
+        controls.autoRotate = false;
+        controls.enableDamping = false;
         const by = Number((e as CustomEvent<unknown>).detail) || 0;
         const offset = camera.position.clone().sub(controls.target);
         camera.position.copy(controls.target).add(offset.applyAxisAngle(camera.up, -by));
-        camera.lookAt(controls.target);
+        controls.update();
         renderer.render(scene, camera);
         el.dataset.turns = String(++turns);
       };
       el.addEventListener(TURN_EVENT, turn);
       stop = () => {
         el.removeEventListener(TURN_EVENT, turn);
+        delete el.dataset.turns;
         attach?.(null);
         goHome.current = null;
         ro.disconnect();

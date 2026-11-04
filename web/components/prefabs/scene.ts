@@ -18,6 +18,10 @@ import {
 
 type Three = typeof import("three");
 
+/* the event a script sends a viewer's host to turn it one frame and draw it once
+   (PrefabViewer, scripts/map-spin.ts) */
+export const TURN_EVENT = "viewer-turn";
+
 export async function loadThree() {
   const THREE = await import("three");
   const { RoundedBoxGeometry } =
@@ -53,9 +57,11 @@ export function buildScene(
   };
   const shapes = shapesOf(file);
   /* a sphere or a torus is drawn finest where a file has a few, coarser where it has hundreds */
-  const howMany = (kind: string) => shapes.filter((s) => !s.profile && s.kind === kind).length;
-  const [across, down] = finest(SPHERE_DETAIL, howMany("sphere"), ([a, d]) => a * (d - 1) * 2);
-  const [tube, around] = finest(TORUS_DETAIL, howMany("torus"), ([t, r]) => t * r * 2);
+  const count = { sphere: 0, torus: 0 };
+  for (const s of shapes)
+    if (!s.profile && (s.kind === "sphere" || s.kind === "torus")) count[s.kind]++;
+  const [across, down] = finest(SPHERE_DETAIL, count.sphere, ([a, d]) => a * (d - 1) * 2);
+  const [tube, around] = finest(TORUS_DETAIL, count.torus, ([t, r]) => t * r * 2);
   const roundGeometry = {
     sphere: new THREE.SphereGeometry(0.5, across, down),
     torus: torusGeometry(THREE, tube, around),

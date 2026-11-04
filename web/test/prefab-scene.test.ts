@@ -97,7 +97,7 @@ describe("a Prefab's scene", () => {
 describe("round pieces' detail", () => {
   /* the GIF of a Daily's Map is drawn in software (daily-spin.yml), at about a millisecond for
      every thousand triangles on a laptop and four times that on Actions: SPOOKY Rooms' 450
-     spheres drew 576k a frame and timed out (2026-11-04), a Map of 2,727 spheres 3.3M */
+     spheres drew 547k a frame and timed out (2026-11-04), a Map of 2,727 spheres 3.3M */
   test("a few spheres or toruses keep their full detail", () => {
     const one = trianglesOf(buildScene(three, row(1, SPHERE, SPHERE_MESH), false).scene);
     const ten = trianglesOf(buildScene(three, row(10, SPHERE, SPHERE_MESH), false).scene);
@@ -114,7 +114,8 @@ describe("round pieces' detail", () => {
   ])("%i %s draw coarser, each still round", (n, _, piece, mesh) => {
     const all = trianglesOf(buildScene(three, row(n, piece, mesh), false).scene);
     expect(all / n).toBeGreaterThanOrEqual(150);
-    expect(all).toBeLessThanOrEqual(Math.max(150_000, n * 200));
+    /* within the budget, or each at the coarsest detail where even that can't be */
+    expect(all).toBeLessThanOrEqual(Math.max(150_000, n * 170));
   });
 });
 
