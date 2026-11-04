@@ -858,6 +858,44 @@ describe("the shape fill", () => {
     ).not.toContain("colour");
   });
 
+  test("gathers its shapes closer in clumps than anywhere in the box", () => {
+    /* the mean distance from each shape to its nearest neighbour, in metres */
+    const nearestMean = (layout: string) => {
+      const mids = boxesOf(make("shape-fill", { layout, overlap: true })).map((b) => b.mid);
+      const each = mids.map((a, i) =>
+        Math.min(
+          ...mids.filter((_, j) => j !== i).map((b) => Math.hypot(...a.map((v, k) => v - b[k]))),
+        ),
+      );
+      return each.reduce((x, y) => x + y, 0) / each.length;
+    };
+    expect(nearestMean("Clumps")).toBeLessThan(nearestMean("Anywhere") * 0.8);
+  });
+
+  test("winds a spiral up round the middle", () => {
+    const mids = boxesOf(
+      make("shape-fill", { layout: "Spiral", width: 8, depth: 8, hole: 40 }),
+    ).map((b) => b.mid);
+    /* shapes low and high, none in the clear middle */
+    expect(Math.min(...mids.map((m) => m[1]))).toBeLessThan(3);
+    expect(Math.max(...mids.map((m) => m[1]))).toBeGreaterThan(9);
+  });
+
+  test("puts a pillar in the clear middle, the full height, only when asked", () => {
+    const pillarOf = (change: Values) =>
+      make("shape-fill", { hole: 40, ...change }).items.filter((it) =>
+        it.class.includes("Cylinder"),
+      );
+    expect(pillarOf({ shape: "Spheres", pillar: false })).toHaveLength(0);
+    const [pillar] = pillarOf({ shape: "Spheres", pillar: true, height: 12 });
+    expect(pillar.transform.scale[2] * 200).toBeCloseTo(1200);
+    expect(
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { hole: 0 }))
+        .map((c) => c.key),
+    ).not.toContain("pillar");
+  });
+
   test("draws the same shapes from the same seed and new ones from another", () => {
     expect(make("shape-fill", { seed: 3 })).toEqual(make("shape-fill", { seed: 3 }));
     expect(make("shape-fill", { seed: 3 })).not.toEqual(make("shape-fill", { seed: 4 }));

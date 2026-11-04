@@ -11,6 +11,7 @@ import {
   colour,
   colourIn,
   fileOf,
+  inBall,
   metresIn,
   mul,
   num,
@@ -449,6 +450,9 @@ const PALETTES: Record<string, ReadonlyArray<Colour>> = {
   Metals: ["Iron", "Copper", "Aluminum"],
 };
 const ONE_COLOUR = "One colour";
+/* where the shapes gather: anywhere in the box, round a few clumps, along a spiral round the
+   middle, or small ones round each big one */
+const LAYOUTS = ["Anywhere", "Clumps", "Spiral", "Satellites"] as const;
 
 /* one shape `s` cm across, centred at `c`, turned by `rot` about its centre (the pieces turn
    about their bottom centre, so that sits half a size down its own up axis) */
@@ -475,6 +479,7 @@ export const shapeFill: Generator = {
   blurb: "A box of space filled with shapes of random sizes in random places.",
   file: "shape_fill",
   defaults: {
+    layout: "Anywhere",
     shape: "Spheres",
     width: 6,
     depth: 6,
@@ -487,9 +492,12 @@ export const shapeFill: Generator = {
     overlap: false,
     turn: true,
     hole: 0,
+    pillar: false,
+    pillarc: "White",
     seed: 1,
   },
   controls: (v) => [
+    choice("layout", "Layout", LAYOUTS),
     choice("shape", "Shape", FILL_SHAPES),
     num("width", "Width", 1, 60, 0.5, "m"),
     num("depth", "Depth", 1, 60, 0.5, "m"),
@@ -502,6 +510,12 @@ export const shapeFill: Generator = {
     { key: "overlap", label: "Let shapes overlap", kind: "toggle", more: true },
     { key: "turn", label: "Turn shapes", kind: "toggle", more: true },
     num("hole", "Clear middle", 0, 90, 5, "%", true),
+    ...(numberIn(v, "hole") > 0
+      ? [
+          { key: "pillar", label: "Pillar in the middle", kind: "toggle", more: true } as const,
+          ...(v.pillar ? [{ ...colour("pillarc", "Pillar"), more: true }] : []),
+        ]
+      : []),
     SHUFFLE,
   ],
   build: (v) => {
@@ -528,7 +542,30 @@ export const shapeFill: Generator = {
     );
     const placed: Array<Placed> = [];
     const items: Array<PrefabItem> = [];
-    for (const s0 of sizes) {
+    const H = box[2];
+    /* the layout's pull: a point each shape is drawn near, and how far from it it may land */
+    const layout = String(v.layout);
+    const clumps = Array.from({ length: Math.max(3, Math.round(count / 40)) }, () =>
+      [0, 1, 2].map((k) => (k === 2 ? H / 2 : 0) + (r() - 0.5) * box[k] * 0.8),
+    ) as Array<V3>;
+    const ring = [0, 1].map((k) => (core[k] + box[k] / 2) / 2);
+    const turns = Math.max(1, H / Math.max(box[0], box[1]));
+    const spread = Math.max(most, Math.min(box[0], box[1]) * 0.18);
+    const near = (big: boolean): { at: V3; by: number } | null => {
+      if (layout === "Clumps") return { at: clumps[Math.floor(r() * clumps.length)], by: spread };
+      if (layout === "Spiral") {
+        const t = r();
+        const a = t * turns * Math.PI * 2;
+        return { at: [Math.cos(a) * ring[0], Math.sin(a) * ring[1], t * H], by: spread * 0.8 };
+      }
+      if (layout === "Satellites" && !big && placed.length) {
+        const host = placed[Math.floor(r() * Math.min(placed.length, Math.ceil(count / 12)))];
+        return { at: host.c, by: host.half * 1.6 + most * 0.3 };
+      }
+      return null;
+    };
+    for (const [i, s0] of sizes.entries()) {
+      const pull = near(i < count / 12);
       const kind = kinds[Math.floor(r() * kinds.length)];
       const rot: V3 =
         v.turn && kind !== "sphere"
@@ -541,9 +578,12 @@ export const shapeFill: Generator = {
       for (let s = s0, tries = 0; tries < 60; tries++) {
         if (tries > 0 && tries % 15 === 0) s = Math.max(least, s * 0.8);
         const half = Math.min(s * reach, ...box.map((d) => d / 2));
+        const off = inBall(r);
         const c = [0, 1, 2].map((k) => {
           const room = box[k] / 2 - half;
-          return (k === 2 ? box[2] / 2 : 0) + (r() * 2 - 1) * room;
+          const mid = k === 2 ? H / 2 : 0;
+          const want = pull ? pull.at[k] + off[k] * pull.by : mid + (r() * 2 - 1) * room;
+          return Math.max(mid - room, Math.min(mid + room, want));
         }) as V3;
         if (Math.abs(c[0]) < core[0] + half && Math.abs(c[1]) < core[1] + half) continue;
         const p = { c, half, round };
@@ -552,6 +592,11 @@ export const shapeFill: Generator = {
         items.push(centred(kind, c, Math.min(s, half / reach), colourOf, rot));
         break;
       }
+    }
+    /* a pillar filling the clear middle, as wide as its narrower side */
+    if (v.pillar && core[0] > 0 && core[1] > 0) {
+      const d = Math.min(core[0], core[1]) * 2;
+      items.push(piece("cylinder", [0, 0, 0], [d, d, H], colourIn(v, "pillarc")));
     }
     return items.length > 1 ? fileOf(items) : null;
   },
