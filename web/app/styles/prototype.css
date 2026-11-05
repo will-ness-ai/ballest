@@ -651,8 +651,8 @@
   mask-image: linear-gradient(
     to right,
     transparent,
-    oklch(0% 0 none) var(--fade-l),
-    oklch(0% 0 none) calc(100% - var(--fade-r)),
+    var(--proto-ink) var(--fade-l),
+    var(--proto-ink) calc(100% - var(--fade-r)),
     transparent
   );
 }
