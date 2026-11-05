@@ -1,3 +1,8 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import type { Browser } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -5,7 +10,10 @@ import { launch as launchAny } from "../../.claude/skills/grill-design/scripts/d
 import {
   compose as composeAny,
   cardHtml,
+  imagesOf,
   overviewHtml,
+  pictureCardHtml,
+  pictureOverviewHtml,
   variantsOf,
 } from "../../.claude/skills/grill-design/scripts/pictures.mjs";
 
@@ -86,6 +94,78 @@ describe("variantsOf", () => {
   });
 });
 
+describe("imagesOf", () => {
+  const LIST = [
+    ["A", "As is", "today's layout"],
+    ["B", "Banner", "yesterday's Daily on top"],
+  ];
+  const folder = (files: Record<string, string>) => {
+    const dir = mkdtempSync(join(tmpdir(), "sheet-"));
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
+    return dir;
+  };
+
+  it("pairs each variant in variants.json with its picture, named by its key", () => {
+    const dir = folder({
+      "variants.json": JSON.stringify(LIST),
+      "A.png": "a",
+      "B.jpg": "b",
+      "notes.txt": "",
+    });
+    expect(imagesOf(dir)).toEqual({
+      variants: [
+        { key: "A", name: "As is", note: "today's layout", file: join(dir, "A.png") },
+        { key: "B", name: "Banner", note: "yesterday's Daily on top", file: join(dir, "B.jpg") },
+      ],
+    });
+  });
+
+  it("cuts them to --variants", () => {
+    const dir = folder({ "variants.json": JSON.stringify(LIST), "A.png": "a", "B.png": "b" });
+    expect(imagesOf(dir, { variants: "B" })).toHaveProperty("variants.length", 1);
+  });
+
+  it("asks for variants.json, showing its shape, when the folder has none", () => {
+    const dir = folder({ "A.png": "a" });
+    const r = imagesOf(dir);
+    expect(r).toHaveProperty("error", `no ${join(dir, "variants.json")}`);
+    expect(r).toHaveProperty(
+      "help",
+      expect.stringContaining('[["A", "<name>", "<what it changes>"], ...]') as unknown,
+    );
+  });
+
+  it("says what is wrong with a variants.json that isn't a list of variants", () => {
+    for (const body of ['[["A", "As is"],]', "[]"]) {
+      const dir = folder({ "variants.json": body, "A.png": "a" });
+      expect(imagesOf(dir, { variants: "A" })).toHaveProperty(
+        "error",
+        expect.stringMatching(/variants\.json (isn't JSON|lists no variants)/) as unknown,
+      );
+    }
+  });
+
+  it("names a variant whose picture is missing", () => {
+    const dir = folder({ "variants.json": JSON.stringify(LIST), "A.png": "a" });
+    expect(imagesOf(dir)).toEqual({
+      error: "no picture for B",
+      help: `save it as ${join(dir, "B.png")} (or .jpg, .jpeg, .webp)`,
+    });
+  });
+
+  it("says so when the folder isn't there", () => {
+    expect(imagesOf(join(tmpdir(), "no-such-sheet-dir"))).toHaveProperty(
+      "error",
+      expect.stringMatching(/^no folder /),
+    );
+  });
+
+  it("refuses a pick it doesn't list", () => {
+    const dir = folder({ "variants.json": JSON.stringify(LIST), "A.png": "a", "B.png": "b" });
+    expect(imagesOf(dir, { pick: "C" })).toHaveProperty("error", 'no variant "C" to pick');
+  });
+});
+
 describe("the pictures", () => {
   let browser: Browser;
   beforeAll(async () => {
@@ -152,5 +232,87 @@ describe("the pictures", () => {
     );
     expect(three?.w).toBe(1400);
     expect(three?.h).toBeGreaterThan((one?.h ?? Infinity) * 2);
+  });
+
+  it("labels every variant with its letter, name and note, in the overview and on its card", async () => {
+    const v = { key: "C", name: "Headline", note: "the leader up top" };
+    const shots = { desktop: await png(browser, 1280, 600), phone: await png(browser, 390, 800) };
+    for (const html of [
+      overviewHtml([{ v, ...shots }], {}),
+      cardHtml(v, shots),
+      pictureOverviewHtml([{ v, picture: shots.desktop }], {}),
+      pictureCardHtml(v, shots.desktop),
+    ]) {
+      expect(html).toContain('<b class="key">C</b>');
+      expect(html).toContain("Headline");
+      expect(html).toContain("the leader up top");
+    }
+  });
+
+  it("lays tall pictures side by side in the overview, and wide ones a row each", async () => {
+    const sheet = async (w: number, h: number, n: number) => {
+      const picture = await png(browser, w, h);
+      return jpegSize(
+        await compose(
+          browser,
+          pictureOverviewHtml(
+            "ABCDE"
+              .slice(0, n)
+              .split("")
+              .map((key) => ({ v: { key, name: "", note: "" }, picture })),
+            { pick: "B" },
+          ),
+        ),
+      );
+    };
+    const tall = await sheet(800, 1600, 5);
+    expect(tall?.w).toBe(1400);
+    // five 800x1600 pictures in one row, each about 260 px wide, so about 520 px tall
+    expect(tall?.h).toBeLessThan(900);
+    const oneWide = await sheet(1600, 800, 1);
+    const threeWide = await sheet(1600, 800, 3);
+    expect(threeWide?.h).toBeGreaterThan((oneWide?.h ?? Infinity) * 2.5);
+  });
+
+  it("draws a picture's card at the sheet's width, the whole picture shown", async () => {
+    const card = jpegSize(
+      await compose(
+        browser,
+        pictureCardHtml({ key: "A", name: "", note: "" }, await png(browser, 676, 2000), {
+          pick: true,
+        }),
+      ),
+    );
+    expect(card?.w).toBe(1400);
+    // shown at its own size, not cut
+    expect(card?.h).toBeGreaterThan(2000);
+  });
+
+  it("draws a round of pictures' overview at twice the pixels, so its small pictures stay sharp", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sheet-round-"));
+    const out = mkdtempSync(join(tmpdir(), "sheet-out-"));
+    writeFileSync(
+      join(dir, "variants.json"),
+      JSON.stringify([
+        ["A", "One"],
+        ["B", "Two"],
+      ]),
+    );
+    for (const key of ["A", "B"])
+      writeFileSync(join(dir, `${key}.png`), await png(browser, 700, 1600));
+    execFileSync(
+      "node",
+      [
+        join(__dirname, "../../.claude/skills/grill-design/scripts/sheet.mjs"),
+        "--images",
+        dir,
+        "--out",
+        out,
+      ],
+      { encoding: "utf8" },
+    );
+    expect(jpegSize(readFileSync(join(out, "overview.jpg")))?.w).toBe(2800);
+    // a card shows its picture at its own size, so it needs no more pixels than the sheet's
+    expect(jpegSize(readFileSync(join(out, "variant-A.jpg")))?.w).toBe(1400);
   });
 });
