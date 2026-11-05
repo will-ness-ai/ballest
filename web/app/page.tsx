@@ -43,7 +43,8 @@ export default async function Page() {
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
-      <PageHead path={homeHref()} title="Featured Maps" />
+      {/* its h1 is the phrase people search for; the line above it says Featured Maps */}
+      <PageHead path={homeHref()} title="Ballest of Them All leaderboards" />
       <section className="ws" id="ws">
         <WorkshopHome
           trend={trend}

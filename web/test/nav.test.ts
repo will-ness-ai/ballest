@@ -204,7 +204,7 @@ describe("the Campaigns the sub-tabs name", () => {
 describe("the kind of page", () => {
   test("every page in the qa catalogue", () => {
     const at: Record<string, string | null> = {
-      "/": "Workshop",
+      "/": "Featured Maps",
       "/maps": "Workshop",
       "/map/3800958793": "Workshop Map",
       [`/map/3800958793/${ID}`]: "Workshop Map",

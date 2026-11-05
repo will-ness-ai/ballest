@@ -371,7 +371,8 @@ names the board), All maps' views name All maps and the Players table's rankings
 Players, and each Daily is a page of its own. A Map or player the page can only send away
 (a soft 404) is `noindex`, and so is a Map nobody has a time on yet, as the sitemap leaves
 it out. The homepage's title leads with what people search for ("Ballest of Them All
-Leaderboards & Records"), and it carries the site's name for search results as schema.org
+Leaderboards & Records"), so does its h1 ("Ballest of Them All leaderboards", with Featured
+Maps as the line above it), and it carries the site's name for search results as schema.org
 `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
