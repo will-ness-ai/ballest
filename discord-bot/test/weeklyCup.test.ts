@@ -91,6 +91,9 @@ const setup = Effect.gen(function* () {
   const draws = yield* Ref.make<Array<{ at: number; pfid: string }>>([]);
   const drawingReads = yield* Ref.make(0);
   const githubDown = yield* Ref.make(false);
+  /** Maps whose ask GitHub refuses, and whether the drawings can't be read. */
+  const refusedDraws = new Set<string>();
+  const drawingsDown = yield* Ref.make(false);
   const fakes = Layer.mergeAll(
     Layer.succeed(
       MapSpins,
@@ -100,6 +103,8 @@ const setup = Effect.gen(function* () {
         drawings: (pfids) =>
           Effect.gen(function* () {
             yield* Ref.update(drawingReads, (n) => n + 1);
+            if (yield* Ref.get(drawingsDown))
+              return yield* new SpinUnavailable({ reason: "connection refused" });
             const out = new Map<string, Drawing>();
             for (const pfid of pfids) {
               const file = mapFiles.has(pfid) ? mapFiles.get(pfid) : "v1";
@@ -110,7 +115,7 @@ const setup = Effect.gen(function* () {
           }),
         draw: (pfid) =>
           Effect.gen(function* () {
-            if (yield* Ref.get(githubDown))
+            if ((yield* Ref.get(githubDown)) || refusedDraws.has(pfid))
               return yield* new SpinUnavailable({ reason: "GitHub said 401" });
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(draws, (d) => [...d, { at, pfid }]);
@@ -244,6 +249,8 @@ const setup = Effect.gen(function* () {
     draws,
     drawingReads,
     githubDown,
+    refusedDraws,
+    drawingsDown,
     steam: steam.control,
     unlinked,
     posts,
@@ -758,10 +765,39 @@ describe("the Weekly Cup's Shortlist and vote", () => {
           yield* TestClock.adjust(THURSDAY_NOON - MONDAY + 10 * MINUTE);
           expect((yield* Ref.get(t.shortlists)).map((s) => s.at)).toEqual([THURSDAY_NOON]);
           expect(yield* Ref.get(t.alerts)).toEqual([
-            `Multiballs couldn't ask for the Weekly Cup's spinning GIFs for ${WEEK} in ${GUILD}: GitHub said 401`,
+            `Multiballs couldn't ask for the Weekly Cup's spinning GIFs for ${WEEK} in ${GUILD}: 10 of 10 refused: GitHub said 401`,
           ]);
           yield* bot.stop;
         }),
+    );
+
+    it.scoped("asks for every other Map when GitHub refuses one", () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        t.refusedDraws.add("pf3");
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+        const asked = (yield* Ref.get(t.draws)).map((d) => d.pfid);
+        expect(asked).toHaveLength(9);
+        expect(asked).not.toContain("pf3");
+        expect((yield* Ref.get(t.alerts)).at(-1)).toContain("1 of 10 refused: GitHub said 401");
+        yield* bot.stop;
+      }),
+    );
+
+    it.scoped("asks a minute later when the drawings can't be read at the draw", () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* Ref.set(t.drawingsDown, true);
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+        expect((yield* Ref.get(t.shortlists)).map((s) => s.at)).toEqual([THURSDAY_NOON]);
+        expect(yield* Ref.get(t.draws)).toEqual([]);
+        yield* Ref.set(t.drawingsDown, false);
+        yield* TestClock.adjust(MINUTE);
+        expect(yield* Ref.get(t.draws)).toHaveLength(10);
+        yield* TestClock.adjust(10 * MINUTE);
+        expect(yield* Ref.get(t.draws)).toHaveLength(10);
+        yield* bot.stop;
+      }),
     );
 
     it.scoped("still edits GIFs in after a restart while voting, without asking again", () =>

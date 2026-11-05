@@ -148,7 +148,7 @@ const DailyPostRecord = Schema.Struct({
   shown: Schema.String,
   /** The last read the card was drawn from or checked against. */
   readAt: Schema.Number,
-  /** The spinning GIF (spin.ts): to "ask" for, "asked" for (at `askedAt`, drawn from file
+  /** The spinning GIF (spins.ts): to "ask" for, "asked" for (at `askedAt`, drawn from file
    * `version`), "late" once ops heard it hadn't come, "shown" on the card, or "none" (no file). */
   spin: Schema.optionalWith(
     Schema.Struct({
@@ -536,7 +536,7 @@ const onSchedule = Effect.fn("DailyPost.onSchedule")(function* <E, R>(
 /**
  * Keep a live Daily Post's card current: a read every READ_EVERY from its last one, and one at
  * the Daily's end, which is its last. A failed read keeps the card as it was and is retried at
- * the next. Its spinning GIF is asked for at once (spin.ts), and edited in at the first read
+ * the next. Its spinning GIF is asked for at once (spins.ts), and edited in at the first read
  * after it is drawn; one still to come at the close is waited for as a closed card's.
  */
 export const keepCurrent = Effect.fn("DailyPost.keepCurrent")(function* (start: DailyPostRecord) {

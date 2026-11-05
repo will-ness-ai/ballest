@@ -7,7 +7,7 @@
 import { Effect, Either, Option, Random } from "effect";
 import { searchEligible } from "../eligibleMaps.js";
 import { Steam } from "../ports.js";
-import { type Drawing, SPIN_WAIT, spinUrl } from "../spins.js";
+import { type Drawing, spinUrl } from "../spins.js";
 import type { CupKit } from "./kit.js";
 import {
   CUP_AUTHOR_LIMIT,
@@ -20,6 +20,7 @@ import {
   SHORTLIST_CHECKS,
   SHORTLIST_SIZE,
   SPIN_LOOK,
+  SPIN_WATCH,
   type ShortlistView,
 } from "./model.js";
 import type { CupRace } from "./race.js";
@@ -69,17 +70,22 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     return maps;
   });
 
-  /** The weeks whose GIFs this run has asked for: once each (a restart may ask again). */
-  const asked = new Set<string>();
+  /**
+   * The weeks whose GIFs this run is to ask for: from the draw until the ask is made (a database
+   * blip at the draw leaves it here for the next minute's look). A restart asks no more.
+   */
+  const toAsk = new Set<string>();
+  /** The weeks whose ask this run has started. */
+  const started = new Set<string>();
 
   /** The Shortlist's Maps that have a 3D file, with their drawings; none if the database fails. */
   const drawingsOf = Effect.fn("WeeklyCup.drawingsOf")(function* (
     shortlist: ReadonlyArray<CupMap>,
   ) {
     const read = yield* Effect.either(kit.spins.drawings(shortlist.map((m) => m.pfid)));
-    if (Either.isRight(read)) return read.right;
+    if (Either.isRight(read)) return Option.some(read.right);
     yield* Effect.logWarning(`weekly cup: can't read the spinning GIFs: ${read.left.reason}`);
-    return new Map<string, Drawing>();
+    return Option.none<ReadonlyMap<string, Drawing>>();
   });
 
   /** A Map whose GIF is still to come: it has a file, and no drawing of that file. */
@@ -94,8 +100,9 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     week: CupWeek,
     shortlist: ReadonlyArray<CupMap>,
     closed: boolean,
-    drawings: ReadonlyMap<string, Drawing>,
+    read: Option.Option<ReadonlyMap<string, Drawing>>,
   ) {
+    const drawings = Option.getOrElse(read, () => new Map<string, Drawing>());
     const maps = yield* Effect.forEach(shortlist, (map) =>
       Effect.map(kit.previews.of(map.previewUrl), (p) => ({
         map,
@@ -110,29 +117,40 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
       })),
     );
     const view = { guildId, week, maps, wanted: SHORTLIST_SIZE, closed } satisfies ShortlistView;
-    return { view, waiting: [...drawings.values()].some(due) };
+    // A read that failed is looked at again in a minute, as one still to come.
+    return { view, waiting: Option.isNone(read) || [...drawings.values()].some(due) };
   });
 
-  /** Ask once for each Shortlist Map's GIF that is due (daily-spin.yml), telling ops of a refusal. */
+  /**
+   * Ask once for each Shortlist Map's GIF that is due (daily-spin.yml), if this week's ask is still
+   * to make and the drawings were read; each Map is asked for whatever the others' answers, and
+   * any refusal reaches ops once.
+   */
   const askSpins = Effect.fn("WeeklyCup.askSpins")(function* (
     week: CupWeek,
-    drawings: ReadonlyMap<string, Drawing>,
+    read: Option.Option<ReadonlyMap<string, Drawing>>,
   ) {
-    if (asked.has(week.week)) return;
-    asked.add(week.week);
-    const pfids = [...drawings].flatMap(([pfid, d]) => (due(d) ? [pfid] : []));
+    if (!toAsk.has(week.week) || Option.isNone(read)) return;
+    toAsk.delete(week.week);
+    const pfids = [...read.value].flatMap(([pfid, d]) => (due(d) ? [pfid] : []));
+    const answers = yield* Effect.forEach(pfids, (pfid) => Effect.either(kit.spins.draw(pfid)));
+    const refused = answers.flatMap((a) => (Either.isLeft(a) ? [a.left.reason] : []));
     yield* kit.attempt(
       "spins",
       "ask for the Weekly Cup's spinning GIFs",
       week.week,
-      Effect.forEach(pfids, kit.spins.draw, { discard: true }),
+      refused.length === 0
+        ? Effect.void
+        : Effect.fail({ reason: `${refused.length} of ${pfids.length} refused: ${refused[0]}` }),
     );
-    yield* Effect.logInfo(`weekly cup: asked for ${pfids.length} spinning GIFs for ${week.week}`);
+    yield* Effect.logInfo(
+      `weekly cup: asked for ${pfids.length - refused.length} of ${pfids.length} spinning GIFs for ${week.week}`,
+    );
   });
 
   /** When to look again for GIFs: in a minute while one is due within the hour, else the close. */
   const spinWake = (now: number, week: CupWeek, waiting: boolean) =>
-    waiting && now + SPIN_LOOK < week.shortlistAt + SPIN_WAIT
+    waiting && now + SPIN_LOOK < week.shortlistAt + SPIN_WATCH
       ? Math.min(now + SPIN_LOOK, week.voteClosesAt)
       : week.voteClosesAt;
 
@@ -169,6 +187,11 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
         return week.nextOpensAt;
       }
     }
+    // The ask starts once per run, however often a refused post brings the step back.
+    if (!started.has(week.week)) {
+      started.add(week.week);
+      toAsk.add(week.week);
+    }
     const drawings = yield* drawingsOf(shortlist);
     yield* askSpins(week, drawings);
     const { view, waiting } = yield* shortlistView(week, shortlist, false, drawings);
@@ -187,14 +210,11 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     week: CupWeek,
     cup: CupRecord,
   ) {
-    if (now >= week.shortlistAt + SPIN_WAIT) return week.voteClosesAt;
+    if (now >= week.shortlistAt + SPIN_WATCH) return week.voteClosesAt;
     const shortlist = (yield* log.shortlist(guildId, week.week)).map((s) => s.map);
-    const { view, waiting } = yield* shortlistView(
-      week,
-      shortlist,
-      false,
-      yield* drawingsOf(shortlist),
-    );
+    const drawings = yield* drawingsOf(shortlist);
+    yield* askSpins(week, drawings);
+    const { view, waiting } = yield* shortlistView(week, shortlist, false, drawings);
     yield* kit.show(week, cup, "shortlist", view, "edit the Weekly Cup's spinning GIFs in");
     return spinWake(now, week, waiting);
   });

@@ -23,6 +23,11 @@ export const READ_RETRIES = 2;
 export const RETRY_EVERY = 60_000;
 /** How often the Shortlist looks for its Maps' spinning GIFs while they are being drawn. */
 export const SPIN_LOOK = 60_000;
+/**
+ * How long after Thursday 12:00 the Shortlist looks for them: a run takes minutes, and a failed
+ * one tells ops itself. A Shortlist posted late on a retry looks for less of it.
+ */
+export const SPIN_WATCH = 60 * 60_000;
 /** How often the Cup Maps are read while racing. */
 export const READ_EVERY = 5 * 60_000;
 /** How long the final read waits for Steam before the results stand on the last reads. */

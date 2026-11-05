@@ -8,7 +8,7 @@
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
-import { SITE_URL } from "./links.js";
+import { mapUrl } from "./links.js";
 import { Config, Context, Data, Duration, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 /** How long after asking for a GIF its absence goes to ops (a run takes about 5 minutes). */
@@ -34,7 +34,7 @@ export interface Drawing {
 
 /** The link to a Map's drawing on the site: one per drawing, so Discord never shows an old one. */
 export const spinUrl = (pfid: string, drawnAt: number) =>
-  `${SITE_URL}/map/${pfid}/spin?v=${Math.floor(drawnAt)}`;
+  `${mapUrl(pfid)}/spin?v=${Math.floor(drawnAt)}`;
 
 export class MapSpins extends Context.Tag("multiballs/MapSpins")<
   MapSpins,
@@ -88,7 +88,7 @@ const live = (token: Redacted.Redacted) =>
       const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
       // Each read opens its own connection and closes it, as the Daily Report's do, so a
       // database that can't be reached fails that read, not the bot's startup.
-      const all = Effect.fn("MapSpins.all")(function* <A, I>(
+      const rowsOf = Effect.fn("MapSpins.rowsOf")(function* <A, I>(
         schema: Schema.Schema<A, I>,
         run: (sql: SqlClient.SqlClient) => Effect.Effect<ReadonlyArray<unknown>, unknown>,
       ) {
@@ -103,22 +103,22 @@ const live = (token: Redacted.Redacted) =>
           ),
         );
       });
-      const query = Effect.fn("MapSpins.query")(function* <A, I>(
+      const firstRow = Effect.fn("MapSpins.firstRow")(function* <A, I>(
         schema: Schema.Schema<A, I>,
         run: (sql: SqlClient.SqlClient) => Effect.Effect<ReadonlyArray<unknown>, unknown>,
       ) {
-        return Option.fromNullable((yield* all(schema, run))[0]);
+        return Option.fromNullable((yield* rowsOf(schema, run))[0]);
       });
       return MapSpins.of({
         fileVersion: Effect.fn("MapSpins.fileVersion")(function* (pfid: string) {
-          const row = yield* query(
+          const row = yield* firstRow(
             VersionRow,
             (sql) => sql`select version from map_files where pfid = ${pfid}`,
           );
           return Option.map(row, (r) => r.version);
         }),
         latest: Effect.fn("MapSpins.latest")(function* (pfid: string) {
-          return yield* query(
+          return yield* firstRow(
             SpinRow,
             (sql) =>
               sql`select version, (extract(epoch from drawn_at) * 1000)::float8 as "drawnAt", gif
@@ -127,7 +127,7 @@ const live = (token: Redacted.Redacted) =>
         }),
         drawings: Effect.fn("MapSpins.drawings")(function* (pfids: ReadonlyArray<string>) {
           if (pfids.length === 0) return new Map<string, Drawing>();
-          const rows = yield* all(
+          const rows = yield* rowsOf(
             DrawingRow,
             (sql) =>
               sql`select f.pfid, f.version as file, s.version,
