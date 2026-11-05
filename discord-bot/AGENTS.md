@@ -497,7 +497,7 @@ ops, and its Cup waits for the next start. Presses there reach `interactions.ts`
 The code is split by stage. `model.ts` holds the views, constants and ports (`CupChannel`,
 `CupLinks`); `record.ts` the SQLite record (`CupLog`, one migration, `0016_weekly_cup`); `kit.ts`
 what every stage shares (the lock, `attempt`, which tells ops once and retries in a minute, and
-`show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `race.ts` the reads, standings and
+`show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `spins.ts` the Shortlist's GIFs; `race.ts` the reads, standings and
 results; `presses.ts` the buttons; `slots.ts` how each view is kept on Discord; `messages.ts`
 every Cup message. The two one-shots, never retried (the call-off notice and the Shortlist's
 close), each tell ops every time under a kind of their own, so neither hides a later failure of
