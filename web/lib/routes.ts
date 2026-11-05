@@ -115,6 +115,8 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
   !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
+/* How to: saving, spawning and sharing a Prefab, and decals */
+export const prefabGuideHref = () => "/prefabs/guide";
 /* Make your own and a Generator's page. GENERATORS in lib/generators/index.ts lists
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */
@@ -164,6 +166,9 @@ export const adminActionOf = (search: string): AdminAction | null => {
 export const prefabsApiHref = () => "/api/prefabs";
 export const prefabApiHref = (slug: string) => "/api/prefabs/" + slug;
 export const prefabFileHref = (slug: string) => prefabApiHref(slug) + "/file";
+/* its thumbnail, named by its last edit so a new angle isn't served from the CDN's old copy */
+export const prefabThumbHref = (slug: string, updatedAt: string) =>
+  `${prefabApiHref(slug)}/thumb?v=${String(Date.parse(updatedAt))}`;
 export const prefabFavoriteHref = (slug: string) => prefabApiHref(slug) + "/favorite";
 export const prefabTakeDownHref = (slug: string) => prefabApiHref(slug) + "/takedown";
 export const prefabBanHref = (id: string) => (isSteamId(id) ? "/api/prefab-bans/" + id : null);

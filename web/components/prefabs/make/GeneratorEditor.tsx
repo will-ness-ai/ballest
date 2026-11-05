@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Controls } from "./Controls";
 import { FONTS, fontAt, letteringOf } from "./lettering";
-import { HelpDialog } from "../PrefabModel";
+import { HelpDialog } from "../HowTo";
 import { PrefabViewer } from "../PrefabViewer";
 import {
   PIECE_LIMIT,

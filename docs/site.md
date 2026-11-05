@@ -36,7 +36,9 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
   - `workshop-standings.ts`, the Workshop standings (`GLOSSARY.md`) counted now and at a
     baseline with shared places, `youBaseline`, the baseline /you compares against, and
-    `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs;
+    `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs,
+    with the Daily Report's Daily side beside them (`withDaily`): Most Daily wins and
+    yesterday's Daily, the newest final Daily's Map and top 10 (null before any is final);
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
     "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
@@ -342,7 +344,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   says it is done. The one page that reads the session while it draws, so it is never cached
   and robots.txt keeps crawlers off it. `qa`'s `link` and `link-confirm` draw tiny's request.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
-  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
+  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators;
+  `/prefabs/guide`: How to. The Prefabs
   Section comes last and is lit on all of them. See "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
@@ -784,7 +787,8 @@ branch `claude/prototype-prefabs` (spec #213).
   `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
   there. It starts from the Prefab's angle and turns slowly until it is grabbed, and not at
   all under reduced motion; Reset view goes back to the angle. The ?
-  opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
+  opens the how-to (`HowTo.tsx`), with the Prefabs folder, the exact spawn command and a link to
+  How to; it opens on its
   own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
@@ -798,6 +802,12 @@ branch `claude/prototype-prefabs` (spec #213).
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
+- **How to** (`PrefabGuide.tsx`, `/prefabs/guide`): the Prefabs Section's last sub-tab, written
+  from what players asked in the game's Discord: selecting and saving (`saveprefab`), spawning,
+  why a Prefab comes back as one flat group (the editor has no nested groups), uploading here,
+  and the decal. Every game fact on it was checked against the game's own command help on
+  2026-10-23, except the decal's Style tab, taken from players. The folder and commands come
+  from `lib/prefab-console.ts`, as the how-to's do.
 - **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
   card's picture is drawn in the browser from the file by one shared renderer once the card
@@ -834,6 +844,30 @@ branch `claude/prototype-prefabs` (spec #213).
   can give the uploader their own hourly upload limit, or put them back on the 5
   (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
   the upload form asks for its quota uncached.
+- **From the game** (ADR 0016): the Prefabs plugin browses signed out with
+  `GET /api/prefab-list?sort=popular|newest&tag=&q=&cursor=&limit=` (`listQueryOf` and
+  `listPageOf` in `lib/prefabs.ts`: the gallery's order and tag, every word of `q` found in the
+  name, description, a tag or the uploader; 50 a page, up to 100), answered as
+  `{ total, next, prefabs }` with `next` the cursor of the page after or null. Each entry is what
+  a Prefab's page shows beside its viewer (the size from `getPrefabSize`, read once per file)
+  plus its `thumb` (`/api/prefabs/<slug>/thumb?v=<last edit>`, 320 × 200, clear around the
+  Prefab, drawn like the share image, kept for days per edit, and drawn only at that address:
+  any other query is sent there) and its `file`. The CDN keeps each query a minute. To write,
+  it posts a Steam Web API ticket of its player, made out to `ballest-plugin:prefabs`, to
+  `POST /api/auth/steam/ticket` (`signInFromGame` in `lib/auth.ts`, checked by
+  `lib/steam-ticket.ts` with `STEAM_API_KEY`; 30 an hour per address, an IPv6 one by its /64,
+  and 2,000 in all, `db/game-sign-in.ts`), and
+  sends the game token it gets back (good for a day) as `Authorization: Bearer` on the same
+  Prefab routes the site's pages use. They read it with `prefabSessionOf`, the bearer before the
+  cookie, so every rule above holds for the game unchanged; every other route, the admin's
+  included, reads the cookie alone (`sessionOf`). Every edit, and every heart added or taken
+  back, counts against 60 an hour per player (`HOURLY_PREFAB_WRITES`, a bucket of
+  `db/hourly-limit.ts`), since each expires the cached Prefab reads; deleting one's own is never held back.
+  A heart that changes nothing (the same heart sent twice) costs nothing. The thumbnail
+  (`getPrefabThumb`) and each size (`getPrefabSize`) are cached in `db/data.ts` apart from those
+  reads (`PREFAB_FILE_TAG`), each reading its file fresh, since a cached read inside another
+  passes its tags out. Nothing revalidates `PREFAB_FILE_TAG`: a file never changes after upload
+  and a thumbnail's link carries its edit time, so the tag is only a handle for a purge by hand.
 
 ## Generators
 

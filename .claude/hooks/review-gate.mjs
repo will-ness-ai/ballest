@@ -16,6 +16,7 @@ import {
   mergeTargets,
   refusedSkills,
   repoSlug,
+  reviewAsk,
   skillName,
   unreviewed,
 } from "./review-gate-rules.mjs";
@@ -143,8 +144,7 @@ function refusal(target, cwd, refusedHere) {
     `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
     lines.join(". ") +
     ". Commits after a run need no new one until they change as many lines as the commits it saw" +
-    `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
-    "on the PR's head in this clone, fix what they find, push, and try again. " +
+    `. ${reviewAsk(since, gh(`repos/${slug}/pulls/${number}`, "--jq", ".head.sha").slice(0, 7))} ` +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.";
   if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync, refusedHere())))
     return { deny: reason };

@@ -84,6 +84,7 @@ export const PAGES = [
   { name: "prefabs", path: "/prefabs" },
   { name: "prefab", path: "/prefab/{PREFAB}" },
   { name: "prefab-new", path: "/prefabs/new" },
+  { name: "prefab-guide", path: "/prefabs/guide" },
   { name: "prefabs-make", path: "/prefabs/make" },
   { name: "pixel-art", path: "/prefabs/make/pixel-art" },
   { name: "prefab-sign", path: "/prefabs/make/sign" },

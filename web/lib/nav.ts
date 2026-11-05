@@ -14,6 +14,7 @@ import {
   makePrefabHref,
   mapsHref,
   newPrefabHref,
+  prefabGuideHref,
   playersHref,
   prefabsHref,
   youHref,
@@ -151,8 +152,15 @@ function subsOf(
           { label: "Shared", href: prefabsHref() },
           { label: "Make your own", href: makePrefabHref() },
           { label: "Upload", href: newPrefabHref() },
+          { label: "How to", href: prefabGuideHref() },
         ],
-        on: /^\/prefabs\/make(\/|$)/.test(path) ? 1 : /^\/prefabs\/new(\/|$)/.test(path) ? 2 : 0,
+        on: /^\/prefabs\/make(\/|$)/.test(path)
+          ? 1
+          : /^\/prefabs\/new(\/|$)/.test(path)
+            ? 2
+            : /^\/prefabs\/guide(\/|$)/.test(path)
+              ? 3
+              : 0,
       };
     default:
       return { list: [], on: -1 };
@@ -181,6 +189,7 @@ function kindOf(section: SectionKey | null, path: string): string | null {
     case "prefabs":
       if (path.startsWith("/prefab/")) return "Prefab";
       if (/^\/prefabs\/new(\/|$)/.test(path)) return "Upload";
+      if (/^\/prefabs\/guide(\/|$)/.test(path)) return "How to";
       if (/^\/prefabs\/make\/./.test(path)) return "Generator";
       return /^\/prefabs\/make(\/|$)/.test(path) ? "Generators" : "Prefabs";
     default:

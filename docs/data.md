@@ -221,7 +221,11 @@ default; `docs/site.md`, "Prefabs"), and `deleted_at` / `taken_down_at`, which h
 without removing the row (it still counts against the uploader's hourly limit).
 `prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
 stopped uploading; the reads hide their Prefabs while the row is there. `prefab_limits` is a
-player the admin gave their own hourly upload limit in place of the 5; no row is the default. `tiny` seeds two
+player the admin gave their own hourly upload limit in place of the 5; no row is the default.
+`hourly_spends` holds the rolling-hour limits of `db/hourly-limit.ts`, one row per spend by
+bucket and key, pruned to the last hour (ADR 0016): `prefab-write`, an edit or a heart added
+or taken back, 60 an hour per player; `game-sign-in`, a sign-in from the game by the address
+it came from (an IPv6 one by its /64), 30 an hour per address and 2,000 in all. `tiny` seeds two
 Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
 from before uploads) to a database once, idempotently.
 
@@ -346,7 +350,9 @@ Daily reads also `dailies`, and a board's reads `board:<name>`, for a Daily read
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
 player's record (`getPlayer`) and the Players counts (`getStandings`), the Workshop standings
 at a baseline (`getWorkshopStandings`, keyed by the baseline, which `GET /api/standings` keeps
-to the hour and the last week), and one Daily by its date (`getDaily`, checked against
+to the hour and the last week), each final Daily's 1st for the route's Daily wins
+(`getDailyWins`), the newest final Daily and its top 10 for the route's yesterday's Daily
+(`getLatestDaily`), and one Daily by its date (`getDaily`, checked against
 `getDailyDates` first), whose board is read like any other. Searches
 (`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
 the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).
