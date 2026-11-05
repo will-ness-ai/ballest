@@ -11,6 +11,8 @@ import { MadeTab } from "./MadeTab";
 import { ScoreCard, SignOut } from "./Me";
 import { SkinPicker, YourMarble } from "./SkinPicker";
 import { WorkshopTab } from "./WorkshopTab";
+import { ProtoPicker } from "../prototype/Proto"; // PROTOTYPE
+import { Panel, TabBody, TabPill } from "../prototype/MyMaps"; // PROTOTYPE
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
@@ -223,7 +225,11 @@ export function PlayerView({
                 <small>{fmtN(t.count(rec, daily.mine))}</small>
               </PillLink>
             ))}
+            <TabPill rec={rec} />
           </Pills>{" "}
+          <ProtoPicker />
+          <TabBody rec={rec}>
+          {tab === "workshop" ? <Panel rec={rec} /> : null}
           {tab === "circuit" ? (
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (
@@ -233,6 +239,7 @@ export function PlayerView({
           ) : (
             <MadeTab id={rec.id} made={rec.made} holds={rec.holds} />
           )}
+          </TabBody>
         </div>
       </section>
     </div>

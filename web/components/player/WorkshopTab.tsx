@@ -14,6 +14,8 @@ import { MapImage } from "../MapImage";
 import { Medal } from "../Medal";
 import type { PlayerCampaign } from "../../db/data";
 import { useDebounced } from "../../hooks/client";
+import { Unfinished, useYourMaps } from "../prototype/MyMaps"; // PROTOTYPE
+import { setParam, useParam, useVariant } from "../prototype/Proto"; // PROTOTYPE
 import { countsUnder, type PlayerRecord, type WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {
@@ -113,6 +115,24 @@ export function WorkshopTab({
   const [text, setText] = useState(pw.q);
   const settled = useDebounced(text);
   if (settled !== pw.q) setPw((p) => ({ ...p, q: settled, shown: PW_CHUNK }));
+  /* PROTOTYPE: the Your maps filter (A, B, C) */
+  const y = useYourMaps(id, w.finishes);
+  const v = useVariant();
+  const filtering = !!y && (v === "A" || v === "B" || v === "C");
+  const mineParam = useParam("mine") === "1";
+  const mine = filtering && mineParam;
+  const yours = new Set(y?.finished.map((f) => f.name));
+  const pool = mine ? w.finishes.filter((f) => yours.has(f.name)) : w.finishes;
+  const counts = mine
+    ? (Object.fromEntries(
+        MEDAL_KEYS.map(([k]) => [k, pool.filter((f) => countsUnder(f, k)).length]),
+      ) as Record<MedalKey, number>)
+    : w.medals;
+  const toggleMine = () => {
+    setParam("mine", mine ? null : "1");
+    setPw({ ...pw, shown: PW_CHUNK });
+    if (!mine) document.getElementById("pwall")?.scrollIntoView({ behavior: glide(), block: "start" });
+  };
   if (!w.finishes.length)
     return (
       <div className="pws">
@@ -124,7 +144,7 @@ export function WorkshopTab({
   const recs = w.finishes.filter((f) => f.rank === 1).sort((a, b) => b.field - a.field);
   const close = w.finishes.filter((f) => f.rank > 1).sort((a, b) => a.gap - b.gap);
   const q = pw.q.trim().toLowerCase();
-  const rows = w.finishes
+  const rows = pool
     .filter(
       (f) =>
         (!pw.medal || countsUnder(f, pw.medal)) &&
@@ -139,7 +159,7 @@ export function WorkshopTab({
   };
   return (
     <div className="pws">
-      <CampaignCards campaigns={campaigns} id={id} />{" "}
+      {mine ? null : <CampaignCards campaigns={campaigns} id={id} />}{" "}
       <div className="trophies" id="pwtro">
         {MEDAL_KEYS.map(([k, label]) => (
           <button
@@ -147,20 +167,29 @@ export function WorkshopTab({
             type="button"
             data-medal={k}
             aria-pressed={pw.medal === k}
-            data-zero={w.medals[k] ? undefined : ""}
+            data-zero={counts[k] ? undefined : ""}
             onClick={() => {
               pickMedal(k);
             }}
           >
             <Medal t={k} size={40} />
-            <b data-tc={k}>{fmtN(w.medals[k])}</b> <span className="eyebrow">{label}</span>
+            <b data-tc={k}>{fmtN(counts[k])}</b> <span className="eyebrow">{label}</span>
           </button>
         ))}
+        {filtering && v === "C" && y ? (
+          <button type="button" className="ym-tile" aria-pressed={mine} onClick={toggleMine}>
+            <span className="ym-badge" aria-hidden="true">
+              ✎
+            </span>
+            <b>{`${fmtN(y.finished.length)}/${fmtN(y.made.length)}`}</b>{" "}
+            <span className="eyebrow">Your maps</span>
+          </button>
+        ) : null}
       </div>{" "}
       <p className="wsline">
         {`${fmtN(w.mapsFinished)} of ${fmtN(w.mapsOnWorkshop)} maps finished · ${plural(w.podiums, "podium", "podiums")} · ${fmtN(w.near)} within a second of a record`}
       </p>{" "}
-      {recs.length ? (
+      {recs.length && !mine ? (
         <Shelf
           title={
             <>
@@ -178,7 +207,7 @@ export function WorkshopTab({
           ))}
         </Shelf>
       ) : null}{" "}
-      {close.length ? (
+      {close.length && !mine ? (
         <Shelf title="Closest to a record">
           {close.slice(0, PW_SHELF).map((f) => (
             <ShelfCard key={f.name} f={f} id={id}>
@@ -219,6 +248,11 @@ export function WorkshopTab({
             </option>
           ))}
         </select>{" "}
+        {filtering && v === "B" && y ? (
+          <button type="button" className="pill ym-switch" aria-pressed={mine} onClick={toggleMine}>
+            {mine ? "✓ " : ""}Your maps <span className="ym-n">{fmtN(y.finished.length)}</span>
+          </button>
+        ) : null}{" "}
         <span className="pwbar" id="pwbar">
           {pw.medal ? (
             <button
@@ -232,9 +266,15 @@ export function WorkshopTab({
               {MEDAL_LABEL[pw.medal]} only &times;
             </button>
           ) : null}{" "}
+          {mine && v === "A" ? (
+            <button type="button" className="chip" onClick={toggleMine}>
+              Your maps only &times;
+            </button>
+          ) : null}{" "}
           <span className="ws-count">{plural(rows.length, "map", "maps")}</span>
         </span>
       </div>{" "}
+      {mine && y ? <Unfinished y={y} id={id} /> : null}
       <div id="pwrows">
         {!rows.length ? (
           <div className="empty">

@@ -25,6 +25,9 @@ function onReturn(changed: () => void) {
 /* the signed-in Steam ID, or null. A failed read counts as signed out, so a page never
    waits on it for good; the next page load asks again */
 const readMe = readOnce(async (): Promise<string | null> => {
+  /* PROTOTYPE: ?as=<steam id> stands in for a Steam sign-in, so a round can be seen as any maker */
+  const as = new URLSearchParams(location.search).get("as");
+  if (as && isSteamId(as)) return as;
   try {
     const r = await fetch("/api/me", { cache: "no-store" });
     const { id } = (await r.json()) as { id: unknown };
@@ -37,7 +40,11 @@ const readMe = readOnce(async (): Promise<string | null> => {
 /* the signed-in Steam ID: null signed out; undefined until the browser can tell: on the
    server, during hydration, and while /api/me is asked */
 export function useSession(): string | null | undefined {
-  const signedIn = useSyncExternalStore(onReturn, hinted, () => null);
+  const signedIn = useSyncExternalStore(
+    onReturn,
+    () => hinted() || new URLSearchParams(location.search).has("as") /* PROTOTYPE */,
+    () => null,
+  );
   const got = useRead(readMe, signedIn ? "me" : null);
   if (signedIn === null) return undefined;
   if (!signedIn) return null;

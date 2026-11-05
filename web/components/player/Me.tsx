@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { Score } from "./Score";
 import { ChangeBall } from "./SkinPicker";
 import { Marble } from "../Marble";
+import { ScoreCardLink } from "../prototype/MyMaps"; // PROTOTYPE
 import { useYou } from "../../hooks/me";
 import { matchup, type PlayerRecord } from "../../lib/player";
 import { signOutHref, vsHref } from "../../lib/routes";
@@ -55,7 +56,8 @@ export function ScoreCard({ rec }: { rec: PlayerRecord }) {
       </span>{" "}
       <Link className="go" href={vsHref(me, rec.id)}>
         Head to head &rarr;
-      </Link>
+      </Link>{" "}
+      <ScoreCardLink rec={rec} />
     </div>
   );
 }
