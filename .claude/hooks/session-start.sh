@@ -55,8 +55,9 @@ node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
 # #364) didn't help either: a thread built from a setup run that made them (checked 2026-10-29)
 # still offered none, while it did offer the image's own ~/.claude/skills/session-start-hook,
 # which the account's skill sync leaves be. #338's links there were never seen because thread
-# containers were older than it. So link them into both, replacing a link left dangling and never
-# one of the same name. Every start does it, as the setup script can't tell whether the next
+# containers were older than it. A link in ~/.claude/skills does load (checked 2026-11-05, and the
+# repo's code-review then replaces the built-in one). So link them into both, replacing a link left
+# dangling and never one of the same name. Every start does it, as the setup script can't tell whether the next
 # session starts in the repo or above it.
 main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 for skills in "$HOME/.claude/skills" "$(dirname "$main")/.claude/skills"; do
