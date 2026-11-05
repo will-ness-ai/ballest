@@ -50,15 +50,12 @@ fi
 # the review gate (.claude/hooks/review-gate.mjs): a project thread starts outside the repo, so
 # it never reads .claude/settings.json; give it the same hooks as user settings
 node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
-# and its Skill tool can't see the repo's skills, so the gate's /codebase-design (and tdd...) were
-# "Unknown skill" there (PR #331, #336, #363). Links in the thread's project folder (/home/user,
-# #364) didn't help either: a thread built from a setup run that made them (checked 2026-10-29)
-# still offered none, while it did offer the image's own ~/.claude/skills/session-start-hook,
-# which the account's skill sync leaves be. #338's links there were never seen because thread
-# containers were older than it. A link in ~/.claude/skills does load (checked 2026-11-05, and the
-# repo's code-review then replaces the built-in one). So link them into both, replacing a link left
-# dangling and never one of the same name. Every start does it, as the setup script can't tell whether the next
-# session starts in the repo or above it.
+# and its Skill tool reads skills from ~/.claude/skills, never the project's: links in
+# /home/user/.claude/skills (#364) were never offered, while one in ~/.claude/skills loads and the
+# repo's code-review then replaces the built-in one (checked in a thread, 2026-11-05). The project
+# links stay for a `claude -p` started in /home/user, which does read them. Replace a link left
+# dangling and never one of the same name (the image's session-start-hook, the account's synced
+# skills). Every start does it, as the setup script can't tell where the next session starts.
 main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 for skills in "$HOME/.claude/skills" "$(dirname "$main")/.claude/skills"; do
   mkdir -p "$skills"
