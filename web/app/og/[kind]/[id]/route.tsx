@@ -4,7 +4,7 @@
 // first request and then kept by Vercel's CDN. 404 for an id that names nothing, so no
 // crawler keeps junk.
 import { drawShare, type SharePicture } from "../../../../components/share/Card";
-import { fullAvatar, remote, trackShot } from "../../../../components/share/pictures";
+import { boardShot, fullAvatar, remote } from "../../../../components/share/pictures";
 import { prefabShot } from "../../../../components/share/prefab";
 import {
   getBoardPage,
@@ -57,7 +57,7 @@ async function shareOf(
       const b = circuitBoard(id);
       const card = b ? trackCard(b, await topOf(b.name)) : null;
       if (!b || !card) return null;
-      return { card, picture: await trackShot(b.name) };
+      return { card, picture: await boardShot(b.name) };
     }
     case "daily": {
       const d = isDailyDate(id) ? await getDaily(id) : null;

@@ -1,7 +1,10 @@
 // A player's record and the head to head (lib/player.ts) over the tiny dataset, read
 // through the same queries the pages use; every expected value is worked out by hand from
 // the comments in db/seed/datasets/tiny.ts.
+import { TransactionRollbackError } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
+
+import * as schema from "../db/schema";
 
 import { seed } from "../db/seed/harness";
 import { circuitCounts, derivedStandings, playerData, workshopMaps } from "../db/site";
@@ -52,9 +55,9 @@ async function record(n: number, over: ReadonlyArray<WorkshopMap> = maps): Promi
 }
 
 describe("a player's record", () => {
-  test("opens on the Workshop tab with a Workshop time, else on the Circuit", async () => {
+  test("opens on the Workshop tab with a Workshop time, else on Official", async () => {
     expect((await record(1)).home).toBe("workshop");
-    expect((await record(4)).home).toBe("circuit");
+    expect((await record(4)).home).toBe("official");
   });
 
   test("the Circuit: Medals, each season's Tracks and points, the newest season first", async () => {
@@ -65,7 +68,8 @@ describe("a player's record", () => {
       avatar: "https://avatars.example.invalid/1_medium.jpg",
     });
     expect(r.allSeasons).toEqual({ rank: 1, score: 61450 });
-    expect(r.medals).toEqual({ gold: 1, silver: 1, bronze: 0 });
+    // gold on Track 01, silver on Track 02 and on The Tower (a Trial)
+    expect(r.medals).toEqual({ gold: 1, silver: 2, bronze: 0 });
     expect(r.golds).toEqual(["01"]);
     expect([r.run, r.tracks]).toEqual([2, 20]);
     expect(r.seasons.map((s) => s.group)).toEqual(["Season 2", "Season 1"]);
@@ -89,6 +93,82 @@ describe("a player's record", () => {
         points: 20000,
       },
     ]);
+  });
+
+  test("a Trial is no Track: Tracks run and the seasons leave the Towers out", async () => {
+    // p1 is 2nd on The Tower, besides their two Season 1 Tracks
+    const r = await record(1);
+    expect([r.run, r.tracks]).toEqual([2, 20]);
+    expect(
+      r.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks.map((x) => x.name))),
+    ).not.toContain("Map_TheTower");
+  });
+
+  test("each Trial's finish, in the Trials' order, or none", async () => {
+    // p1 is 2nd of 3 on The Tower and has no time on the other two
+    const r = await record(1);
+    expect(r.trialsRun).toBe(1);
+    expect(r.trials).toEqual([
+      {
+        name: "Map_TheTower",
+        display: "The Tower",
+        field: 3,
+        finish: { rank: 2, score: 44_273_200, lead: 42_514_900 },
+      },
+      { name: "Map_TheTowerCP", display: "The Tower (Checkpoints)", field: 1, finish: null },
+      { name: "Map_LethTrial_01", display: "Leth Trial #1", field: 0, finish: null },
+    ]);
+  });
+
+  test("a Trial's place counts as a world record and a podium", async () => {
+    // p4 holds both Towers' records and is 4th on Track 01
+    const r = await record(4);
+    expect(r.medals).toEqual({ gold: 2, silver: 0, bronze: 0 });
+    expect(r.golds).toEqual(["The Tower", "The Tower (Checkpoints)"]);
+    expect([r.run, r.tracks, r.trialsRun]).toEqual([1, 20, 2]);
+  });
+
+  test("Leth Trial #1's Event board comes through as a Trial", async () => {
+    await t.db
+      .transaction(async (tx) => {
+        const db = tx as unknown as typeof t.db;
+        await db.insert(schema.boards).values({
+          name: "Map_LethTrial_01",
+          kind: "event",
+          display: "Leth Trial #1",
+          leaderboardId: 20899741,
+          scoresPoints: false,
+        });
+        // p1 1st and p4 2nd
+        await db.insert(schema.entries).values(
+          [p(1), p(4)].map((steamId, i) => ({
+            board: "Map_LethTrial_01",
+            steamId,
+            score: 2_373_600 + i * 8_200,
+            ugcId: null,
+            firstSeenRefresh: 3,
+            lastSeenRefresh: 3,
+            closedRefresh: null,
+          })),
+        );
+        const data = await playerData(db, p(1), await derivedStandings(db));
+        if (!data) throw new Error("no player 1");
+        const r = playerRecord(data, boards, maps);
+        expect(r.trials[2]).toEqual({
+          name: "Map_LethTrial_01",
+          display: "Leth Trial #1",
+          field: 2,
+          finish: { rank: 1, score: 2_373_600, lead: 2_373_600 },
+        });
+        expect(r.medals).toEqual({ gold: 2, silver: 2, bronze: 0 });
+        expect(r.golds).toEqual(["01", "Leth Trial #1"]);
+        // a Trial is no Track
+        expect([r.run, r.tracks]).toEqual([2, 20]);
+        tx.rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof TransactionRollbackError)) throw e;
+      });
   });
 
   test("Steam's Overall lags when it disagrees with what the Tracks add up to", async () => {

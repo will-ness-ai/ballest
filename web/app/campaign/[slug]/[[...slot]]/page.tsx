@@ -1,4 +1,4 @@
-// /campaign/<slug>[/<pfid>|/<event>[/<steam_id>]|/podiums|/<steam_id>]: a Campaign's page
+// /campaign/<slug>[/<pfid>|/podiums|/<steam_id>]: a Campaign's page
 // (components/campaign/CampaignView). Every curated Campaign, its podium order and each of
 // its Maps is prerendered, as the season pages are; a link to a player's row is served from
 // the App Shell, then cached whole. A path proxy.ts can tell is wrong is a 404 there.
@@ -11,9 +11,8 @@ import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CampaignView } from "../../../../components/campaign/CampaignView";
 import { pageMetadata } from "../../../../components/metadata";
 import { getCampaign } from "../../../../db/data";
-import { CAMPAIGNS, eventOf, mapLabel, mapNumber } from "../../../../lib/campaigns";
+import { CAMPAIGNS, mapLabel, mapNumber } from "../../../../lib/campaigns";
 import { PODIUM_SORT, campaignHref, campaignSlot, mapHref } from "../../../../lib/routes";
-import { isPfid } from "../../../../lib/rules";
 
 interface Props {
   params: Promise<{ slug: string; slot?: Array<string> }>;
@@ -33,23 +32,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await getCampaign(slug);
   if (!data) return {};
   const { c, maps } = data;
-  const at = slot.length <= 2 ? campaignSlot(c, slot[0], slot[1]) : null;
+  const at = slot.length <= 1 ? campaignSlot(c, slot[0]) : null;
   const m = at?.map ? maps.find((x) => x.pfid === at.map) : undefined;
-  /* an Event board has no page of its own, and robots.txt keeps crawlers off a Campaign's
-     slots, so the Campaign's page is the one to index, with its card */
-  if (m && eventOf(m.pfid))
-    return pageMetadata(
-      {
-        title: `${c.title} ${mapLabel(c, m.pfid, m.title)}`,
-        canonical: campaignHref(c.slug),
-        description: `The leaderboard of ${m.title}, an event board of Ballest of Them All, read from Steam after the event ended.`,
-      },
-      {
-        kind: "campaign",
-        id: c.slug,
-        alt: `${c.title}, a Campaign by ${c.creator}, and its leader.`,
-      },
-    );
   if (m) {
     const title = `${c.title} ${mapLabel(c, m.pfid, m.title)}`;
     /* the same board as the Map's own page, which is the one to index */
@@ -70,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     {
       title: c.title,
       canonical: campaignHref(c.slug),
-      description: `${c.title}, a Ballest of Them All Campaign${c.maps.every(isPfid) ? " of Workshop maps" : ""} by ${c.creator}, ranked by points for every map the way the Circuit ranks a season.`,
+      description: `${c.title}, a Ballest of Them All Campaign of Workshop maps by ${c.creator}, ranked by points for every map the way the Circuit ranks a season.`,
     },
     {
       kind: "campaign",
@@ -82,13 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Campaign({ params }: Pick<Props, "params">) {
   const { slug, slot = [] } = await params;
-  return (
-    <CampaignView
-      slug={slug}
-      slot={slot.length > 2 ? "-" : (slot[0] ?? null)}
-      row={slot[1] ?? null}
-    />
-  );
+  return <CampaignView slug={slug} slot={slot.length > 1 ? "-" : (slot[0] ?? null)} />;
 }
 
 export default function Page({ params }: Props) {

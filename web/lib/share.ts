@@ -1,11 +1,11 @@
 // What a page's share image says (docs/site.md, "Share images"): the link-preview card a
-// player, a Map, a Circuit Track, a Daily, a Campaign or a Prefab unfurls with in Discord and
-// elsewhere. Pure, so the rules a card follows are tested here; components/share draws a
-// ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
+// player, a Map, a Circuit Track or a Trial, a Daily, a Campaign or a Prefab unfurls with in
+// Discord and elsewhere. Pure, so the rules a card follows are tested here; components/share
+// draws a ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
 // prototype branch claude/prototype-og; the Campaign's in spec #206).
 import type { Campaign } from "./campaigns";
 import type { CircuitBoard } from "./circuit";
-import { TRACKS } from "./circuit";
+import { TRACKS, TRIALS_GROUP } from "./circuit";
 import { dayLabel } from "./daily";
 import type { PlayerRecord } from "./player";
 import type { BoardRow, DailyDay, WorkshopMap } from "./rows";
@@ -33,7 +33,7 @@ export interface ShareCard {
      Season 2's Overall board has none */
   headline: ShareStat | null;
   /* a player's tiles leave out a count of zero, so there are one to four; a place's are
-     always four, a Campaign's three, a Prefab's one or two */
+     always four (a Trial's three), a Campaign's three, a Prefab's one or two */
   tiles: Array<ShareStat>;
   /* the marble's hue, for a player */
   hue: number;
@@ -53,9 +53,10 @@ export const beatAuthor = (scores: ReadonlyArray<number>, medals: ReadonlyArray<
   scores.filter((s) => timeMedal(medals, s) === "author").length;
 
 /* What a player has, counted as their cards count it: every count adds the Circuit's Tracks
-   and the Workshop's Maps together. A world record is rank 1 on either, a Medal what each
-   finish's time earned (so an Author medal includes a world record at the author time), and
-   a Map finished any board with a time on it. The share card and the Stat Card both read it. */
+   and the Workshop's Maps together, and the world records and Maps finished the Trials too. A
+   world record is rank 1 on any of them, a Medal what each finish's time earned (so an Author
+   medal includes a world record at the author time; a Trial has no Medal times), and a Map
+   finished any board with a time on it. The share card and the Stat Card both read it. */
 export function playerCounts(rec: PlayerRecord) {
   const ws = rec.workshop;
   const run = rec.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks));
@@ -68,7 +69,7 @@ export function playerCounts(rec: PlayerRecord) {
     gold: earned("gold"),
     silver: earned("silver"),
     bronze: earned("bronze"),
-    finished: rec.run + ws.finishes.length,
+    finished: rec.run + rec.trialsRun + ws.finishes.length,
     made: rec.made.length,
   };
 }
@@ -146,14 +147,38 @@ export interface BoardTop {
 const holder = (top: BoardTop) =>
   top.first ? { score: top.first.score, who: personaOf(top.first) } : null;
 
-/* a board with a card of its own: a Track, whose Medal times are known; an Overall board
-   keeps the site's picture */
-export const hasTrackCard = (b: CircuitBoard) => b.name in TRACKS;
+/* a board with a card of its own: a Track, whose Medal times are known, or a Trial; an
+   Overall board keeps the site's picture */
+export const hasTrackCard = (b: CircuitBoard) => b.name in TRACKS || b.group === TRIALS_GROUP;
+
+/* A Trial's card: its record, then Players, how far the record is ahead of 2nd and the
+   median time, since a Trial has no Medal times */
+function trialCard(b: CircuitBoard, top: BoardTop): ShareCard {
+  const times = [...top.scores].sort((x, y) => x - y);
+  const median = times.at(Math.floor((times.length - 1) / 2));
+  return {
+    kind: "track",
+    kicker: "Official · Trial",
+    title: b.display,
+    headline: record(holder(top), "World record"),
+    tiles: [
+      players(top.total),
+      {
+        value: times.length > 1 ? fmtTime(times[1] - times[0]) : "—",
+        label: "Lead over 2nd",
+        tone: "gold",
+      },
+      { value: median === undefined ? "—" : fmtTime(median), label: "Median time" },
+    ],
+    hue: hueFor(b.name),
+  };
+}
 
 /* A Circuit Track's card: its record, then Players, Author time, Beat the author and the
-   Gold time, from the Track's in-game Medal times */
+   Gold time, from the Track's in-game Medal times; a Trial's is trialCard */
 export function trackCard(b: CircuitBoard, top: BoardTop): ShareCard | null {
   if (!hasTrackCard(b)) return null;
+  if (b.group === TRIALS_GROUP) return trialCard(b, top);
   const medals = TRACKS[b.name].medals;
   return {
     kind: "track",

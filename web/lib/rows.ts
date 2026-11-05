@@ -55,6 +55,15 @@ export interface Placing {
   score: number;
 }
 
+/* a Trial's runs, record and the record's holder (db/site.ts, trialTops): what the Trials
+   rail and /trials show. A Trial nobody has run has no record and no holder. */
+export interface TrialTop {
+  board: string;
+  runs: number;
+  record: number | null;
+  holder: { steamId: string; persona: string; avatar: string | null } | null;
+}
+
 /* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
 export interface PlayerCampaignRow {
   slug: string;
@@ -135,12 +144,15 @@ export interface PlayerData {
 }
 
 /* The Players page's counts for everyone with a world record, podium or top 5 on the
-   Circuit, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs, Circuit
-   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order. */
+   Circuit or a Trial, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs,
+   Circuit podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID
+   order. The Circuit counts take in the Trials. */
 export type StandingsRow = [string, string, number, number, number, number, number, number, number];
 
 export interface Standings {
+  /* the Circuit's Tracks and the Trials the Circuit counts rank over */
   tracks: number;
+  trials: number;
   maps: number;
   players: Array<StandingsRow>;
 }

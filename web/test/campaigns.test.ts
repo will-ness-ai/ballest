@@ -9,7 +9,6 @@ import {
   campaignOfBoard,
   campaignOfMap,
   campaignProblems,
-  eventOf,
   mapLabel,
   mapName,
   mapNo,
@@ -72,7 +71,7 @@ describe("the curated list", () => {
 
   test("a Workshop ID that isn't one, or a slug that can't be a path, is a problem", () => {
     expect(campaignProblems([make("a", ["Workshop_1"])])).toEqual([
-      '"a" lists "Workshop_1", which is not a Workshop ID or an Event',
+      '"a" lists "Workshop_1", which is not a Workshop ID',
     ]);
     expect(campaignProblems([make("Bad Slug", ["1"])])).toEqual([
       'slug "Bad Slug" is not lowercase words joined by -',
@@ -80,25 +79,12 @@ describe("the curated list", () => {
   });
 });
 
-describe("Event boards in a Campaign", () => {
-  test("an Event's id stands for it among a Campaign's Maps", () => {
-    expect(campaignProblems([make("a", ["leth-trial-1"])])).toEqual([]);
-    expect(campaignProblems([make("a", ["no-such-event"])])).toEqual([
-      '"a" lists "no-such-event", which is not a Workshop ID or an Event',
+describe("Leth Trial #1", () => {
+  test("is a Trial now, in no Campaign", () => {
+    expect(CAMPAIGNS.find((c) => c.slug === "leth-trials")).toBeUndefined();
+    expect(campaignProblems([make("a", ["leth-trial-1"])])).toEqual([
+      '"a" lists "leth-trial-1", which is not a Workshop ID',
     ]);
-  });
-
-  test("the Leth Trials holds Leth Trial #1, by Lethamyr, pinned", () => {
-    const leth = curated("leth-trials");
-    expect(leth).toMatchObject({
-      title: "Leth Trials",
-      creator: "Lethamyr",
-      creatorId: "76561198184322235",
-      maps: ["leth-trial-1"],
-      pinned: true,
-    });
-    expect(eventOf("leth-trial-1")).toMatchObject({ board: "Map_LethTrial_01", viewer: "leth" });
-    expect(mapLabel(leth, "leth-trial-1", "Leth Trial #1")).toBe("01 Leth Trial #1");
   });
 });
 

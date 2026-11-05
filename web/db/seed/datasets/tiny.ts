@@ -1,7 +1,8 @@
 // A handful of boards with three Refreshes of Score history behind them: an improvement
 // on each kind of board, an Entry closed when its player left a board, equal scores on a
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
-// one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
+// one gone from the Workshop, two Season 1 Tracks to add up, both Towers (Trials), a persona
+// change, and four
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
 // a failed read), a few runs' Ghosts read for their Skins, some with a profile, and two
 // Prefabs, one by a player and one by someone the boards haven't seen, and Marble Run's
@@ -43,6 +44,8 @@ const HAT = "/Game/Art/Props/Player/CatEars/SM_CatEars_Combined.SM_CatEars_Combi
 const TRACK = "Map_Track13";
 const TRACK2 = "Map_Track15";
 const OVERALL = "OverallLeaderboard_EASeason2";
+const TOWER = "Map_TheTower";
+const TOWER_CP = "Map_TheTowerCP";
 const MAP_A = "Workshop_9000000001";
 const MAP_B = "Workshop_9000000002";
 const MAP_C = "Workshop_9000000003";
@@ -166,7 +169,7 @@ export const profile = (seconds: number, bend: number) =>
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Chosen Skins, 2 Prefabs, 1 Map file, 1 link request",
+    "8 boards (2 Tracks, an Overall board, 2 Trials, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Chosen Skins, 2 Prefabs, 1 Map file, 1 link request",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -205,6 +208,22 @@ export const tiny: Dataset = {
         display: "Overall",
         leaderboardId: 20484546,
         scoresPoints: true,
+      },
+      {
+        name: TOWER,
+        kind: "track",
+        season: "Trials",
+        display: "The Tower",
+        leaderboardId: 17990402,
+        scoresPoints: false,
+      },
+      {
+        name: TOWER_CP,
+        kind: "track",
+        season: "Trials",
+        display: "The Tower (Checkpoints)",
+        leaderboardId: 18587284,
+        scoresPoints: false,
       },
       {
         name: MAP_A,
@@ -278,6 +297,8 @@ export const tiny: Dataset = {
       { refreshId: r1, board: MAP_B, ok: true, entryCount: 2 },
       { refreshId: r1, board: MAP_C, ok: true, entryCount: 1 },
       { refreshId: r3, board: TRACK2, ok: true, entryCount: 3 },
+      { refreshId: r3, board: TOWER, ok: true, entryCount: 3 },
+      { refreshId: r3, board: TOWER_CP, ok: true, entryCount: 1 },
       { refreshId: r2, board: TRACK, ok: true, entryCount: 6 },
       { refreshId: r2, board: OVERALL, ok: true, entryCount: 3 },
       { refreshId: r3, board: TRACK, ok: true, entryCount: 6 },
@@ -356,6 +377,12 @@ export const tiny: Dataset = {
       e(TRACK2, 2, 1_800_000, r3, r3),
       e(TRACK2, 8, 1_900_000, r3, r3),
       e(TRACK2, 1, 1_900_000, r3, r3),
+      // The Tower, read only in R3: p4 42514900 (7:05.149), p1 44273200, p7 50000000.
+      // The Tower (Checkpoints), read only in R3: p4 44502500 alone.
+      e(TOWER, 4, 42_514_900, r3, r3),
+      e(TOWER, 1, 44_273_200, r3, r3),
+      e(TOWER, 7, 50_000_000, r3, r3),
+      e(TOWER_CP, 4, 44_502_500, r3, r3),
       // Overall, points, higher first: p3 1450 and p1 1450 (a tie on a points board: the
       // higher Steam ID first), p2 1200, p8 300.
       e(OVERALL, 1, 900, r1, r1, r2),

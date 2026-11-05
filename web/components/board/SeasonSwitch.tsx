@@ -1,11 +1,12 @@
 // The Circuit's season switch: on a desktop, a row of sub-tabs under the main tabs; on a
-// phone, a chip beside the board button whose menu gives each season's Tracks and field.
-// Each season opens its Overall board, so a switch never lands on a Track the other season
-// doesn't have.
+// phone, a chip beside the board button whose menu gives each season's Tracks and field, then
+// the Trials. Each season opens its Overall board, so a switch never lands on a Track the other
+// season doesn't have; the Trials open /trials.
 import Link from "next/link";
 
 import { SeasonMenu } from "./SeasonMenu";
-import { boardHref } from "../../lib/routes";
+import { TRIALS, TRIALS_GROUP } from "../../lib/circuit";
+import { boardHref, trialsHref } from "../../lib/routes";
 import type { Season } from "../../lib/player";
 import { fmtN } from "../../lib/rules";
 
@@ -44,6 +45,10 @@ export function SeasonChip({ seasons, on, board }: Props & { board: string }) {
           </small>
         </Link>
       ))}
+      <Link href={trialsHref()} aria-current={on === TRIALS_GROUP}>
+        <b>{TRIALS_GROUP}</b>
+        <small>{TRIALS.length} challenge boards</small>
+      </Link>
     </SeasonMenu>
   );
 }

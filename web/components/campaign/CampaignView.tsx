@@ -36,26 +36,17 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, eventOf, getMapRows, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, getMapRows, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref, campaignSlot, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, countText } from "../../lib/rules";
 
-export async function CampaignView({
-  slug,
-  slot,
-  row = null,
-}: {
-  slug: string;
-  slot: string | null;
-  /* a Steam ID after an Event's id: the row to mark on the Event's board */
-  row?: string | null;
-}) {
+export async function CampaignView({ slug, slot }: { slug: string; slot: string | null }) {
   const [data, list] = await Promise.all([getCampaign(slug), getCampaigns()]);
   if (!data) notFound();
   const { c, maps, players, tally } = data;
-  const at = campaignSlot(c, slot, row);
+  const at = campaignSlot(c, slot);
   if (!at) notFound();
   const { focus: focusId, podiums } = at;
   /* one of its Maps the Workshop no longer lists is no page */
@@ -122,13 +113,7 @@ export async function CampaignView({
           )}
 
           {/* You on the points order only: the podium order ranks no one by score */}
-          {!podiums && (
-            <YouBanner
-              name={name}
-              field={page.total}
-              medals={m && !eventOf(m.pfid) ? m.medals : null}
-            />
-          )}
+          {!podiums && <YouBanner name={name} field={page.total} medals={m ? m.medals : null} />}
 
           {podiums ? (
             <BoardBody

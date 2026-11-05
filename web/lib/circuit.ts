@@ -1,9 +1,10 @@
-// The Circuit's fixed facts, which Steam doesn't hold: the order the site lists its boards
-// in (the in-game numbering, so a Track's place here is its number), the difficulty
-// headings Season 2's track-selection screen groups Tracks under, and each Track's
-// screenshot and Medal times. BOARDS in tools/campaign_common.py is the same order; the
-// test that reads it keeps the two together. The two boards Steam doesn't have, Season 1's
-// current Overall board and All Seasons, sit where the site has always listed them.
+// The Official Section's fixed facts, which Steam doesn't hold: the order the site lists the
+// Circuit's boards in (the in-game numbering, so a Track's place here is its number), the
+// difficulty headings Season 2's track-selection screen groups Tracks under, each Track's
+// screenshot and Medal times, and the Trials (GLOSSARY.md). BOARDS in
+// tools/campaign_common.py is the same order; the test that reads it keeps the two together.
+// The two boards Steam doesn't have, Season 1's current Overall board and All Seasons, sit
+// where the site has always listed them.
 
 export const S1_CURRENT_BOARD = "OverallLeaderboard_S1Current";
 export const COMPOSITE_BOARD = "OverallLeaderboard_AllSeasons";
@@ -11,6 +12,8 @@ export const COMPOSITE_GROUP = "All Seasons";
 /* Steam's Season 1 board stopped when the season ended */
 export const S1_FINAL_BOARD = "OverallLeaderboard";
 export const S2_OVERALL_BOARD = "OverallLeaderboard_EASeason2";
+/* the Trials' group: read every Refresh as a Track is, but in no season and never in points */
+export const TRIALS_GROUP = "Trials";
 
 export const S1_TRACKS = [
   "Map_Track13",
@@ -82,7 +85,84 @@ export const CIRCUIT: ReadonlyArray<CircuitBoard> = [
     display: "Overall",
     origin: "derived",
   },
+  /* the Trials Steam reads every Refresh, named as the collector names them (display_name) */
+  { name: "Map_TheTower", group: TRIALS_GROUP, tier: null, display: "The Tower", origin: "steam" },
+  {
+    name: "Map_TheTowerCP",
+    group: TRIALS_GROUP,
+    tier: null,
+    display: "The Tower (Checkpoints)",
+    origin: "steam",
+  },
+  /* and Leth Trial #1, an Event board (TRIALS) the collector read once, after the
+     event closed; its page is drawn as the Towers' are */
+  {
+    name: "Map_LethTrial_01",
+    group: TRIALS_GROUP,
+    tier: null,
+    display: "Leth Trial #1",
+    origin: "steam",
+  },
 ];
+
+/* A Trial (GLOSSARY.md): one of the game's own one-off challenge boards outside the
+   seasons. Its places count as world records and podiums, never as points. */
+export interface Trial {
+  /* its Steam board */
+  board: string;
+  title: string;
+  /* one line on what it is, under its title on /trials */
+  blurb: string;
+  /* one of the site's own files, or null until the game's picture of it is extracted */
+  picture: string | null;
+  /* the page that draws its board */
+  page: string;
+  /* an Event board (GLOSSARY.md): one event's, which the collector read once (EVENT_BOARDS in
+     tools/campaign_common.py) and never again, so it is closed; any other is read every
+     Refresh */
+  event: boolean;
+  /* the folder of its own static page beside the site, which its page links (viewerHref), or
+     null for none */
+  viewer: string | null;
+}
+
+/* what CIRCUIT doesn't say of each Trial */
+const TRIAL_FACTS: Readonly<Record<string, Pick<Trial, "blurb" | "picture" | "event" | "viewer">>> =
+  {
+    Map_TheTower: {
+      blurb: "The climb to the top, no checkpoints.",
+      picture: null,
+      event: false,
+      viewer: null,
+    },
+    Map_TheTowerCP: {
+      blurb: "The same climb, with checkpoints.",
+      picture: null,
+      event: false,
+      viewer: null,
+    },
+    /* the picture is the level's own screenshot, a JPEG, as the share card can't read WebP;
+     the viewer is its ghost viewer, /leth/ */
+    Map_LethTrial_01: {
+      blurb: "Lethamyr's one-off event board.",
+      picture: "/leth/screenshot.jpg",
+      event: true,
+      viewer: "leth",
+    },
+  };
+
+/* the Trials in the order the Trials sub-tab and rail list them: CIRCUIT's Trials group, the
+   Towers, read every Refresh, and Leth Trial #1, an Event board read once */
+export const TRIALS: ReadonlyArray<Trial> = CIRCUIT.filter((b) => b.group === TRIALS_GROUP).map(
+  (b) => ({
+    board: b.name,
+    title: b.display,
+    page: `/board/${b.name}`,
+    ...TRIAL_FACTS[b.name],
+  }),
+);
+
+export const trialOf = (board: string) => TRIALS.find((t) => t.board === board) ?? null;
 
 export const circuitBoard = (name: string) => CIRCUIT.find((b) => b.name === name);
 
@@ -143,6 +223,15 @@ export const TRACKS: Readonly<Record<string, { img: string; medals: Array<number
     medals: [61, 46, 41, 38.053],
   },
 };
+
+/* a board's picture: a Track's screenshot, a Trial's once there is one, or null */
+export const boardPicture = (name: string) =>
+  name in TRACKS ? TRACKS[name].img : (trialOf(name)?.picture ?? null);
+
+/* what a page calls a board: a Trial by its name alone, any other by its season and display
+   name, `sep` between them */
+export const boardTitle = (b: Pick<CircuitBoard, "group" | "display">, sep = " ") =>
+  b.group === TRIALS_GROUP ? b.display : b.group + sep + b.display;
 
 /* the in-game number a Track's display name leads with, "08" of "08 Downhill" */
 export const trackNo = (display: string) => /^\d+/.exec(display)?.[0] ?? display;

@@ -185,6 +185,19 @@ footer a {
 .tstrip.plain b {
   font-size: calc(20rem / 16);
 }
+/* a Trial is named, not numbered: its name on a line of its own, which may wrap, and its
+   record and runs under it */
+.tstrip.trial .lab {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 3px;
+  padding-block: 9px;
+}
+.tstrip.trial b {
+  grid-row: auto;
+  font-size: calc(15rem / 16);
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
 .tierhead {
   display: block;
   margin: 9px 2px 0;

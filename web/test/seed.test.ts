@@ -73,11 +73,11 @@ describe("seeding", () => {
 
   const tinyCounts = {
     refreshes: 3,
-    boards: 10,
-    boardReads: 18,
+    boards: 12,
+    boardReads: 20,
     players: 10,
     personaHistory: 11,
-    entries: 37,
+    entries: 41,
     maps: 3,
     mapHistory: 4,
     dailies: 4,

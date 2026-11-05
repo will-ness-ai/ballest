@@ -99,18 +99,19 @@ const query = Effect.fn("ReportSource.query")(function* (at: number) {
     left join refreshes c on c.id = e.closed_refresh
     where e.closed_refresh is null or c.started_at > ${since}`.pipe(Effect.flatMap(rows(EntryRow)));
 
+  // The Circuit's Tracks: kind 'track' also holds the Trials (season 'Trials'), which the report
+  // leaves out.
   const tracks = sql`
-    select name as board, season, display from boards where kind = 'track'`.pipe(
-    Effect.flatMap(rows(TrackRow)),
-  );
+    select name as board, season, display from boards
+    where kind = 'track' and season like 'Season %'`.pipe(Effect.flatMap(rows(TrackRow)));
 
-  // Each Track's world record at a moment: its best Entry open then.
+  // Each Circuit Track's world record at a moment: its best Entry open then.
   const records = Effect.fn("ReportSource.records")(function* (moment: Date) {
     return yield* sql`
     select distinct on (e.board) e.board, e.steam_id as "steamId", p.persona,
            e.score::float8 as score, e.ugc_id as "ugcId"
     from entries e
-    join boards b on b.name = e.board and b.kind = 'track'
+    join boards b on b.name = e.board and b.kind = 'track' and b.season like 'Season %'
     join players p on p.steam_id = e.steam_id
     join refreshes f on f.id = e.first_seen_refresh
     left join refreshes c on c.id = e.closed_refresh

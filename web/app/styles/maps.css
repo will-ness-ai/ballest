@@ -932,3 +932,71 @@ html:has(.m3d:modal) {
   display: grid;
   gap: 12px;
 }
+/* /trials: a card per Trial, picture on top, one under another on a phone and three
+   across on a desktop (desktop.css). A Tower's picture is a striped placeholder until the
+   game's own is extracted. */
+.trcs {
+  display: grid;
+  gap: 14px;
+}
+.trc {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: clip;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+.trc-pic {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.trc-none {
+  background:
+    repeating-linear-gradient(135deg, var(--surface) 0 10px, transparent 10px 20px), var(--solid);
+}
+.trc-in {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px 14px 14px;
+}
+.trc-t {
+  margin: 0;
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  font-size: calc(20rem / 16);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.trc-by {
+  color: var(--dim);
+  font-size: calc(14rem / 16);
+}
+.trc-rec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.trc-rec .marble {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.trc-time {
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) and (pointer: fine) {
+  .trc:hover {
+    border-color: var(--accent);
+  }
+  .trc:hover .trc-t {
+    color: var(--accent);
+  }
+}
