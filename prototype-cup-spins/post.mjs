@@ -8,11 +8,41 @@ const token = process.env.ADMIN_DISCORD_TOKEN;
 const RAW =
   "https://raw.githubusercontent.com/will-ness-ai/ballest/claude/prototype-cup-spins/prototype-cup-spins";
 const maps = [
-  ["3830006003", "SPOOKY Rooms", "Sparro", "1:12.400", "17424402659501177909/2D7F4E518735BEA1295426526416D7862D76A4A7"],
-  ["3809412387", "Mirror's Edge", "Native", "0:48.900", "13112414109816860958/A00041B184A3B8043B3EFE7677C1381C057F74A1"],
-  ["3816905581", "Spillway", "SMUG", "0:39.250", "16696061465371838120/1AA2B2CB80C5DD38167B3E2E61ADFE4585E77112"],
-  ["3811667347", "Amber Flux", "CoS", "1:03.100", "15872502188316799423/3C96F766CF5470AA287CE61332B2EF390CF32E41"],
-  ["3822560747", "Bevel Up", "stoxy999", "0:55.700", "17395578319743451575/6C5CBA7895E9CD2CDD42711309DD2D48BA90DBCE"],
+  [
+    "3830006003",
+    "SPOOKY Rooms",
+    "Sparro",
+    "1:12.400",
+    "17424402659501177909/2D7F4E518735BEA1295426526416D7862D76A4A7",
+  ],
+  [
+    "3809412387",
+    "Mirror's Edge",
+    "Native",
+    "0:48.900",
+    "13112414109816860958/A00041B184A3B8043B3EFE7677C1381C057F74A1",
+  ],
+  [
+    "3816905581",
+    "Spillway",
+    "SMUG",
+    "0:39.250",
+    "16696061465371838120/1AA2B2CB80C5DD38167B3E2E61ADFE4585E77112",
+  ],
+  [
+    "3811667347",
+    "Amber Flux",
+    "CoS",
+    "1:03.100",
+    "15872502188316799423/3C96F766CF5470AA287CE61332B2EF390CF32E41",
+  ],
+  [
+    "3822560747",
+    "Bevel Up",
+    "stoxy999",
+    "0:55.700",
+    "17395578319743451575/6C5CBA7895E9CD2CDD42711309DD2D48BA90DBCE",
+  ],
 ].map(([pfid, title, creator, author, ugc]) => ({
   pfid,
   title,
@@ -24,7 +54,10 @@ const maps = [
 
 const T = (content) => ({ type: 10, content });
 const thumb = (url) => ({ type: 11, media: { url } });
-const gallery = (...items) => ({ type: 12, items: items.map((i) => (typeof i === "string" ? { media: { url: i } } : i)) });
+const gallery = (...items) => ({
+  type: 12,
+  items: items.map((i) => (typeof i === "string" ? { media: { url: i } } : i)),
+});
 const section = (text, url) => ({ type: 9, components: [T(text)], accessory: thumb(url) });
 const words = (m, i) =>
   `**${i + 1}. [${m.title}](https://ballestrecords.com/map/${m.pfid})**\nby ${m.creator} · author **${m.author}**`;
@@ -58,7 +91,9 @@ const variants = {
     card([intro(), ...maps.map((m, i) => section(words(m, i), m.preview)), vote]),
     card([
       T("### The Shortlist in 3D"),
-      gallery(...maps.map((m, i) => ({ media: { url: m.gif }, description: `${i + 1}. ${m.title}` }))),
+      gallery(
+        ...maps.map((m, i) => ({ media: { url: m.gif }, description: `${i + 1}. ${m.title}` })),
+      ),
     ]),
   ],
   D: () => [
@@ -66,7 +101,9 @@ const variants = {
     ...maps.map((m, i) => card([gallery(m.preview), section(words(m, i), m.gif)])),
     card([T("**Your vote**"), vote]),
   ],
-  E: () => [card([intro(), ...maps.flatMap((m, i) => [T(words(m, i)), gallery(m.preview, m.gif)]), vote])],
+  E: () => [
+    card([intro(), ...maps.flatMap((m, i) => [T(words(m, i)), gallery(m.preview, m.gif)]), vote]),
+  ],
 };
 const names = {
   A: "GIF as the thumbnail: the GIF takes the Workshop picture's place beside each Map",
@@ -88,9 +125,15 @@ const post = async (body) => {
 };
 
 const guild = process.env.DISCORD_GUILD_ID;
-await post({ content: "# Round 1 · Where do the 3D GIFs go on the Weekly Cup Shortlist?", allowed_mentions: { parse: [] } });
+await post({
+  content: "# Round 1 · Where do the 3D GIFs go on the Weekly Cup Shortlist?",
+  allowed_mentions: { parse: [] },
+});
 for (const key of only.length ? only : Object.keys(variants)) {
-  const first = await post({ content: `## ${key} · ${names[key]}`, allowed_mentions: { parse: [] } });
+  const first = await post({
+    content: `## ${key} · ${names[key]}`,
+    allowed_mentions: { parse: [] },
+  });
   for (const body of variants[key]()) await post(body);
   console.log(`${key} https://discord.com/channels/${guild}/${channel}/${first}`);
 }
