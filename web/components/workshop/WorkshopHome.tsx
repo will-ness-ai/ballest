@@ -10,6 +10,8 @@ import { useState } from "react";
 import { MapCardLink, MapGrid, PodLine } from "./Card";
 import { SearchBox } from "../Controls";
 import { MapImage } from "../MapImage";
+import { ProtoPicker } from "../prototype/Proto";
+import { ProtoShelf } from "../prototype/ProtoShelf";
 import { useClock, useDebouncedFetch } from "../../hooks/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, plural } from "../../lib/rules";
@@ -75,19 +77,12 @@ function Shelves({
     const list = onShelf(shelves[i] ?? [], d, now);
     if (!list.length) return null;
     return (
-      <section className="shelf" key={d.title}>
-        <div className="shelf-h">
-          <h2>{d.title}</h2>
-          <span className="shelf-n">
-            {d.note} &middot; <Link href={mapsHref(d.all)}>See all</Link>
-          </span>
-        </div>
-        <div className="strip">
-          {list.map((m) => (
-            <MapCardLink key={m.pfid} m={m} stat={SORTS[d.sort].stat(m, now)} />
-          ))}
-        </div>
-      </section>
+      /* PROTOTYPE: the shelf per ?variant= */
+      <ProtoShelf key={d.title} title={d.title} note={d.note} all={mapsHref(d.all)}>
+        {list.map((m) => (
+          <MapCardLink key={m.pfid} m={m} stat={SORTS[d.sort].stat(m, now)} />
+        ))}
+      </ProtoShelf>
     );
   });
 }
@@ -182,6 +177,8 @@ export function WorkshopHome({
           </>
         )}
       </div>
+      {/* PROTOTYPE */}
+      <ProtoPicker />
     </>
   );
 }
