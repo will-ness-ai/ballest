@@ -896,6 +896,26 @@ describe("the shape fill", () => {
     ).not.toContain("pillar");
   });
 
+  test("draws clumps outside a clear middle, so it costs them few shapes", () => {
+    const placed = (hole: number) => make("shape-fill", { layout: "Clumps", hole }).items.length;
+    expect(placed(50)).toBeGreaterThanOrEqual(placed(0) * 0.9);
+  });
+
+  test("stands an unturned pyramid square to the box, as wide as its size", () => {
+    const [p] = make("shape-fill", { shape: "Pyramids", turn: false }).items;
+    expect(p.transform.rotation[1]).toBe(45);
+    expect(p.transform.scale[0] / p.transform.scale[2]).toBeCloseTo(Math.SQRT2 * 0.4);
+  });
+
+  test("offers a pillar only while the box leaves room for a clear middle", () => {
+    const keys = (change: Values) =>
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { hole: 50, ...change }))
+        .map((c) => c.key);
+    expect(keys({})).toContain("pillar");
+    expect(keys({ width: 1, depth: 1, smallest: 0.3 })).not.toContain("pillar");
+  });
+
   test("draws the same shapes from the same seed and new ones from another", () => {
     expect(make("shape-fill", { seed: 3 })).toEqual(make("shape-fill", { seed: 3 }));
     expect(make("shape-fill", { seed: 3 })).not.toEqual(make("shape-fill", { seed: 4 }));

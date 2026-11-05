@@ -1,12 +1,13 @@
 // Decor (lib/generators/index.ts): Lamp post, Fountain, Trophy, Fence, Finish arch and Shape
 // fill, things to stand round a course. Anything with a front faces -X, toward the camera that
 // spawns it; a row of lamps or a line of fence runs across it, along Y.
-import { rotationRows, type PrefabItem } from "../prefab";
+import type { PrefabItem } from "../prefab";
 import {
   SHUFFLE,
   add,
   ball,
   boxAt,
+  centredAt,
   choice,
   colour,
   colourIn,
@@ -24,6 +25,7 @@ import {
   type Generator,
   type Kind,
   type V3,
+  type Values,
 } from "./pieces";
 
 /* a cone hanging point down from `at`, its wide end there */
@@ -434,15 +436,18 @@ export const finishArch: Generator = {
 };
 
 /* ---------- shape fill ---------- */
-const FILL_SHAPES = ["Spheres", "Cubes", "Cylinders", "Cones", "Pyramids", "Mixed"] as const;
-const KIND_OF: Record<string, Kind> = {
+/* each Shape choice and the piece it places; Mixed draws from all of them */
+const FILL_KINDS = {
   Spheres: "sphere",
   Cubes: "cube",
   Cylinders: "cylinder",
   Cones: "cone",
   Pyramids: "pyramid",
-};
-const MIXED: ReadonlyArray<Kind> = ["sphere", "cube", "cylinder", "cone", "pyramid"];
+} as const satisfies Record<string, Kind>;
+const MIXED = "Mixed";
+const FILL_SHAPES = [...Object.keys(FILL_KINDS), MIXED];
+const isFillShape = (k: unknown): k is keyof typeof FILL_KINDS =>
+  typeof k === "string" && k in FILL_KINDS;
 const PALETTES: Record<string, ReadonlyArray<Colour>> = {
   Rainbow: ["Red", "Orange", "Yellow", "Lime", "Sky blue", "Blue", "Purple"],
   Warm: ["Red", "Orange", "Yellow", "Wine"],
@@ -454,10 +459,25 @@ const ONE_COLOUR = "One colour";
    middle, or small ones round each big one */
 const LAYOUTS = ["Anywhere", "Clumps", "Spiral", "Satellites"] as const;
 
-/* one shape `s` cm across, centred at `c`, turned by `rot` about its centre (the pieces turn
-   about their bottom centre, so that sits half a size down its own up axis) */
-const centred = (kind: Kind, c: V3, s: number, colour: Colour, rot: V3) =>
-  piece(kind, add(c, mul(rotationRows(rot)[2], -s / 2)), [s, s, s], colour, rot);
+/* one shape `s` cm across centred at `c`; SM_Pyramid's corners sit at the middle of its bounds'
+   edges, so a pyramid is turned 45° and grown by √2 to stand square and as wide as the rest */
+const shapeAt = (kind: Kind, c: V3, s: number, colour: Colour, rot: V3) =>
+  kind === "pyramid"
+    ? centredAt(kind, c, [s * Math.SQRT2, s * Math.SQRT2, s], colour, add(rot, [0, 45, 0]))
+    : centredAt(kind, c, [s, s, s], colour, rot);
+
+/* the box the shapes fill, in cm (depth along x, toward the camera; width across it, along y),
+   the smallest and largest shape that fit it, and the clear middle's half-width along x and y:
+   a column the full height, leaving room round it for the smallest shape turned any way */
+function fillBoxOf(v: Values) {
+  const box: V3 = [metresIn(v, "depth"), metresIn(v, "width"), metresIn(v, "height")];
+  const [a, b] = [metresIn(v, "smallest"), metresIn(v, "largest")];
+  const most = Math.min(Math.max(a, b), ...box);
+  const least = Math.min(a, b, most);
+  const hole = (numberIn(v, "hole") / 100) * 0.5;
+  const core = [0, 1].map((k) => Math.max(0, Math.min(box[k] * hole, box[k] / 2 - least * 3)));
+  return { box, most, least, core, clear: core[0] > 0 && core[1] > 0 };
+}
 
 /* a shape as the fill places it: its centre and how far it reaches each way, in cm (a sphere
    by its radius, anything else by the box round it, turned or not) */
@@ -466,10 +486,13 @@ interface Placed {
   half: number;
   round: boolean;
 }
-const clash = (a: Placed, b: Placed) =>
-  a.round && b.round
-    ? Math.hypot(a.c[0] - b.c[0], a.c[1] - b.c[1], a.c[2] - b.c[2]) < a.half + b.half
-    : [0, 1, 2].every((k) => Math.abs(a.c[k] - b.c[k]) < a.half + b.half);
+const clash = (a: Placed, b: Placed) => {
+  const [dx, dy, dz] = [a.c[0] - b.c[0], a.c[1] - b.c[1], a.c[2] - b.c[2]];
+  const h = a.half + b.half;
+  return a.round && b.round
+    ? dx * dx + dy * dy + dz * dz < h * h
+    : Math.abs(dx) < h && Math.abs(dy) < h && Math.abs(dz) < h;
+};
 
 export const shapeFill: Generator = {
   key: "shape-fill",
@@ -510,7 +533,8 @@ export const shapeFill: Generator = {
     { key: "overlap", label: "Let shapes overlap", kind: "toggle", more: true },
     { key: "turn", label: "Turn shapes", kind: "toggle", more: true },
     num("hole", "Clear middle", 0, 90, 5, "%", true),
-    ...(numberIn(v, "hole") > 0
+    /* only while the box leaves room for a clear middle */
+    ...(fillBoxOf(v).clear
       ? [
           { key: "pillar", label: "Pillar in the middle", kind: "toggle", more: true } as const,
           ...(v.pillar ? [{ ...colour("pillarc", "Pillar"), more: true }] : []),
@@ -520,17 +544,11 @@ export const shapeFill: Generator = {
   ],
   build: (v) => {
     const r = random(numberIn(v, "seed"));
-    /* depth runs along x, toward the camera; width across it, along y */
-    const box: V3 = [metresIn(v, "depth"), metresIn(v, "width"), metresIn(v, "height")];
-    const [a, b] = [metresIn(v, "smallest"), metresIn(v, "largest")];
-    const most = Math.min(Math.max(a, b), ...box);
-    const least = Math.min(a, b, most);
-    /* the clear middle's half-width along x and y, a column the full height, leaving room
-       round it for the smallest shape turned any way */
-    const hole = (numberIn(v, "hole") / 100) * 0.5;
-    const core = [0, 1].map((k) => Math.max(0, Math.min(box[k] * hole, box[k] / 2 - least * 2)));
-    const one = (KIND_OF as Partial<Record<string, Kind>>)[String(v.shape)];
-    const kinds = one ? [one] : MIXED;
+    const { box, most, least, core, clear } = fillBoxOf(v);
+    const H = box[2];
+    const kinds: ReadonlyArray<Kind> = isFillShape(v.shape)
+      ? [FILL_KINDS[v.shape]]
+      : Object.values(FILL_KINDS);
     const palette =
       v.palette === ONE_COLOUR
         ? [colourIn(v, "colour")]
@@ -540,61 +558,72 @@ export const shapeFill: Generator = {
     const sizes = Array.from({ length: count }, () => least + (most - least) * r() ** 2).sort(
       (p, q) => q - p,
     );
+    const big = Math.ceil(count / 12);
+    const inCore = (c: ArrayLike<number>, half: number) =>
+      Math.abs(c[0]) < core[0] + half && Math.abs(c[1]) < core[1] + half;
     const placed: Array<Placed> = [];
+    /* the big ones placed, which Satellites gather the rest round */
+    const hosts: Array<Placed> = [];
     const items: Array<PrefabItem> = [];
-    const H = box[2];
     /* the layout's pull: a point each shape is drawn near, and how far from it it may land */
     const layout = String(v.layout);
-    const clumps = Array.from({ length: Math.max(3, Math.round(count / 40)) }, () =>
-      [0, 1, 2].map((k) => (k === 2 ? H / 2 : 0) + (r() - 0.5) * box[k] * 0.8),
-    ) as Array<V3>;
+    const spread = Math.max(most, Math.min(box[0], box[1]) * 0.18);
+    /* the clumps' centres, outside the clear middle */
+    const clumps: Array<V3> = [];
+    if (layout === "Clumps")
+      for (let n = Math.max(3, Math.round(count / 40)), tries = 0; clumps.length < n; tries++) {
+        const c = [0, 1, 2].map((k) => (k === 2 ? H / 2 : 0) + (r() - 0.5) * box[k] * 0.8) as V3;
+        if (!inCore(c, 0) || tries > 200) clumps.push(c);
+      }
     const ring = [0, 1].map((k) => (core[k] + box[k] / 2) / 2);
     const turns = Math.max(1, H / Math.max(box[0], box[1]));
-    const spread = Math.max(most, Math.min(box[0], box[1]) * 0.18);
-    const near = (big: boolean): { at: V3; by: number } | null => {
+    const near = (i: number): { at: V3; by: number } | null => {
       if (layout === "Clumps") return { at: clumps[Math.floor(r() * clumps.length)], by: spread };
       if (layout === "Spiral") {
         const t = r();
         const a = t * turns * Math.PI * 2;
         return { at: [Math.cos(a) * ring[0], Math.sin(a) * ring[1], t * H], by: spread * 0.8 };
       }
-      if (layout === "Satellites" && !big && placed.length) {
-        const host = placed[Math.floor(r() * Math.min(placed.length, Math.ceil(count / 12)))];
+      if (layout === "Satellites" && i >= big && hosts.length) {
+        const host = hosts[Math.floor(r() * hosts.length)];
         return { at: host.c, by: host.half * 1.6 + most * 0.3 };
       }
       return null;
     };
     for (const [i, s0] of sizes.entries()) {
-      const pull = near(i < count / 12);
+      const pull = near(i);
       const kind = kinds[Math.floor(r() * kinds.length)];
       const rot: V3 =
         v.turn && kind !== "sphere"
           ? [r() * 360 - 180, r() * 360 - 180, r() * 360 - 180]
           : [0, 0, 0];
       const round = kind === "sphere";
-      /* a turned shape can reach out to its corners, √3 of its half-size */
-      const reach = round || !v.turn ? 0.5 : Math.sqrt(3) / 2;
+      /* a turned shape can reach out to its corners, √3 of its half-size, and a pyramid out to
+         the corners of the √2-wider bounds it is drawn in, √1.25 of its size */
+      const reach =
+        round || !v.turn ? 0.5 : kind === "pyramid" ? Math.sqrt(1.25) : Math.sqrt(3) / 2;
       const colourOf = palette[Math.floor(r() * palette.length)];
       for (let s = s0, tries = 0; tries < 60; tries++) {
         if (tries > 0 && tries % 15 === 0) s = Math.max(least, s * 0.8);
         const half = Math.min(s * reach, ...box.map((d) => d / 2));
-        const off = inBall(r);
+        const off = pull ? inBall(r) : null;
         const c = [0, 1, 2].map((k) => {
           const room = box[k] / 2 - half;
           const mid = k === 2 ? H / 2 : 0;
-          const want = pull ? pull.at[k] + off[k] * pull.by : mid + (r() * 2 - 1) * room;
+          const want = pull && off ? pull.at[k] + off[k] * pull.by : mid + (r() * 2 - 1) * room;
           return Math.max(mid - room, Math.min(mid + room, want));
         }) as V3;
-        if (Math.abs(c[0]) < core[0] + half && Math.abs(c[1]) < core[1] + half) continue;
+        if (inCore(c, half)) continue;
         const p = { c, half, round };
         if (!v.overlap && placed.some((q) => clash(p, q))) continue;
         placed.push(p);
-        items.push(centred(kind, c, Math.min(s, half / reach), colourOf, rot));
+        if (i < big) hosts.push(p);
+        items.push(shapeAt(kind, c, Math.min(s, half / reach), colourOf, rot));
         break;
       }
     }
     /* a pillar filling the clear middle, as wide as its narrower side */
-    if (v.pillar && core[0] > 0 && core[1] > 0) {
+    if (v.pillar && clear) {
       const d = Math.min(core[0], core[1]) * 2;
       items.push(piece("cylinder", [0, 0, 0], [d, d, H], colourIn(v, "pillarc")));
     }
