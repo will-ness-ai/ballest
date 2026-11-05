@@ -38,8 +38,8 @@ import { isPreset } from "./lib/workshop";
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape: its page, a player's row
-//   on it, its file or its spinning GIF (a Map that has left the Workshop is only known to the page, which
-//   sends the reader home).
+//   on it, its file or its spinning GIF (a Map that has left the Workshop is only known to
+//   the page, which sends the reader home).
 // - A Daily's path is /daily, /daily/<a real day> or /daily/standings; a well-formed day
 //   with no Daily is only known to the page, which sends the reader to /daily.
 // - A Prefab's path is /prefab/<a slug>; a slug nobody uploaded is only known to the page,
