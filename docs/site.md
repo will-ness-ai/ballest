@@ -270,7 +270,10 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
   (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
   without it and narrows once the browser reads the address.
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
-  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"), and
+  `/map/<pfid>/spin?v=<drawn at>`, its spinning GIF from `map_spins` (`docs/data.md`), which
+  Multiballs links on the Weekly Cup's Shortlist: a year's cache under its own drawing, a minute
+  under any other, a 404 for a Map never drawn. A Map nobody has a
   time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
   "New Maps"), has its page with an empty board and no record; the lists and shelves still
   show only Maps with times. A Map the Workshop doesn't list sends the link home.

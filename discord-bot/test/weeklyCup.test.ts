@@ -7,6 +7,7 @@ import { Clock, Effect, Fiber, Layer, Option, Random, Ref, TestClock } from "eff
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { Steam, SteamUnavailable } from "../src/ports.js";
 import { MapPreviews, PreviewSource } from "../src/previews.js";
+import { type Drawing, MapSpins, SpinUnavailable } from "../src/spins.js";
 import { GhostDates } from "../src/steam/ghosts.js";
 import {
   CupChannel,
@@ -83,7 +84,39 @@ const setup = Effect.gen(function* () {
   yield* steam.control.setCatalogue(ELIGIBLE);
   const unlinked = new Set<string>();
   const steamDown = yield* Ref.make(false);
+  // The site's 3D files and drawings (map_spins): every Map has file "v1" and no drawing unless a
+  // test says otherwise; each ask to draw one is recorded (or refused while `githubDown`).
+  const mapFiles = new Map<string, string | null>();
+  const drawn = new Map<string, { version: string; drawnAt: number }>();
+  const draws = yield* Ref.make<Array<{ at: number; pfid: string }>>([]);
+  const drawingReads = yield* Ref.make(0);
+  const githubDown = yield* Ref.make(false);
   const fakes = Layer.mergeAll(
+    Layer.succeed(
+      MapSpins,
+      MapSpins.of({
+        fileVersion: () => Effect.die("the Cup reads drawings, not one file"),
+        latest: () => Effect.die("the Cup links GIFs, never reads one"),
+        drawings: (pfids) =>
+          Effect.gen(function* () {
+            yield* Ref.update(drawingReads, (n) => n + 1);
+            const out = new Map<string, Drawing>();
+            for (const pfid of pfids) {
+              const file = mapFiles.has(pfid) ? mapFiles.get(pfid) : "v1";
+              if (file === null || file === undefined) continue;
+              out.set(pfid, { file, drawn: Option.fromNullable(drawn.get(pfid)) });
+            }
+            return out;
+          }),
+        draw: (pfid) =>
+          Effect.gen(function* () {
+            if (yield* Ref.get(githubDown))
+              return yield* new SpinUnavailable({ reason: "GitHub said 401" });
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(draws, (d) => [...d, { at, pfid }]);
+          }),
+      }),
+    ),
     Layer.succeed(Steam, {
       ...steam.port,
       catalogue: Effect.flatMap(Ref.get(steamDown), (down) =>
@@ -206,6 +239,11 @@ const setup = Effect.gen(function* () {
     deleted,
     replacing,
     steamDown,
+    mapFiles,
+    drawn,
+    draws,
+    drawingReads,
+    githubDown,
     steam: steam.control,
     unlinked,
     posts,
@@ -642,6 +680,116 @@ describe("the Weekly Cup's Shortlist and vote", () => {
       yield* bot.stop;
     }),
   );
+
+  describe("its spinning 3D GIFs", () => {
+    const SPIN = (pfid: string, at: number) =>
+      `https://ballestrecords.com/map/${pfid}/spin?v=${at}`;
+    /** The spin each Shortlist Map shows in the Shortlist's last post or edit, by pfid. */
+    const spinsShown = (t: Effect.Effect.Success<typeof setup>) =>
+      Effect.gen(function* () {
+        const shown = [...(yield* Ref.get(t.shortlists)), ...(yield* Ref.get(t.shortlistEdits))];
+        const last = shown.sort((a, b) => a.at - b.at).at(-1)?.view.maps ?? [];
+        return Object.fromEntries(last.map((m) => [m.map.pfid, m.spin]));
+      });
+
+    it.scoped(
+      "asks for each Shortlist Map's GIF as it is drawn, but not one drawn from its file already, nor one with no file",
+      () =>
+        Effect.gen(function* () {
+          const { t, bot } = yield* signedUp();
+          t.drawn.set("pf3", { version: "v1", drawnAt: 5 });
+          t.drawn.set("pf4", { version: "v0", drawnAt: 6 });
+          t.mapFiles.set("pf5", null);
+          yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+          const asked = (yield* Ref.get(t.draws)).map((d) => d.pfid).sort();
+          expect(asked).toEqual(
+            (yield* pfidsOf(t)).filter((p) => p !== "pf3" && p !== "pf5").sort(),
+          );
+          expect((yield* Ref.get(t.draws)).every((d) => d.at === THURSDAY_NOON)).toBe(true);
+          const shown = yield* spinsShown(t);
+          // A drawing of an older file is shown until the new one comes.
+          expect(shown).toMatchObject({ pf3: SPIN("pf3", 5), pf4: SPIN("pf4", 6), pf5: null });
+          expect(shown.pf1).toBeNull();
+          yield* bot.stop;
+        }),
+    );
+
+    it.scoped(
+      "edits each GIF into the Shortlist as it is drawn, and stops looking after an hour",
+      () =>
+        Effect.gen(function* () {
+          const { t, bot } = yield* signedUp();
+          yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+          const drawnAt = THURSDAY_NOON + 4 * MINUTE;
+          t.drawn.set("pf1", { version: "v1", drawnAt });
+          yield* TestClock.adjust(5 * MINUTE);
+          expect((yield* spinsShown(t)).pf1).toBe(SPIN("pf1", drawnAt));
+          expect((yield* spinsShown(t)).pf2).toBeNull();
+          yield* TestClock.adjust(2 * HOUR);
+          const reads = yield* Ref.get(t.drawingReads);
+          yield* TestClock.adjust(10 * HOUR);
+          expect(yield* Ref.get(t.drawingReads)).toBe(reads);
+          // Asked once: the minute's looks never ask again.
+          expect((yield* Ref.get(t.draws)).filter((d) => d.pfid === "pf2")).toHaveLength(1);
+          yield* bot.stop;
+        }),
+    );
+
+    it.scoped("stops looking once every GIF is in", () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+        for (const pfid of yield* pfidsOf(t)) t.drawn.set(pfid, { version: "v1", drawnAt: 9 });
+        yield* TestClock.adjust(2 * MINUTE);
+        const reads = yield* Ref.get(t.drawingReads);
+        yield* TestClock.adjust(20 * MINUTE);
+        expect(yield* Ref.get(t.drawingReads)).toBe(reads);
+        expect(Object.values(yield* spinsShown(t)).every((s) => s !== null)).toBe(true);
+        yield* bot.stop;
+      }),
+    );
+
+    it.scoped(
+      "posts the Shortlist with Workshop pictures when GitHub refuses, telling ops once",
+      () =>
+        Effect.gen(function* () {
+          const { t, bot } = yield* signedUp();
+          yield* Ref.set(t.githubDown, true);
+          yield* TestClock.adjust(THURSDAY_NOON - MONDAY + 10 * MINUTE);
+          expect((yield* Ref.get(t.shortlists)).map((s) => s.at)).toEqual([THURSDAY_NOON]);
+          expect(yield* Ref.get(t.alerts)).toEqual([
+            `Multiballs couldn't ask for the Weekly Cup's spinning GIFs for ${WEEK} in ${GUILD}: GitHub said 401`,
+          ]);
+          yield* bot.stop;
+        }),
+    );
+
+    it.scoped("still edits GIFs in after a restart while voting, without asking again", () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY + MINUTE);
+        yield* bot.stop;
+        const asked = (yield* Ref.get(t.draws)).length;
+        t.drawn.set("pf1", { version: "v1", drawnAt: 77 });
+        yield* t.runFor(5 * MINUTE);
+        expect((yield* spinsShown(t)).pf1).toBe(SPIN("pf1", 77));
+        expect((yield* Ref.get(t.draws)).length).toBe(asked);
+      }),
+    );
+
+    it.scoped("shows the GIFs on the Shortlist once its vote has closed", () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY + 2 * HOUR);
+        t.drawn.set("pf2", { version: "v1", drawnAt: 88 });
+        yield* TestClock.adjust(FRIDAY_NINE - THURSDAY_NOON - 2 * HOUR);
+        const closed = (yield* Ref.get(t.shortlistEdits)).at(-1)?.view;
+        expect(closed?.closed).toBe(true);
+        expect(closed?.maps.find((m) => m.map.pfid === "pf2")?.spin).toBe(SPIN("pf2", 88));
+        yield* bot.stop;
+      }),
+    );
+  });
 
   it.scoped("takes up to 3 votes from each Entrant, changeable until Friday 09:00", () =>
     Effect.gen(function* () {

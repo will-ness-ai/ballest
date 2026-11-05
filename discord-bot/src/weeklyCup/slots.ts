@@ -174,8 +174,9 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
       }
       const print = fingerprint(part);
       if (drawn.get(id) !== print) {
-        // A message with pictures puts them up again in place of the old (`attachments: []`).
-        const edit = (part.files?.length ?? 0) > 0 ? { ...part, attachments: [] } : part;
+        // A message that carries pictures puts them up again in place of the old
+        // (`attachments: []`), even when it now has none: the Shortlist's GIFs go by link.
+        const edit = part.files !== undefined ? { ...part, attachments: [] } : part;
         const edited = yield* Effect.either(sink.edit(id, edit));
         if (edited._tag === "Left") {
           if (gone(edited.left)) return { gone: edited.left };

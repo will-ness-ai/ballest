@@ -76,14 +76,17 @@ Open in Neon.
   Workshop result leaves them. Not history: the plays move every Refresh, which would add a
   `map_history` row per Map each time. The homepage's Trending this week ranks by them
   (`docs/site.md`).
-- `map_spins`: one per Map whose spinning GIF has been drawn for a Daily Post (spec #268), by
+- `map_spins`: one per Map whose spinning GIF has been drawn for a Daily Post (spec #268) or a
+  Weekly Cup Shortlist, by
   pfid (no foreign key): the `map_files` version it was drawn from, the GIF (`gif`, bytes,
   about 4 MB) and when (`drawn_at`). Only the latest drawing is kept. Not the collector but
   `daily-spin.yml` writes it (ADR 0013: drawing it needs a browser with WebGL), started by
   Multiballs with a pfid (or by hand): `web/scripts/map-spin.ts` opens the Map's
   3D view on ballestrecords.com in Chromium with software WebGL, drags it one full turn in 160
   frames and encodes a 360 px GIF at 12.8 frames a second with ffmpeg. It refuses a Map with
-  no `map_files` row. The bot only reads it (`discord-bot/AGENTS.md`, "The Daily Post"). To
+  no `map_files` row. The bot only reads it (`discord-bot/AGENTS.md`, "The Daily Post" and "The
+  Weekly Cup"), and the site serves each GIF at `/map/<pfid>/spin?v=<drawn at, ms>` for the
+  Shortlist to link (`docs/site.md`, "Routes"). To
   look at one without a database: `pnpm exec tsx scripts/map-spin.ts <pfid> --no-db --out
 spin.gif` in `web/`.
 

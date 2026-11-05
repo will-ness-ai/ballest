@@ -44,6 +44,8 @@ export const mapHref = (pfid: string, focus?: string | null) =>
 /* a Map's file at one version, for its 3D view (app/map/[pfid]/file); the version in the
    address lets the response be cached for good */
 export const MAP_FILE = "file";
+/* a Map's spinning 3D GIF (app/map/[pfid]/spin), which Multiballs links from Discord */
+export const MAP_SPIN = "spin";
 export const mapFileHref = (pfid: string, version: string) =>
   mapHref(pfid) + "/" + MAP_FILE + "?v=" + encodeURIComponent(version);
 

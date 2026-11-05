@@ -45,7 +45,7 @@ import {
   type DailyLine,
   type Picture,
 } from "./messages.js";
-import { DailySpins, SPIN_WAIT, type SpinUnavailable } from "./spin.js";
+import { MapSpins, SPIN_WAIT, type SpinUnavailable } from "../spins.js";
 
 /** How often a live Daily's board is read. */
 export const READ_EVERY = Duration.toMillis("15 minutes");
@@ -431,7 +431,7 @@ const spinPending = (post: DailyPostRecord) =>
 const keeperOf = Effect.fn("DailyPost.keeperOf")(function* (start: DailyPostRecord) {
   const channel = yield* DailyChannel;
   const log = yield* DailyPostLog;
-  const spins = yield* DailySpins;
+  const spins = yield* MapSpins;
   const ops = yield* onceUntilCleared;
   const current = yield* Ref.make(start);
   const { date, pfid } = start.daily;

@@ -21,6 +21,8 @@ export const SHORTLIST_CHECKS = 100;
 export const READ_RETRIES = 2;
 /** How soon a post, draw or read that failed is tried again. */
 export const RETRY_EVERY = 60_000;
+/** How often the Shortlist looks for its Maps' spinning GIFs while they are being drawn. */
+export const SPIN_LOOK = 60_000;
 /** How often the Cup Maps are read while racing. */
 export const READ_EVERY = 5 * 60_000;
 /** How long the final read waits for Steam before the results stand on the last reads. */
@@ -74,11 +76,18 @@ export interface CupPostView {
   readonly entrants: ReadonlyArray<string>;
 }
 
-/** The Shortlist's post: each Map with its Workshop picture (none if Steam gave none). */
+/**
+ * The Shortlist's post: each Map with its Workshop picture (none if Steam gave none) and the link
+ * to its spinning 3D GIF on the site (none until one is drawn), which takes the picture's place.
+ */
 export interface ShortlistView {
   readonly guildId: string;
   readonly week: CupWeek;
-  readonly maps: ReadonlyArray<{ readonly map: CupMap; readonly picture: Preview | null }>;
+  readonly maps: ReadonlyArray<{
+    readonly map: CupMap;
+    readonly picture: Preview | null;
+    readonly spin: string | null;
+  }>;
   /** How many the Shortlist draws when that many are eligible. */
   readonly wanted: number;
   /** Once the vote has closed: the post keeps its Maps but loses its vote. */
