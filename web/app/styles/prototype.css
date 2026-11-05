@@ -607,47 +607,15 @@
   }
 }
 
-/* ==== PROTOTYPE: the homepage shelves' scroll bars, per variant ==== */
+/* ==== PROTOTYPE: the homepage shelves' scroll bars, round 2: fade + line, and arrows ==== */
 .proto-wrap {
   position: relative;
 }
-/* every variant but B hides the browser's bar */
-.proto-sh:not(.v-B) .strip {
+.proto-sh .strip {
   scrollbar-width: none;
   padding-block-end: 0;
-}
-.proto-sh:not(.v-B) .strip::-webkit-scrollbar {
-  display: none;
-}
-/* A: the arrows sit after See all */
-.proto-sh .shelf-n {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.proto-snav {
-  margin-inline-start: 10px;
-}
-.proto-snav button {
-  width: 28px;
-  height: 28px;
-}
-/* B: a thin dim bar that lights on hover */
-.v-B .strip {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-  padding-block-end: 10px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .v-B .strip:hover {
-    scrollbar-color: color-mix(in oklch, var(--accent) 70%, transparent) transparent;
-  }
-}
-/* C and D: the edge fades where more cards wait */
-.v-C .strip,
-.v-D .strip {
   --fade-l: 0px;
-  --fade-r: 48px;
+  --fade-r: 56px;
   mask-image: linear-gradient(
     to right,
     transparent,
@@ -656,63 +624,32 @@
     transparent
   );
 }
-.v-C .proto-wrap:not([data-start]) .strip,
-.v-D .proto-wrap:not([data-start]) .strip {
-  --fade-l: 48px;
+.proto-sh .strip::-webkit-scrollbar {
+  display: none;
 }
-.v-C .proto-wrap[data-end] .strip,
-.v-D .proto-wrap[data-end] .strip,
+.proto-wrap:not([data-start]) .strip {
+  --fade-l: 56px;
+}
+.proto-wrap[data-end] .strip,
 .proto-wrap[data-fits] .strip {
   --fade-r: 0px;
 }
-/* C: round arrows over the pictures' middle at each end */
-.proto-side button {
-  position: absolute;
-  top: 54px;
-  translate: 0 -50%;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--solid);
-  color: var(--text);
-  font-size: calc(18rem / 16);
-  box-shadow: 0 4px 16px var(--scrim);
-  cursor: pointer;
-  transition: opacity 0.2s var(--ease-out);
+.proto-sh .shelf-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.proto-side button:first-child {
-  left: -14px;
+/* the line under the shelf */
+.proto-lrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block-start: 4px;
 }
-.proto-side button:last-child {
-  right: -14px;
-}
-.proto-side button:disabled {
-  opacity: 0;
-  pointer-events: none;
-}
-.proto-side[hidden] {
-  display: none;
-}
-/* no pointer to hover with, a phone swipes instead */
-@media not ((hover: hover) and (pointer: fine)) {
-  .proto-side {
-    display: none;
-  }
-}
-@media (hover: hover) and (pointer: fine) {
-  .proto-side button:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-}
-/* E: the hairline */
 .proto-line {
   position: relative;
+  flex: 1;
   height: 14px;
-  margin-block-start: 4px;
   cursor: pointer;
   touch-action: none;
 }
@@ -741,4 +678,134 @@
   .proto-line:hover span {
     opacity: 1;
   }
+}
+.proto-sh button {
+  cursor: pointer;
+}
+.proto-sh button svg {
+  display: block;
+}
+/* B: chevrons at the line's ends */
+.proto-larr {
+  display: contents;
+}
+.proto-larr button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--dim);
+}
+.proto-larr button:first-child {
+  order: -1;
+}
+.proto-larr button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  .proto-larr button:hover:not(:disabled) {
+    color: var(--accent);
+    background: var(--surface);
+  }
+}
+/* C: the faded edge is the button */
+.proto-zone button {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-out);
+}
+.proto-zone button svg {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 1px 4px var(--scrim));
+}
+.proto-zone button:first-child {
+  left: 0;
+  justify-items: start;
+}
+.proto-zone button:last-child {
+  right: 0;
+  justify-items: end;
+}
+.proto-zone button:disabled {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .proto-wrap:hover .proto-zone button {
+    opacity: 0.6;
+  }
+  .proto-wrap .proto-zone button:hover {
+    opacity: 1;
+    color: var(--accent);
+  }
+}
+/* D: a small frosted chip inside the edge */
+.proto-chip button {
+  position: absolute;
+  top: 54px;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklch, var(--bg) 55%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-out);
+}
+.proto-chip button:first-child {
+  left: 8px;
+}
+.proto-chip button:last-child {
+  right: 8px;
+}
+.proto-chip button:disabled {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .proto-wrap:hover .proto-chip button {
+    opacity: 1;
+  }
+  .proto-chip button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+/* the phone swipes: no edge buttons there */
+@media not ((hover: hover) and (pointer: fine)) {
+  .proto-zone,
+  .proto-chip,
+  .proto-larr {
+    display: none;
+  }
+}
+.proto-zone[hidden],
+.proto-chip[hidden] {
+  display: none;
+}
+/* E: round 1's heading arrows */
+.proto-snav {
+  margin-inline-start: 10px;
+}
+.proto-snav button {
+  width: 28px;
+  height: 28px;
+}
+/* ?state=hover: the pictures show what a hover shows */
+.proto-wrap[data-hover] .proto-zone button {
+  opacity: 0.6;
+}
+.proto-wrap[data-hover] .proto-chip button {
+  opacity: 1;
 }

@@ -20,7 +20,10 @@ export function ProtoShelf({
 }) {
   const v = useVariant() ?? "A";
   /* ?state=many repeats the cards, for a local database with only a few Maps */
-  const many = useParam("state") === "many";
+  const state = useParam("state") ?? "";
+  const many = state.includes("many");
+  /* ?state=many,hover shows the hover-only arrows, for the round's pictures */
+  const hover = state.includes("hover");
   const cards = many
     ? [0, 1, 2, 3].flatMap((k) =>
         children.map((c, i) => (
@@ -49,18 +52,8 @@ export function ProtoShelf({
     el.addEventListener("scroll", check, { passive: true });
     const seen = new ResizeObserver(check);
     seen.observe(el);
-    /* D: a vertical wheel over the shelf moves it sideways until it reaches an end */
-    const wheel = (e: WheelEvent) => {
-      if (v !== "D" || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      const end = el.scrollWidth - el.clientWidth;
-      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= end)) return;
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
-    };
-    el.addEventListener("wheel", wheel, { passive: false });
     return () => {
       el.removeEventListener("scroll", check);
-      el.removeEventListener("wheel", wheel);
       seen.disconnect();
     };
   }, [v, many]);
@@ -68,13 +61,25 @@ export function ProtoShelf({
     const el = strip.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: glide() });
   };
-  const arrows = (cls: string) => (
+  const chev = (d: number) => (
+    <svg viewBox="0 0 16 16" aria-hidden="true" width="16" height="16">
+      <path
+        d={d < 0 ? "M10 3 5 8l5 5" : "M6 3l5 5-5 5"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+  const arrows = (cls: string, glyph: (d: number) => React.ReactNode = chev) => (
     <span className={cls} hidden={at.fits}>
       <button type="button" aria-label="Scroll left" disabled={at.start} onClick={() => scroll(-1)}>
-        &larr;
+        {glyph(-1)}
       </button>{" "}
       <button type="button" aria-label="Scroll right" disabled={at.end} onClick={() => scroll(1)}>
-        &rarr;
+        {glyph(1)}
       </button>
     </span>
   );
@@ -104,7 +109,7 @@ export function ProtoShelf({
         <h2>{title}</h2>
         <span className="shelf-n">
           {note} &middot; <Link href={all}>See all</Link>
-          {v === "A" ? arrows("snav proto-snav") : null}
+          {v === "E" ? arrows("snav proto-snav", (d) => (d < 0 ? "\u2190" : "\u2192")) : null}
         </span>
       </div>
       <div
@@ -112,15 +117,20 @@ export function ProtoShelf({
         data-start={at.start || undefined}
         data-end={at.end || undefined}
         data-fits={at.fits || undefined}
+        data-hover={hover || undefined}
       >
         <div className="strip" ref={strip}>
           {cards}
         </div>
-        {v === "C" ? arrows("proto-side") : null}
+        {v === "C" ? arrows("proto-zone") : null}
+        {v === "D" ? arrows("proto-chip") : null}
       </div>
-      {v === "E" && !at.fits ? (
-        <div className="proto-line" onPointerDown={seek} role="presentation">
-          <span style={{ left: at.pos * 100 + "%", width: at.size * 100 + "%" }} />
+      {!at.fits ? (
+        <div className="proto-lrow">
+          {v === "B" ? arrows("proto-larr") : null}
+          <div className="proto-line" onPointerDown={seek} role="presentation">
+            <span style={{ left: at.pos * 100 + "%", width: at.size * 100 + "%" }} />
+          </div>
         </div>
       ) : null}
     </section>

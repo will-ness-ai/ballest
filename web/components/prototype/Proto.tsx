@@ -5,23 +5,19 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export const VARIANTS = [
-  ["A", "Heading arrows", "No bar; ← → buttons in the shelf's heading, as a player's shelves have"],
-  ["B", "Slim bar", "The bar stays, but a thin dim line that lights lime on hover"],
   [
-    "C",
-    "Side arrows",
-    "No bar; round arrows over the pictures at each end, the edge fading where more cards wait",
+    "A",
+    "No arrows",
+    "Round 1's C fade and E line, and nothing else: swipe, trackpad or drag the line",
   ],
+  ["B", "Line arrows", "Small chevrons at each end of the progress line"],
+  ["C", "Edge zones", "The faded edge itself is the button: a thin chevron shows in it on hover"],
   [
     "D",
-    "Fade only",
-    "No bar or buttons; the edge fades where more wait, and the mouse wheel scrolls the shelf sideways",
+    "Glass chip",
+    "A small frosted square with a thin chevron, inside the edge, only while hovering the shelf",
   ],
-  [
-    "E",
-    "Progress line",
-    "No bar; a hairline under the shelf showing where you are, which you can click or drag",
-  ],
+  ["E", "Heading arrows", "Round 1's A buttons in the heading, with the fade and the line"],
 ] as const;
 export type VariantKey = (typeof VARIANTS)[number][0];
 
