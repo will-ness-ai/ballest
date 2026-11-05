@@ -348,9 +348,13 @@ export interface Generator {
   build: (v: Values, lettering: Lettering) => PrefabFile | null;
 }
 
+/* a piece `size` cm across centred at `at`, turned by `rot` about its centre: a piece turns
+   about its bottom centre, so that sits half its height down its own turned up axis */
+export const centredAt = (kind: Kind, at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) =>
+  piece(kind, add(at, mul(rotationRows(rot)[2], -size[2] / 2)), size, c, rot);
 /* a box `size` cm across centred at `at`, turned by `rot` */
 export const boxAt = (at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) =>
-  piece("cube", add(at, mul(rotationRows(rot)[2], -size[2] / 2)), size, c, rot);
+  centredAt("cube", at, size, c, rot);
 
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

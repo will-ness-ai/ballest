@@ -13,7 +13,7 @@
 // which looks along +X with +Y on its right, so it faces whoever spawned it (checked in game).
 import { PIXEL_LETTERING, type Lettering } from "../generator-letters";
 import { castle, house, tower } from "./buildings";
-import { fence, finishArch, fountain, lampPost, trophy } from "./decor";
+import { fence, finishArch, fountain, lampPost, shapeFill, trophy } from "./decor";
 import { blockTree, bush, pine, tree } from "./nature";
 import type { Generator, Values } from "./pieces";
 import { jump, loop, plinko, rollers, spiral } from "./racing";
@@ -58,6 +58,7 @@ export const GENERATORS: ReadonlyArray<Generator> = [
   trophy,
   fence,
   finishArch,
+  shapeFill,
   tree,
   pine,
   blockTree,

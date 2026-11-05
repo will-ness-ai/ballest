@@ -922,6 +922,11 @@ kept apart from the Generators so a page that only links one never loads them).
   R23 changes them. A character they lack is a `?`; `.`, `:` and `'` reuse the `!`, `÷` and `”`
   pieces. The letters are as deep as built, about half a capital's height. The font picker
   credits R23 and links the Prefabs.
+- **Shape fill** (Cos asked): a width x depth x height box filled with shapes of random sizes
+  (skewed small) in random places, biggest placed first, kept apart unless Overlap is on (a
+  shape that finds no room after a few tries shrinks, then is left out). Layout pulls each shape
+  toward a point: anywhere, a few clumps, a spiral up round the middle, or round one of the big
+  ones (Satellites). Clear middle keeps a column empty, and Pillar fills it with a cylinder.
 - **Buildings** (House, Tower, Castle) face -X, like signs. A wall is the boxes round its
   openings (`wall`: piers between windows, a piece under and over each). Roofs: gable as two
   pitched slabs (`slopes`) with stepped gable ends kept under the roof line; hip as a ridge with
