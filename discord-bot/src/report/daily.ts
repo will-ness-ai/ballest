@@ -8,6 +8,7 @@ import { MigratorLive } from "../db.js";
 import { dayOf, everyDayAt } from "../everyDay.js";
 import { OpsAlerts } from "../ops.js";
 import { ChosenSkins } from "../ports.js";
+import { MapPreviews, previewUri } from "../previews.js";
 import { Renderer } from "../render/renderer.js";
 import { ReportChannel, ReportChannelLive } from "./channel.js";
 import {
@@ -18,7 +19,8 @@ import {
   threadName,
   threadSections,
 } from "./messages.js";
-import { GhostDatesLive, oldestMapRecords, oldestTrackRecords } from "./records.js";
+import { GhostDatesLive } from "../steam/ghosts.js";
+import { oldestMapRecords, oldestTrackRecords } from "./records.js";
 import { buildReport, DAY_MS, type Report } from "./report.js";
 import { ReportSource, ReportSourceLive } from "./source.js";
 import { StandingsSource, StandingsSourceLive } from "./standings.js";
@@ -74,7 +76,13 @@ export const postReport = Effect.fn("DailyReport.post")(function* (report: Repor
   const chosenSkins = yield* ChosenSkins;
   const tracks = yield* oldestTrackRecords(report.trackRecords);
   const maps = yield* oldestMapRecords(report.mapRecords);
-  const image = yield* renderer.standings(standingsImage(report, yield* chosenSkins.all));
+  // yesterday's Daily's preview, or the stand-in art when there is none or Steam won't give it
+  const url = report.yesterday?.preview ?? null;
+  const preview =
+    url === null
+      ? null
+      : Option.getOrNull(Option.map(yield* (yield* MapPreviews).of(url), previewUri));
+  const image = yield* renderer.standings(standingsImage(report, yield* chosenSkins.all, preview));
   return yield* channel.post({
     content: headMessage(report),
     image,
