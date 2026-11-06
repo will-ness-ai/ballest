@@ -109,21 +109,26 @@ export function merge(
       changes.push({ table: "profiles", key: mesh, now: profile.view });
     }
   }
+  /* each table without the meshes no piece is drawn from any more */
   const drawn = new Set(pieceMeshes.values());
-  for (const mesh of Object.keys(meshes).filter((m) => !drawn.has(m))) {
-    changes.push({ table: "meshes", key: mesh, was: meshes[mesh]?.kind });
-    delete meshes[mesh];
-  }
-  for (const mesh of Object.keys(profiles).filter((m) => !drawn.has(m))) {
-    changes.push({ table: "profiles", key: mesh, was: profiles[mesh]?.view });
-    delete profiles[mesh];
-  }
+  const inUse = <T>(
+    table: Change["table"],
+    all: Partial<Record<string, T>>,
+    was: (v: T) => string,
+  ) =>
+    Object.fromEntries(
+      Object.entries(all).filter(([mesh, value]) => {
+        if (drawn.has(mesh) || value === undefined) return true;
+        changes.push({ table, key: mesh, was: was(value) });
+        return false;
+      }),
+    );
   return {
     tables: {
       pieces: [...pieces].sort(byCodePoint),
       pieceMeshes: Object.fromEntries(pieceMeshes),
-      meshes,
-      profiles,
+      meshes: inUse("meshes", meshes, (m) => m.kind),
+      profiles: inUse("profiles", profiles, (p) => p.view),
     },
     changes,
   };
