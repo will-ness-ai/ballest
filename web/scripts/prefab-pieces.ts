@@ -23,16 +23,9 @@ import { format, resolveConfig } from "prettier";
 import { MESHES, PIECE_MESHES } from "../lib/prefab-meshes";
 import { PIECES } from "../lib/prefab-pieces";
 import { PROFILES } from "../lib/prefab-profiles";
-import type { MeshProfile, MeshShape } from "../lib/prefab";
+import { type MeshProfile, type MeshShape, tail } from "../lib/prefab";
 import { standIn, type Geometry, type Vec3 } from "./prefab-pieces/fit";
-import {
-  boundsOf,
-  type Catalogue,
-  merge,
-  tail,
-  type Tables,
-  writeTable,
-} from "./prefab-pieces/tables";
+import { boundsOf, type Catalogue, merge, type Tables, writeTable } from "./prefab-pieces/tables";
 
 const source = process.argv[2];
 if (!source) {

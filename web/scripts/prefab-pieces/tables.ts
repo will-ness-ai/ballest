@@ -2,7 +2,7 @@
 // the mesh each one is drawn from and each mesh's stand-in (lib/prefab-meshes.ts, lib/prefab-
 // profiles.ts), merged from the catalogue into the tables as they are, and each table written
 // out whole. Pure, so scripts/prefab-pieces.ts and the tests share it.
-import type { MeshProfile, MeshShape } from "../../lib/prefab";
+import { classPiece, type MeshProfile, type MeshShape, tail } from "../../lib/prefab";
 import type { Vec3 } from "./fit";
 
 /* the piece catalogue read from the game's own packages (ballest-map-making/extract/pieces/) */
@@ -42,8 +42,6 @@ export interface Change {
   now?: string;
 }
 
-export const tail = (path: string) => path.split(/[./]/).at(-1) ?? path;
-
 /* the editor's own selection marker (a light's or a decal's bulb), shown only while editing */
 const EDITOR_MARKER = "MLESelectionHitbox";
 /* a light card's beam or glow: a volumetric light, not a solid a player sees in a race */
@@ -64,7 +62,7 @@ export function meshOf(piece: CataloguePiece) {
   return pick?.mesh ? tail(pick.mesh) : null;
 }
 
-export const pieceOf = (piece: CataloguePiece) => tail(piece.classPath).replace(/_C$/, "");
+export const pieceOf = (piece: CataloguePiece) => classPiece(piece.classPath);
 
 /* the order every table keeps its keys in: by code point */
 const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

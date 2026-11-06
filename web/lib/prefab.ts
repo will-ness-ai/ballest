@@ -141,10 +141,14 @@ export interface Shape {
   material: string;
 }
 
-const tail = (path: string) => path.split(/[./]/).at(-1) ?? path;
+/** the last name in an Unreal object path (`/Game/Meshes/SM_1000.SM_1000` gives `SM_1000`) */
+export const tail = (path: string) => path.split(/[./]/).at(-1) ?? path;
+
+/** the piece a class path saves as (`BP_Elevator_C` gives `BP_Elevator`) */
+export const classPiece = (classPath: string) => tail(classPath).replace(/_C$/, "");
 
 export function pieceName(item: PrefabItem) {
-  return tail(item.class).replace(/_C$/, "");
+  return classPiece(item.class);
 }
 
 /* Unreal's FRotator [pitch, yaw, roll] in degrees, as the three axes it sends local x, y, z to */
