@@ -691,7 +691,14 @@ describe("the categories", () => {
       "floor-tiles",
     ]);
     expect(under("Racing")).toEqual(["spiral", "loop", "jump", "plinko", "rollers"]);
-    expect(under("Decor")).toEqual(["lamp", "fountain", "trophy", "fence", "finish-arch"]);
+    expect(under("Decor")).toEqual([
+      "lamp",
+      "fountain",
+      "trophy",
+      "fence",
+      "finish-arch",
+      "shape-fill",
+    ]);
   });
 });
 
@@ -791,6 +798,145 @@ describe("the decor", () => {
     const file = make("finish-arch", { width: 8, banner: 1, rows: 2, flags: false });
     const checks = file.items.filter((it) => Math.abs(it.transform.scale[0] * CUBE - 4) < 0.01);
     expect(checks).toHaveLength(2 * 16);
+  });
+});
+
+describe("the shape fill", () => {
+  /* each piece's box in metres on three's axes (x, up, Unreal's y), and its centre */
+  const boxesOf = (file: PrefabFile) =>
+    shapesOf(file).map((sh) => {
+      const m = sh.matrix;
+      const half = [0, 1, 2].map(
+        (i) => (Math.abs(m[i]) + Math.abs(m[4 + i]) + Math.abs(m[8 + i])) / 2,
+      );
+      const mid = [m[12], m[13], m[14]];
+      return { mid, lo: mid.map((c, i) => c - half[i]), hi: mid.map((c, i) => c + half[i]) };
+    });
+
+  test("fills its box with as many shapes as asked, every one inside it", () => {
+    const file = make("shape-fill", { width: 6, depth: 4, height: 10, count: 80, overlap: true });
+    expect(file.items.length).toBe(80);
+    for (const b of boxesOf(file)) {
+      /* depth runs along x (toward the camera), height up, width along Unreal's y */
+      expect(b.lo[0]).toBeGreaterThanOrEqual(-2.01);
+      expect(b.hi[0]).toBeLessThanOrEqual(2.01);
+      expect(b.lo[1]).toBeGreaterThanOrEqual(-0.01);
+      expect(b.hi[1]).toBeLessThanOrEqual(10.01);
+      expect(b.lo[2]).toBeGreaterThanOrEqual(-3.01);
+      expect(b.hi[2]).toBeLessThanOrEqual(3.01);
+    }
+  });
+
+  test("sizes its shapes between the smallest and the largest", () => {
+    const file = make("shape-fill", { shape: "Spheres", smallest: 0.5, largest: 1.5 });
+    for (const b of boxesOf(file)) {
+      const across = b.hi[0] - b.lo[0];
+      expect(across).toBeGreaterThanOrEqual(0.49);
+      expect(across).toBeLessThanOrEqual(1.51);
+    }
+  });
+
+  test("makes only the shape picked, and a mix of them when mixed", () => {
+    expect(
+      make("shape-fill", { shape: "Cubes" }).items.every((it) => it.class.includes("Cube")),
+    ).toBe(true);
+    const mixed = new Set(make("shape-fill", { shape: "Mixed" }).items.map((it) => it.class));
+    expect(mixed.size).toBeGreaterThanOrEqual(4);
+  });
+
+  test("keeps its spheres apart unless they may overlap", () => {
+    const apart = (file: PrefabFile) => {
+      const balls = boxesOf(file).map((b) => ({ c: b.mid, r: (b.hi[0] - b.lo[0]) / 2 }));
+      return balls.every((a, i) =>
+        balls
+          .slice(i + 1)
+          .every((b) => Math.hypot(...a.c.map((v, k) => v - b.c[k])) >= a.r + b.r - 0.01),
+      );
+    };
+    expect(apart(make("shape-fill", { shape: "Spheres", overlap: false }))).toBe(true);
+    expect(apart(make("shape-fill", { shape: "Spheres", overlap: true, count: 300 }))).toBe(false);
+  });
+
+  test("leaves its middle clear for a pillar when asked", () => {
+    const file = make("shape-fill", { width: 8, depth: 8, hole: 50, count: 150 });
+    /* the clear middle is half the box across: no shape reaches inside 2 m of the centre */
+    for (const b of boxesOf(file))
+      expect(b.hi[0] <= -1.99 || b.lo[0] >= 1.99 || b.hi[2] <= -1.99 || b.lo[2] >= 1.99).toBe(true);
+  });
+
+  test("paints one colour when asked, and a mix of colours otherwise", () => {
+    const colours = (change: Values) =>
+      new Set(make("shape-fill", change).items.map((it) => it.paint?.colors[0]));
+    expect(colours({ palette: "One colour", colour: "Purple" }).size).toBe(1);
+    expect(colours({ palette: "Rainbow" }).size).toBeGreaterThanOrEqual(5);
+    expect(
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { palette: "Rainbow" }))
+        .map((c) => c.key),
+    ).not.toContain("colour");
+  });
+
+  test("gathers its shapes closer in clumps than anywhere in the box", () => {
+    /* the mean distance from each shape to its nearest neighbour, in metres */
+    const nearestMean = (layout: string) => {
+      const mids = boxesOf(make("shape-fill", { layout, overlap: true })).map((b) => b.mid);
+      const each = mids.map((a, i) =>
+        Math.min(
+          ...mids.filter((_, j) => j !== i).map((b) => Math.hypot(...a.map((v, k) => v - b[k]))),
+        ),
+      );
+      return each.reduce((x, y) => x + y, 0) / each.length;
+    };
+    expect(nearestMean("Clumps")).toBeLessThan(nearestMean("Anywhere") * 0.8);
+  });
+
+  test("winds a spiral up round the middle", () => {
+    const mids = boxesOf(
+      make("shape-fill", { layout: "Spiral", width: 8, depth: 8, hole: 40 }),
+    ).map((b) => b.mid);
+    /* shapes low and high, none in the clear middle */
+    expect(Math.min(...mids.map((m) => m[1]))).toBeLessThan(3);
+    expect(Math.max(...mids.map((m) => m[1]))).toBeGreaterThan(9);
+  });
+
+  test("puts a pillar in the clear middle, the full height, only when asked", () => {
+    const pillarOf = (change: Values) =>
+      make("shape-fill", { hole: 40, ...change }).items.filter((it) =>
+        it.class.includes("Cylinder"),
+      );
+    expect(pillarOf({ shape: "Spheres", pillar: false })).toHaveLength(0);
+    const [pillar] = pillarOf({ shape: "Spheres", pillar: true, height: 12 });
+    expect(pillar.transform.scale[2] * 200).toBeCloseTo(1200);
+    expect(
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { hole: 0 }))
+        .map((c) => c.key),
+    ).not.toContain("pillar");
+  });
+
+  test("draws clumps outside a clear middle, so it costs them few shapes", () => {
+    const placed = (hole: number) => make("shape-fill", { layout: "Clumps", hole }).items.length;
+    expect(placed(50)).toBeGreaterThanOrEqual(placed(0) * 0.9);
+  });
+
+  test("stands an unturned pyramid square to the box, as wide as its size", () => {
+    const [p] = make("shape-fill", { shape: "Pyramids", turn: false }).items;
+    expect(p.transform.rotation[1]).toBe(45);
+    expect(p.transform.scale[0] / p.transform.scale[2]).toBeCloseTo(Math.SQRT2 * 0.4);
+  });
+
+  test("offers a pillar only while the box leaves room for a clear middle", () => {
+    const keys = (change: Values) =>
+      gen("shape-fill")
+        .controls(valuesOf("shape-fill", { hole: 50, ...change }))
+        .map((c) => c.key);
+    expect(keys({})).toContain("pillar");
+    expect(keys({ width: 1, depth: 1, smallest: 0.3 })).not.toContain("pillar");
+  });
+
+  test("draws the same shapes from the same seed and new ones from another", () => {
+    expect(make("shape-fill", { seed: 3 })).toEqual(make("shape-fill", { seed: 3 }));
+    expect(make("shape-fill", { seed: 3 })).not.toEqual(make("shape-fill", { seed: 4 }));
   });
 });
 
