@@ -66,10 +66,15 @@ const BOX = (size: number): MeshShape => ({ kind: "box", min: [0, 0, 0], max: [s
 
 describe("merging a catalogue into the tables", () => {
   const before: Tables = {
-    pieces: ["BP_Old", "BP_Pipe_Half1"],
-    pieceMeshes: { BP_Old: "SM_Old", BP_Pipe_Half1: "SM_1000" },
-    meshes: { SM_1000: BOX(1000), SM_Old: BOX(1) },
-    profiles: {},
+    pieces: ["BP_Old", "BP_Pipe", "BP_Pipe_Half1", "MP_RawPointLight"],
+    pieceMeshes: {
+      BP_Old: "SM_Old",
+      BP_Pipe: "SM_1000",
+      BP_Pipe_Half1: "SM_1000",
+      MP_RawPointLight: "SM_Bulb",
+    },
+    meshes: { SM_1000: BOX(1000), SM_Bulb: BOX(3), SM_Old: BOX(1) },
+    profiles: { SM_Bulb: { view: "top", shapes: [[[0, 0, 1000, 0, 0, 1000]]] } },
   };
   const catalogue: Catalogue = {
     pieces: [
@@ -92,13 +97,20 @@ describe("merging a catalogue into the tables", () => {
   const { tables, changes } = merge(before, catalogue, fit);
 
   test("adds the menu's pieces and keeps the ones it no longer has", () => {
-    expect(tables.pieces).toEqual(["BP_New", "BP_Old", "BP_Pipe_Half1", "MP_RawPointLight"]);
+    expect(tables.pieces).toEqual([
+      "BP_New",
+      "BP_Old",
+      "BP_Pipe",
+      "BP_Pipe_Half1",
+      "MP_RawPointLight",
+    ]);
   });
 
   test("sets a piece whose mesh changed, and draws a light from nothing", () => {
     expect(tables.pieceMeshes).toEqual({
       BP_New: "SM_New",
       BP_Old: "SM_Old",
+      BP_Pipe: "SM_1000",
       BP_Pipe_Half1: "SM_1000_180",
     });
     expect(changes).toContainEqual({
@@ -113,6 +125,17 @@ describe("merging a catalogue into the tables", () => {
     expect(fitted).toEqual(["SM_1000_180", "SM_New"]);
     expect(tables.meshes.SM_1000).toEqual(BOX(1000));
     expect(Object.keys(tables.profiles)).toEqual(["SM_New"]);
+  });
+
+  test("drops a mesh and an outline no piece is drawn from any more", () => {
+    expect(Object.keys(tables.meshes).sort()).toEqual([
+      "SM_1000",
+      "SM_1000_180",
+      "SM_New",
+      "SM_Old",
+    ]);
+    expect(changes).toContainEqual({ table: "meshes", key: "SM_Bulb", was: "box" });
+    expect(changes).toContainEqual({ table: "profiles", key: "SM_Bulb", was: "top" });
   });
 
   test("a second run changes nothing", () => {
@@ -255,5 +278,15 @@ describe("fitting a stand-in", () => {
     expect(found.profile?.shapes).toHaveLength(1);
     expect(found.profile?.shapes[0]).toHaveLength(1);
     expect(found.profile?.shapes[0][0]).toHaveLength(12);
+  });
+
+  test("a tiered one is drawn from its front outline squeezed by its side one", () => {
+    /* a wide slab with a narrower tier on its back half: seen from the front an L, from the
+       side an upside-down T, and only a squeeze sharing the up axis gives both */
+    const tiers = joined(cuboid([0, 0, 0], [100, 100, 50]), cuboid([25, 0, 50], [75, 50, 100]));
+    const found = standIn(tiers, { min: [0, 0, 0], max: [100, 100, 100] });
+    expect(found.kind).toBe("box");
+    expect([found.profile?.view, found.profile?.squeeze?.view].sort()).toEqual(["front", "side"]);
+    expect(found.fit).toBeGreaterThan(0.97);
   });
 });

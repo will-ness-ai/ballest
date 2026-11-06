@@ -74,7 +74,7 @@ const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
  * (none is ever taken out, so an older Prefab still passes), each menu piece's mesh set to the
  * one the catalogue draws it from (or taken away when it has none), and each mesh that names
  * and the tables lack fitted by `fit`, its outline kept when it has one. A mesh or outline
- * already there is kept as it is.
+ * already there is kept as it is, and one no piece is drawn from any more is dropped.
  */
 export function merge(
   tables: Tables,
@@ -108,6 +108,15 @@ export function merge(
       profiles[mesh] = profile;
       changes.push({ table: "profiles", key: mesh, now: profile.view });
     }
+  }
+  const drawn = new Set(pieceMeshes.values());
+  for (const mesh of Object.keys(meshes).filter((m) => !drawn.has(m))) {
+    changes.push({ table: "meshes", key: mesh, was: meshes[mesh]?.kind });
+    delete meshes[mesh];
+  }
+  for (const mesh of Object.keys(profiles).filter((m) => !drawn.has(m))) {
+    changes.push({ table: "profiles", key: mesh, was: profiles[mesh]?.view });
+    delete profiles[mesh];
   }
   return {
     tables: {

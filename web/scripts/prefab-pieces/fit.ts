@@ -261,7 +261,8 @@ function prism(
   spans: Array<number> | null,
 ): Solid {
   const [a, b, through] = VIEWS[view];
-  const shared = squeeze ? [a, b].find((x) => VIEWS[squeeze].includes(x)) : undefined;
+  /* the axis the two outlines share, from the squeeze's own two axes, as spansOf reads it */
+  const shared = squeeze ? [a, b].find((x) => VIEWS[squeeze].slice(0, 2).includes(x)) : undefined;
   return (...p) => {
     const i = Math.min(res - 1, Math.floor(p[a] * res));
     const j = Math.min(res - 1, Math.floor(p[b] * res));
