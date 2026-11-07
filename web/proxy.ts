@@ -6,6 +6,7 @@ import {
   DAILY_DATE,
   DAILY_STANDINGS,
   MAP_FILE,
+  MAP_SPIN,
   PLAYER_TABS,
   campaignPath,
   isDailyDate,
@@ -37,8 +38,8 @@ import { isPreset } from "./lib/workshop";
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape: its page, a player's row
-//   on it, or its file (a Map that has left the Workshop is only known to the page, which
-//   sends the reader home).
+//   on it, its file or its spinning GIF (a Map that has left the Workshop is only known to
+//   the page, which sends the reader home).
 // - A Daily's path is /daily, /daily/<a real day> or /daily/standings; a well-formed day
 //   with no Daily is only known to the page, which sends the reader to /daily.
 // - A Prefab's path is /prefab/<a slug>; a slug nobody uploaded is only known to the page,
@@ -51,7 +52,7 @@ import { isPreset } from "./lib/workshop";
 const ID = STEAM_ID.source;
 const PLAYER_PATH = new RegExp(`^/player/${ID}(?:/(?:${PLAYER_TABS.join("|")}))?$`);
 const VS_PATH = new RegExp(`^/vs/(${ID})/(${ID})$`);
-const MAP_PATH = new RegExp(`^/map/${PFID.source}(/(?:${ID}|${MAP_FILE}))?$`);
+const MAP_PATH = new RegExp(`^/map/${PFID.source}(/(?:${ID}|${MAP_FILE}|${MAP_SPIN}))?$`);
 /* a board's name is letters, digits and _, so it never needs decoding */
 const DAILY_PATH = new RegExp(`^/daily(?:/(${DAILY_DATE.source}|${DAILY_STANDINGS}))?/?$`);
 const PREFAB_PATH = new RegExp(`^/prefab/${PREFAB_SLUG.source}$`);

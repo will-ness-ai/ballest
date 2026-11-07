@@ -17,7 +17,7 @@ import {
   postPast,
 } from "../src/dailyPost/schedule.js";
 import type { PastDaily } from "../src/dailyPost/history.js";
-import { DailySpins, type Spin, SpinUnavailable } from "../src/dailyPost/spin.js";
+import { MapSpins, type Spin, SpinUnavailable } from "../src/spins.js";
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { Renderer } from "../src/render/renderer.js";
 import type { LeadGraphImage } from "../src/render/scenes.js";
@@ -152,10 +152,11 @@ const setup = Effect.gen(function* () {
       }),
     ),
     Layer.succeed(
-      DailySpins,
-      DailySpins.of({
+      MapSpins,
+      MapSpins.of({
         fileVersion: () => Ref.get(mapFile),
         latest: () => Ref.get(drawn),
+        drawings: () => Effect.succeed(new Map()),
         draw: (pfid) =>
           Effect.gen(function* () {
             if (yield* Ref.get(githubDown))

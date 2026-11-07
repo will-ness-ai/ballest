@@ -4,7 +4,8 @@
 //
 //   open      Monday 00:00: the Cup's post goes up with Sign up, Withdraw and Skip
 //   voting    Thursday 12:00, with 2 Entrants or more: the Shortlist is drawn and posted with its
-//             vote (up to 3 picks each, Entrants only, changeable; vote.ts)
+//             vote (up to 3 picks each, Entrants only, changeable; vote.ts), each Map's
+//             spinning 3D GIF edited in as it is drawn
 //   racing    Friday 09:00: the 3 most-voted are the Cup Maps, announced with a ping for
 //             Entrants, and the Shortlist's vote is closed; every 5 minutes the Entrants' times
 //             on them are read and the standings shown (race.ts)
@@ -70,7 +71,9 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       case "open":
         return now < week.shortlistAt ? week.shortlistAt : yield* vote.openVote(now, week, cup);
       case "voting":
-        return now < week.voteClosesAt ? week.voteClosesAt : yield* vote.closeVote(now, week, cup);
+        return now < week.voteClosesAt
+          ? yield* vote.watchSpins(now, week, cup)
+          : yield* vote.closeVote(now, week, cup);
       case "racing":
         return now < week.endsAt
           ? yield* race.live(now, week, cup)

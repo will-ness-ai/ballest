@@ -350,6 +350,19 @@ export async function mapFile(
   return found.at(0) ?? null;
 }
 
+/* A Map's spinning GIF and when it was drawn (milliseconds), or null when it never was */
+export async function mapSpin(
+  db: Db,
+  pfid: string,
+): Promise<{ drawnAt: number; gif: Buffer } | null> {
+  const found = await rows<{ drawnAt: number; gif: Buffer }>(
+    db,
+    sql`select floor(extract(epoch from drawn_at) * 1000)::float8 as "drawnAt", gif
+        from map_spins where pfid = ${pfid}`,
+  );
+  return found.at(0) ?? null;
+}
+
 /* A player and their place on every board, or null for a Steam ID on no board */
 /* Season 1 Current and All Seasons, each ranked whole, which a player's page reads its
    rows from (playerData) */

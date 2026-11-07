@@ -29,6 +29,7 @@ import { CupChannel, CupLinks } from "./model.js";
 import type { CupPresses } from "./presses.js";
 import { CupLog, CupLogLive } from "./record.js";
 import { makeWeeklyCup, WeeklyCups } from "./schedule.js";
+import { MapSpins, MapSpinsLive } from "../spins.js";
 import { type CupPictures, cupChannelOver, type MessageSink, type SentPayload } from "./slots.js";
 
 /** One text channel's messages, for the Cup's slots. */
@@ -96,6 +97,7 @@ const make = Effect.gen(function* () {
   const steam = yield* Steam;
   const ghosts = yield* GhostDates;
   const previews = yield* MapPreviews;
+  const spins = yield* MapSpins;
   const store = yield* Store;
   const renderer = yield* Renderer;
   const links = CupLinks.of({
@@ -134,6 +136,7 @@ const make = Effect.gen(function* () {
       Effect.provideService(Steam, steam),
       Effect.provideService(GhostDates, ghosts),
       Effect.provideService(MapPreviews, previews),
+      Effect.provideService(MapSpins, spins),
     );
     yield* Ref.update(running, (m) => new Map(m).set(guildId, cup));
     yield* Effect.logInfo(`weekly cup: running in ${guild.name}`);
@@ -169,4 +172,5 @@ export const WeeklyCupsLive = Layer.scoped(WeeklyCups, make).pipe(
   Layer.provide(MigratorLive),
   Layer.provide(OpsAlerts.Default),
   Layer.provide(GhostDatesLive),
+  Layer.provide(MapSpinsLive),
 );

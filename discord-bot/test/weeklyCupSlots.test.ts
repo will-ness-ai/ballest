@@ -239,7 +239,7 @@ describe("the Weekly Cup's slots", () => {
         week,
         wanted: 10,
         closed: false,
-        maps: maps.map((map) => ({ map, picture: null })),
+        maps: maps.map((map) => ({ map, picture: null, spin: null })),
       });
       yield* channel.say({
         _tag: "CupMaps",
@@ -264,6 +264,28 @@ describe("the Weekly Cup's slots", () => {
     }),
   );
 
+  it.effect("drops a Shortlist's old pictures once every Map shows its spinning GIF instead", () =>
+    Effect.gen(function* () {
+      const fake = fakeSink();
+      const channel = over(fake.sink);
+      const shortlist = (spins: boolean) => ({
+        guildId: "g-racing",
+        week,
+        wanted: 10,
+        closed: false,
+        maps: [1, 2].map((n) => ({
+          map: cupMap(n),
+          picture: { type: "image/jpeg", body: new Uint8Array([n]) },
+          spin: spins ? `https://ballestrecords.com/map/pf${n}/spin?v=1` : null,
+        })),
+      });
+      const ids = yield* channel.show("shortlist", [], shortlist(false));
+      yield* channel.show("shortlist", ids, shortlist(true));
+      expect(fake.edited[0]?.payload.attachments).toEqual([]);
+      expect(fake.edited[0]?.payload.files).toEqual([]);
+    }),
+  );
+
   it.effect("puts a Shortlist's pictures up again in place of the old when it is edited", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
@@ -276,6 +298,7 @@ describe("the Weekly Cup's slots", () => {
         maps: [1, 2, 3].map((n) => ({
           map: cupMap(n),
           picture: { type: "image/jpeg", body: new Uint8Array([n]) },
+          spin: null,
         })),
       });
       const ids = yield* channel.show("shortlist", [], shortlist(false));

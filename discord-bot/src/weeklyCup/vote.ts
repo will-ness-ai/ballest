@@ -2,11 +2,13 @@
 // from Maps none of the Entrants has Played and posted with its vote; at Friday 09:00 the most
 // voted become the Cup Maps, every Entrant's bars are taken, the Cup Maps are announced and the
 // Shortlist's vote is closed. Each is recorded before it is shown, so a restart never draws, ranks
-// or announces again.
+// or announces again. As the Shortlist is drawn, each of its Maps' spinning 3D GIFs is asked for
+// and edited in as it comes, looked for every minute for an hour (spins.ts).
 import { Effect, Option, Random } from "effect";
 import { searchEligible } from "../eligibleMaps.js";
 import { Steam } from "../ports.js";
 import type { CupKit } from "./kit.js";
+import { makeCupSpins } from "./spins.js";
 import {
   CUP_AUTHOR_LIMIT,
   CUP_MAPS,
@@ -46,6 +48,7 @@ export const rank = Effect.fn("WeeklyCup.rank")(function* (
 
 export const makeVote = (kit: CupKit, race: CupRace) => {
   const { guildId, log } = kit;
+  const spins = makeCupSpins(kit);
 
   /** Draw the Shortlist from Maps none of these Entrants has Played, and record it. */
   const draw = Effect.fn("WeeklyCup.draw")(function* (
@@ -66,16 +69,26 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     return maps;
   });
 
-  /** The Shortlist's post: each Map with its Workshop picture, its vote open or `closed`. */
+  /**
+   * The Shortlist's post: each Map with its Workshop picture and its GIF's link, its vote open or
+   * `closed`; and whether a GIF is still to come. `mayAsk`: the GIFs may be asked for (the draw).
+   */
   const shortlistView = Effect.fn("WeeklyCup.shortlistView")(function* (
     week: CupWeek,
     shortlist: ReadonlyArray<CupMap>,
     closed: boolean,
+    mayAsk: boolean,
   ) {
+    const { spinOf, waiting } = yield* spins.look(week, shortlist, mayAsk);
     const maps = yield* Effect.forEach(shortlist, (map) =>
-      Effect.map(kit.previews.of(map.previewUrl), (p) => ({ map, picture: Option.getOrNull(p) })),
+      Effect.map(kit.previews.of(map.previewUrl), (p) => ({
+        map,
+        picture: Option.getOrNull(p),
+        spin: spinOf(map.pfid),
+      })),
     );
-    return { guildId, week, maps, wanted: SHORTLIST_SIZE, closed } satisfies ShortlistView;
+    const view = { guildId, week, maps, wanted: SHORTLIST_SIZE, closed } satisfies ShortlistView;
+    return { view, waiting };
   });
 
   /**
@@ -111,11 +124,27 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
         return week.nextOpensAt;
       }
     }
-    const view = yield* shortlistView(week, shortlist, false);
+    const { view, waiting } = yield* shortlistView(week, shortlist, false, true);
     const posted = yield* kit.show(week, cup, "shortlist", view, "post the Weekly Cup's Shortlist");
     if (Option.isNone(posted)) return now + RETRY_EVERY;
     yield* kit.enter(week, posted.value, "voting");
-    return week.voteClosesAt;
+    return spins.wake(now, week, waiting);
+  });
+
+  /**
+   * While voting, for the hour after the draw: edit each GIF into the Shortlist as it is drawn
+   * (the channel edits only when one came), until none is due. Returns when to look again.
+   */
+  const watchSpins = Effect.fn("WeeklyCup.watchSpins")(function* (
+    now: number,
+    week: CupWeek,
+    cup: CupRecord,
+  ) {
+    if (spins.over(now, week)) return week.voteClosesAt;
+    const shortlist = (yield* log.shortlist(guildId, week.week)).map((s) => s.map);
+    const { view, waiting } = yield* shortlistView(week, shortlist, false, false);
+    yield* kit.show(week, cup, "shortlist", view, "edit the Weekly Cup's spinning GIFs in");
+    return spins.wake(now, week, waiting);
   });
 
   /**
@@ -171,11 +200,8 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     );
     if (Option.isNone(announced)) return now + RETRY_EVERY;
     current = yield* kit.enter(week, current, "racing");
-    const closed = yield* shortlistView(
-      week,
-      shortlist.map((s) => s.map),
-      true,
-    );
+    const listed = shortlist.map((s) => s.map);
+    const { view: closed } = yield* shortlistView(week, listed, true, false);
     // Best effort, once: a Shortlist someone deleted isn't posted again just to say it closed.
     if (current.shown.shortlist.length > 0)
       yield* kit.show(
@@ -190,5 +216,5 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     return now;
   });
 
-  return { openVote, closeVote };
+  return { openVote, watchSpins, closeVote };
 };
