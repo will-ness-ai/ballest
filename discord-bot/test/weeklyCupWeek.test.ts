@@ -42,6 +42,12 @@ describe("the Weekly Cup's week", () => {
     expect(sundayNight).toEqual(monday);
   });
 
+  it("ends the week of 2 November 2026 at midnight Pacific, and the next at 20:00 again", () => {
+    // Will moved that week's end to midnight Pacific: 02:00 Monday Central, 08:00 UTC.
+    expect(weekAt(at("2026-11-08T17:00:00Z")).endsAt).toBe(at("2026-11-09T08:00:00Z"));
+    expect(weekAt(at("2026-11-12T17:00:00Z")).endsAt).toBe(at("2026-11-16T02:00:00Z"));
+  });
+
   it("finds a week again from its key", () => {
     for (const iso of ["2026-10-27T15:00:00Z", "2026-11-02T03:00:00Z", "2026-03-10T12:00:00Z"]) {
       const week = weekAt(at(iso));

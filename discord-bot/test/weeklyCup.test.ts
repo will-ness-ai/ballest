@@ -21,6 +21,7 @@ import {
 } from "../src/weeklyCup/model.js";
 import { CupLogLive } from "../src/weeklyCup/record.js";
 import { makeWeeklyCup } from "../src/weeklyCup/schedule.js";
+import { MOVED_ENDS } from "../src/weeklyCup/week.js";
 import { makeFakeSteam, makeMap } from "./harness.js";
 
 const MINUTE = 60_000;
@@ -1209,6 +1210,32 @@ describe("the Weekly Cup's racing and results", () => {
       expect(finals.map((e) => e.at)).toEqual([NEXT_MONDAY + 10 * MINUTE]);
       // And the new week's Cup goes up as well.
       expect((yield* Ref.get(t.posts)).map((p) => p.view.week.week)).toEqual([WEEK, "2026-11-02"]);
+    }),
+  );
+
+  it.scoped("races a week whose end was moved past the next Monday 00:00, then finishes it", () =>
+    Effect.gen(function* () {
+      // As Will moved the week of 2 November's end to midnight Pacific: 02:00 Monday Central.
+      MOVED_ENDS.set(WEEK, [26, 0]);
+      yield* Effect.addFinalizer(() => Effect.sync(() => MOVED_ENDS.delete(WEEK)));
+      const { t, bot, boards } = yield* racing();
+      yield* bot.stop;
+      yield* TestClock.setTime(NEXT_MONDAY - MINUTE);
+      const again = yield* t.start;
+      yield* TestClock.adjust(31 * MINUTE); // Monday 00:30 Central
+      expect(yield* Ref.get(t.results)).toEqual([]);
+      // The next week's Cup goes up on time, and the moved week still takes sign-ups and times.
+      expect((yield* Ref.get(t.posts)).map((p) => p.view.week.week)).toEqual([WEEK, "2026-11-02"]);
+      expect(yield* again.signUp("carol")).toContain("You're signed up");
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 11);
+      yield* TestClock.adjust(91 * MINUTE); // 02:01
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => [r.at, r.view.week.week])).toEqual([
+        [NEXT_MONDAY + 2 * 60 * MINUTE, WEEK],
+      ]);
+      expect(results[0]?.view.standings.maps[0]?.rows[0]).toMatchObject({ discordId: "bob" });
+      expect(yield* again.signUp("dave")).not.toContain("You're signed up");
+      yield* again.stop;
     }),
   );
 

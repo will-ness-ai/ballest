@@ -7,7 +7,7 @@ import type { CupKit } from "./kit.js";
 import { CUP_MAPS, type CupState, type SkipAsk, signUpOpen } from "./model.js";
 import type { CupRace } from "./race.js";
 import type { CupRecord } from "./record.js";
-import { type CupWeek, weekAt } from "./week.js";
+import { type CupWeek, weekOf } from "./week.js";
 
 /** The presses on one server's Cup posts, each for the week its button names. */
 export interface CupPresses {
@@ -47,10 +47,15 @@ const unix = (ms: number) => Math.floor(ms / 1000);
 export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
   const { guildId, log, locked } = kit;
 
-  /** The week a press was for, if it is still this week, with its Cup. */
+  /**
+   * The week a press was for, if it is still this week (or still racing past it, its end moved
+   * by MOVED_ENDS), with its Cup.
+   */
   const pressedFor = Effect.fn("WeeklyCup.pressedFor")(function* (pressed: string) {
-    const week = weekAt(yield* Clock.currentTimeMillis);
-    if (week.week !== pressed) return Option.none<{ week: CupWeek; cup: CupRecord }>();
+    const now = yield* Clock.currentTimeMillis;
+    const week = weekOf(pressed);
+    if (now < week.opensAt || now >= Math.max(week.nextOpensAt, week.endsAt))
+      return Option.none<{ week: CupWeek; cup: CupRecord }>();
     return Option.map(yield* log.get(guildId, pressed), (cup) => ({ week, cup }));
   });
 
