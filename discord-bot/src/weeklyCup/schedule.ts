@@ -91,7 +91,8 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       const cup = yield* log.get(guildId, earlier);
       if (Option.isNone(cup)) continue;
       const next = yield* race.finish(now, was, cup.value);
-      if (next < was.nextOpensAt) wake = Math.min(wake, next);
+      // A finished week answers its (past) nextOpensAt; a retry of its final read, a later time.
+      if (next > now) wake = Math.min(wake, next);
     }
     return wake;
   });

@@ -4,7 +4,7 @@
 // Monday 00:00     the Cup's post goes up; sign-up opens
 // Thursday 12:00   the Shortlist is drawn, or a week with fewer than 2 Entrants is cancelled
 // Friday 09:00     the vote closes; racing starts
-// Sunday 20:00     racing and sign-up end; the results
+// Sunday 20:00     racing and sign-up end; the results (MOVED_ENDS moves it for one week)
 export const CUP_TIME_ZONE = "America/Chicago";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -49,6 +49,15 @@ const central = (dayUtc: number, hours: number) => {
   return wall - offsetAt(guess);
 };
 
+/**
+ * Weeks whose racing ends at another time than Sunday 20:00, by week key: [hour, minute] on
+ * its Sunday in Central. 2026-11-02: Will moved that week's end to midnight (23:59, so the
+ * results still go up before the next week's post).
+ */
+const MOVED_ENDS: Readonly<Record<string, readonly [number, number]>> = {
+  "2026-11-02": [23, 59],
+};
+
 const isoDate = (dayUtc: number) => new Date(dayUtc).toISOString().slice(0, 10);
 
 /** The Cup week `ms` falls in: from its Monday 00:00 Central to the next. */
@@ -57,12 +66,13 @@ export const weekAt = (ms: number): CupWeek => {
   const today = wall - (wall % DAY);
   // getUTCDay: 0 is Sunday; the week starts on Monday.
   const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY;
+  const [endHour, endMinute] = MOVED_ENDS[isoDate(monday)] ?? [20, 0];
   return {
     week: isoDate(monday),
     opensAt: central(monday, 0),
     shortlistAt: central(monday + 3 * DAY, 12),
     voteClosesAt: central(monday + 4 * DAY, 9),
-    endsAt: central(monday + 6 * DAY, 20),
+    endsAt: central(monday + 6 * DAY, endHour) + endMinute * 60_000,
     nextOpensAt: central(monday + 7 * DAY, 0),
   };
 };
