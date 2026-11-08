@@ -50,13 +50,12 @@ const central = (dayUtc: number, hours: number) => {
 };
 
 /**
- * Weeks whose racing ends at another time than Sunday 20:00, by week key: [hour, minute] on
- * its Sunday in Central. 2026-11-02: Will moved that week's end to midnight (23:59, so the
- * results go up before the next week's post unless Steam is slow at the final read).
+ * Weeks whose racing ends at another time than Sunday 20:00, by week key: [hour, minute] after
+ * its Sunday's 00:00 in Central, so 26 is 02:00 on the Monday. 2026-11-02: Will moved that week's
+ * end to midnight Pacific (02:00 Monday Central), after the next week's post goes up at 00:00;
+ * the schedule races both weeks until then. Tests add to it (test/weeklyCup.test.ts).
  */
-const MOVED_ENDS: Readonly<Record<string, readonly [number, number]>> = {
-  "2026-11-02": [23, 59],
-};
+export const MOVED_ENDS = new Map<string, readonly [number, number]>([["2026-11-02", [26, 0]]]);
 
 const isoDate = (dayUtc: number) => new Date(dayUtc).toISOString().slice(0, 10);
 
@@ -66,7 +65,7 @@ export const weekAt = (ms: number): CupWeek => {
   const today = wall - (wall % DAY);
   // getUTCDay: 0 is Sunday; the week starts on Monday.
   const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY;
-  const [endHour, endMinute] = MOVED_ENDS[isoDate(monday)] ?? [20, 0];
+  const [endHour, endMinute] = MOVED_ENDS.get(isoDate(monday)) ?? [20, 0];
   return {
     week: isoDate(monday),
     opensAt: central(monday, 0),

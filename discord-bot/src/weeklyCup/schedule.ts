@@ -81,8 +81,9 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
   });
 
   /**
-   * Act at `now`, and say when to look again: act on this week, and finish any earlier week still
-   * racing (the bot was down over its close, so its results never went up).
+   * Act at `now`, and say when to look again: act on this week, and race or finish any earlier
+   * week still racing (its end was moved into this week, or the bot was down over its close, so
+   * its results never went up).
    */
   const step = Effect.fn("WeeklyCup.step")(function* (now: number) {
     let wake = yield* stepWeek(now, weekAt(now));
@@ -90,7 +91,10 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       const was = weekOf(earlier);
       const cup = yield* log.get(guildId, earlier);
       if (Option.isNone(cup)) continue;
-      const next = yield* race.finish(now, was, cup.value);
+      // A week whose end was moved past the next Monday 00:00 (MOVED_ENDS) still races.
+      const next = yield* now < was.endsAt
+        ? race.live(now, was, cup.value)
+        : race.finish(now, was, cup.value);
       // A finished week answers its (past) nextOpensAt; a retry of its final read, a later time.
       if (next > now) wake = Math.min(wake, next);
     }
