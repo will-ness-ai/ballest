@@ -52,7 +52,7 @@ const central = (dayUtc: number, hours: number) => {
 /**
  * Weeks whose racing ends at another time than Sunday 20:00, by week key: [hour, minute] on
  * its Sunday in Central. 2026-11-02: Will moved that week's end to midnight (23:59, so the
- * results still go up before the next week's post).
+ * results go up before the next week's post unless Steam is slow at the final read).
  */
 const MOVED_ENDS: Readonly<Record<string, readonly [number, number]>> = {
   "2026-11-02": [23, 59],
