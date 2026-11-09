@@ -21,7 +21,7 @@ import {
   postPast,
 } from "../src/dailyPost/schedule.js";
 import { pastDaily } from "../src/dailyPost/history.js";
-import { DailySpinsOff } from "../src/dailyPost/spin.js";
+import { MapSpinsOff } from "../src/spins.js";
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { MapPreviews, PreviewSourceLive } from "../src/previews.js";
 import { Renderer } from "../src/render/renderer.js";
@@ -97,7 +97,7 @@ program.pipe(
       MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive)),
       Renderer.Default,
       DailyPostLogLive.pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:" }))),
-      DailySpinsOff,
+      MapSpinsOff,
       Layer.succeed(
         OpsAlerts,
         OpsAlerts.make(

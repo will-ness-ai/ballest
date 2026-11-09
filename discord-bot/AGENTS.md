@@ -365,7 +365,7 @@ they clear. It is off unless all three settings are set and the bot has View Cha
 Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then
 it says why in the log and the bot runs on.
 
-The spinning 3D GIF beside the podium (`spin.ts`) is drawn in GitHub Actions, since it needs a
+The spinning 3D GIF beside the podium (`src/spins.ts`) is drawn in GitHub Actions, since it needs a
 browser with WebGL: as the card goes up, the bot starts the site repo's `daily-spin.yml` on `main`
 for the Map (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
 `will-ness-ai/ballest` only), which stores the GIF in the leaderboard
@@ -497,7 +497,7 @@ ops, and its Cup waits for the next start. Presses there reach `interactions.ts`
 The code is split by stage. `model.ts` holds the views, constants and ports (`CupChannel`,
 `CupLinks`); `record.ts` the SQLite record (`CupLog`, one migration, `0016_weekly_cup`); `kit.ts`
 what every stage shares (the lock, `attempt`, which tells ops once and retries in a minute, and
-`show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `race.ts` the reads, standings and
+`show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `spins.ts` the Shortlist's GIFs; `race.ts` the reads, standings and
 results; `presses.ts` the buttons; `slots.ts` how each view is kept on Discord; `messages.ts`
 every Cup message. The two one-shots, never retried (the call-off notice and the Shortlist's
 close), each tell ops every time under a kind of their own, so neither hides a later failure of
@@ -534,8 +534,14 @@ signed up by then has Played (their Links' Steam accounts) are found, at most 10
 It is recorded (`weekly_cup_maps`) before it is posted, so a restart or a refused post never draws
 again; a Steam failure retries the draw each minute, ops told once; fewer than 10 make a shorter
 Shortlist that says so, and none cancels the week. Its post is a Components V2 message: each Map's
-Workshop picture (`MapPreviews`, attached as a thumbnail), its name linked to its page on
-ballestrecords.com, its maker and author time, and a string select for up to 3. A vote
+spinning 3D GIF as a thumbnail, or until it has one its Workshop picture (`MapPreviews`,
+attached), its name linked to its page on ballestrecords.com, its maker and author time, and a
+string select for up to 3. The GIFs are the Daily Post's (`src/spins.ts`, below): as the Shortlist
+is drawn the bot starts `daily-spin.yml` for each Map with a file and no drawing of it (once per
+week and run; a refusal reaches ops once), posts at once, and looks every minute for the next hour
+(one `map_files`/`map_spins` read for all ten), editing each GIF in as it comes. A GIF goes by its
+link on the site (`/map/<pfid>/spin?v=<drawn at>`), not as an upload: ten of 2-5 MB are more than
+one message takes. A Map shows its latest drawing even of an older file until the new one comes. A vote
 (`weekly_cup_votes`, the latest per Entrant) is Entrants' only and changeable until Friday 09:00,
 and a pick after that is told the vote has closed. At Friday 09:00 the votes of the Entrants still
 signed up are counted, the Shortlist shuffled and sorted by votes (so a tie falls at random), and

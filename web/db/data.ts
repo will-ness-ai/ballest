@@ -162,6 +162,10 @@ export function readMapFile(pfid: string) {
   return isPfid(pfid) ? q.mapFile(db(), pfid) : Promise.resolve(null);
 }
 
+export function readMapSpin(pfid: string) {
+  return isPfid(pfid) ? q.mapSpin(db(), pfid) : Promise.resolve(null);
+}
+
 /* whether the Workshop lists any Map, for the header's tab */
 export async function hasWorkshop(): Promise<boolean> {
   "use cache: remote";

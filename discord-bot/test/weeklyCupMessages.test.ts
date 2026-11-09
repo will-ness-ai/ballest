@@ -133,7 +133,7 @@ describe("the Weekly Cup's post", () => {
     boardId: 100 + n,
     worldRecordTicks: ticks(15),
   });
-  const shortlist = (n: number, pictures = true) =>
+  const shortlist = (n: number, pictures = true, spins: ReadonlyArray<number> = []) =>
     shortlistMessage({
       guildId: cup.guildId,
       week,
@@ -142,6 +142,7 @@ describe("the Weekly Cup's post", () => {
       maps: Array.from({ length: n }, (_, i) => ({
         map: cupMap(i + 1),
         picture: pictures ? { type: "image/jpeg", body: new Uint8Array([i]) } : null,
+        spin: spins.includes(i + 1) ? `https://ballestrecords.com/map/pf${i + 1}/spin?v=17` : null,
       })),
     });
 
@@ -158,6 +159,22 @@ describe("the Weekly Cup's post", () => {
     expect(text).not.toContain("the Shortlist is shorter");
     expect((list.files ?? []).length).toBe(10);
     pingsNobody(list);
+  });
+
+  it("shows a Map's spinning 3D GIF by its link in place of its Workshop picture", () => {
+    const list = shortlist(3, true, [1, 3]);
+    const text = words(list);
+    expect(text).toContain('"url":"https://ballestrecords.com/map/pf1/spin?v=17"');
+    expect(text).toContain('"url":"https://ballestrecords.com/map/pf3/spin?v=17"');
+    expect(text).not.toContain("attachment://map-1.jpg");
+    expect(text).toContain("attachment://map-2.jpg");
+    expect((list.files ?? []).map((f) => (f as AttachmentBuilder).name)).toEqual(["map-2.jpg"]);
+  });
+
+  it("shows a Map's GIF even when Steam gave no Workshop picture", () => {
+    const text = words(shortlist(2, false, [2]));
+    expect(text).toContain("pf2/spin?v=17");
+    expect(text).not.toContain("pf1/spin");
   });
 
   it("puts a vote for up to 3 of its Maps under the Shortlist", () => {
@@ -203,7 +220,7 @@ describe("the Weekly Cup's post", () => {
       week,
       wanted: 10,
       closed: true,
-      maps: [1, 2, 3].map((n) => ({ map: cupMap(n), picture: null })),
+      maps: [1, 2, 3].map((n) => ({ map: cupMap(n), picture: null, spin: null })),
     });
     const text = words(closed);
     expect(text).toContain("Vote closed");

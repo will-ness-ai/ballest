@@ -5,6 +5,7 @@ import { Effect, Option } from "effect";
 import { OpsAlerts } from "../ops.js";
 import { Steam } from "../ports.js";
 import { MapPreviews } from "../previews.js";
+import { MapSpins } from "../spins.js";
 import { GhostDates } from "../steam/ghosts.js";
 import {
   CupChannel,
@@ -25,6 +26,7 @@ export const makeKit = Effect.fn("WeeklyCup.makeKit")(function* (guildId: string
   const steam = yield* Steam;
   const ghosts = yield* GhostDates;
   const previews = yield* MapPreviews;
+  const spins = yield* MapSpins;
   const lock = yield* Effect.makeSemaphore(1);
   /** One press or step acts on the Cup at a time. */
   const locked = lock.withPermits(1);
@@ -141,6 +143,7 @@ export const makeKit = Effect.fn("WeeklyCup.makeKit")(function* (guildId: string
     steam,
     ghosts,
     previews,
+    spins,
     locked,
     attempt,
     entrantIds,

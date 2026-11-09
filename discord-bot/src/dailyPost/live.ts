@@ -25,7 +25,7 @@ import {
   DailySteam,
   DailyThreadFailed,
 } from "./schedule.js";
-import { DailySpinsLive } from "./spin.js";
+import { MapSpinsLive } from "../spins.js";
 
 // ---------------------------------------------------------------- the Daily API
 
@@ -277,7 +277,7 @@ export const DailyPostLive = Layer.unwrapEffect(
           DailySteamLive,
           DailyChannelLive,
           DailyPostLogLive,
-          DailySpinsLive,
+          MapSpinsLive,
           OpsAlerts.Default,
         ),
       ),

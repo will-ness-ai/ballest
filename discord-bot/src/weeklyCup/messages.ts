@@ -151,8 +151,9 @@ const pictureName = (place: number, picture: Preview) =>
   `map-${place}.${picture.type === "image/png" ? "png" : picture.type === "image/gif" ? "gif" : "jpg"}`;
 
 /**
- * The Shortlist (spec #353): each Map with its Workshop picture, its name linked to its page on
- * the site, its maker and author time, and the vote under them, up to 3 picks.
+ * The Shortlist (spec #353): each Map with its spinning 3D GIF (or, until it has one, its Workshop
+ * picture), its name linked to its page on the site, its maker and author time, and the vote
+ * under them, up to 3 picks.
  */
 export const shortlistMessage = (v: ShortlistView): V2Payload => {
   const cup = { guildId: v.guildId, week: v.week.week };
@@ -172,20 +173,25 @@ export const shortlistMessage = (v: ShortlistView): V2Payload => {
     .setAccentColor(CUP_GOLD)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(intro));
   const files: Array<AttachmentBuilder> = [];
-  v.maps.forEach(({ map, picture }, i) => {
+  v.maps.forEach(({ map, picture, spin }, i) => {
     const words = new TextDisplayBuilder().setContent(
       `**${i + 1}. ${mapLink(map)}**\nby ${escape(map.creator)} · author **${formatTime(Math.round(map.authorSeconds * SCORE_TICKS_PER_SECOND))}**`,
     );
-    if (picture === null) {
+    // The spinning GIF goes by its link: ten of them are more than one message can upload.
+    let url = spin;
+    if (url === null && picture !== null) {
+      const name = pictureName(i + 1, picture);
+      files.push(new AttachmentBuilder(Buffer.from(picture.body), { name }));
+      url = `attachment://${name}`;
+    }
+    if (url === null) {
       container.addTextDisplayComponents(words);
       return;
     }
-    const name = pictureName(i + 1, picture);
-    files.push(new AttachmentBuilder(Buffer.from(picture.body), { name }));
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(words)
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(`attachment://${name}`)),
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(url)),
     );
   });
   if (!v.closed)
