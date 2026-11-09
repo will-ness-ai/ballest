@@ -24,9 +24,14 @@ export function safeNext(next: string | null | undefined): string {
 
 /* Steam's login page, coming back to `next` on the site at `origin` with `state` */
 export function loginUrl(origin: string, next: string, state: string): string {
-  const back = new URL(RETURN_PATH, origin);
-  back.searchParams.set("next", safeNext(next));
-  back.searchParams.set("state", state);
+  return loginUrlBack(origin, RETURN_PATH, { next: safeNext(next), state });
+}
+
+/* Steam's login page, coming back to `path` on the site at `origin` with `params` (which
+   carry the `state` verifyReturn checks); Steam signs the whole return address */
+export function loginUrlBack(origin: string, path: string, params: Record<string, string>) {
+  const back = new URL(path, origin);
+  for (const [k, v] of Object.entries(params)) back.searchParams.set(k, v);
   const q = new URLSearchParams({
     "openid.ns": NS,
     "openid.mode": "checkid_setup",
@@ -47,6 +52,8 @@ export async function verifyReturn(
   state: string | null,
   check: typeof fetch = fetch,
   now = Date.now(),
+  /* where Steam was told to come back to (loginUrlBack's `path`) */
+  path = RETURN_PATH,
 ): Promise<string | null> {
   const p = url.searchParams;
   /* every check reads a field's one value, and Steam is asked about that same value */
@@ -60,7 +67,7 @@ export async function verifyReturn(
   const signed = new Set((p.get("openid.signed") ?? "").split(","));
   if (!MUST_SIGN.every((f) => signed.has(f))) return null;
   const back = URL.parse(p.get("openid.return_to") ?? "");
-  if (back?.origin !== url.origin || back.pathname !== RETURN_PATH) return null;
+  if (back?.origin !== url.origin || back.pathname !== path) return null;
   if (!state || back.searchParams.get("state") !== state || p.get("state") !== state) return null;
   const at = Date.parse(
     /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.exec(p.get("openid.response_nonce") ?? "")?.[0] ?? "",

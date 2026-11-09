@@ -77,6 +77,14 @@ export const asking = (
 export async function signIn(id = ID, env: AuthEnv = ENV, next = "/board/Map_Track13") {
   const started = startSignIn(asking("/api/auth/steam?next=" + encodeURIComponent(next)));
   const state = valueOf(setCookies(started)["ballest-signin"]);
+  const returned = steamReturns(started, id);
+  const done = await finishSignIn(asking(returned, { "ballest-signin": state }), env);
+  return { started, state, returned, done, session: valueOf(setCookies(done)["ballest-session"]) };
+}
+
+/* the address Steam sends a browser back to after logging in as `id`, from the response that
+   sent it to Steam's login: its return address with a signed assertion added */
+export function steamReturns(started: Response, id = ID): string {
   const login = new URL(started.headers.get("location") ?? "");
   const back = new URL(login.searchParams.get("openid.return_to") ?? "");
   const claimed = "https://steamcommunity.com/openid/id/" + id;
@@ -93,7 +101,5 @@ export async function signIn(id = ID, env: AuthEnv = ENV, next = "/board/Map_Tra
     "openid.sig": "c2ln",
   }))
     back.searchParams.set(k, v);
-  const returned = back.pathname + back.search;
-  const done = await finishSignIn(asking(returned, { "ballest-signin": state }), env);
-  return { started, state, returned, done, session: valueOf(setCookies(done)["ballest-session"]) };
+  return back.pathname + back.search;
 }
