@@ -22,11 +22,12 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   APP_RETURN_PATH,
   appRequestOf,
+  appRequestReturned,
+  appReturnParams,
   callbackOf,
   codeFor,
   idOfTrade,
   tradeOf,
-  type AppRequest,
 } from "./app-sign-in";
 import { APP_STATE_COOKIE, HINT_COOKIE, SESSION_COOKIE, STATE_COOKIE } from "./cookies";
 import { isSteamId } from "./rules";
@@ -145,7 +146,7 @@ export function startAppSignIn(request: Request): Response {
       400,
     );
   const state = randomBytes(18).toString("base64url");
-  const to = loginUrlBack(url.origin, APP_RETURN_PATH, { ...appParams(asked), state });
+  const to = loginUrlBack(url.origin, APP_RETURN_PATH, { ...appReturnParams(asked), state });
   return new Response(null, {
     status: 302,
     headers: { location: to, "set-cookie": cookie(APP_STATE_COOKIE, state, STATE_SECONDS) },
@@ -160,18 +161,14 @@ export function startAppSignIn(request: Request): Response {
 export async function finishAppSignIn(request: Request, env: AuthEnv = {}): Promise<Response> {
   const { secret, now, steam } = envOf(env);
   const url = new URL(request.url);
-  const signed = URL.parse(url.searchParams.get("openid.return_to") ?? "");
-  /* only a return to here carries an app's request: anything else is sent nowhere */
-  const here = signed?.origin === url.origin && signed.pathname === APP_RETURN_PATH;
-  const asked = here && appRequestOf(signed.searchParams, "app_state");
+  const returned = appRequestReturned(url);
   const clear = cookie(APP_STATE_COOKIE, "", 0);
-  if (!asked) return refuse("not an app's sign-in", 400, { "set-cookie": clear });
+  if (!returned) return refuse("not an app's sign-in", 400, { "set-cookie": clear });
+  const { asked, intact } = returned;
   const state = cookieOf(request, APP_STATE_COOKIE);
   const id = await verifyReturn(url, state, steam, now, APP_RETURN_PATH);
-  /* the app's values must be the ones Steam signed, not ones added beside them */
-  const same = Object.entries(appParams(asked)).every(([k, v]) => url.searchParams.get(k) === v);
   const answer: Record<string, string> =
-    id && same && usable(secret)
+    id && intact && usable(secret)
       ? { code: codeFor(id, asked.challenge, secret, now), state: asked.state }
       : { error: "access_denied", state: asked.state };
   return new Response(null, {
@@ -205,13 +202,6 @@ export async function signInFromApp(request: Request, env: AuthEnv = {}): Promis
     { headers: NO_STORE },
   );
 }
-
-/* the app's request as query parameters, for Steam's return address */
-const appParams = (a: AppRequest) => ({
-  redirect_uri: a.redirect,
-  app_state: a.state,
-  code_challenge: a.challenge,
-});
 
 /* whether another site sent this request, by what the browser says of where it came from */
 export function isCrossSite(request: Request): boolean {

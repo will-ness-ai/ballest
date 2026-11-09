@@ -29,9 +29,32 @@ const VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
 /* the app's request in `params`, or null for anything that doesn't check: a callback that
    isn't plain http on the loopback address (RFC 8252: 127.0.0.1 or [::1], any port and path,
    no user or fragment), a state that isn't 1-200 URL-safe characters, a challenge that isn't
-   a SHA-256, a method other than S256, or any of them given twice. The state is read from
-   `stateKey`: Steam's return address carries the app's as app_state, beside the site's own */
-export function appRequestOf(params: URLSearchParams, stateKey = "state"): AppRequest | null {
+   a SHA-256, a method other than S256, or any of them given twice */
+export function appRequestOf(params: URLSearchParams): AppRequest | null {
+  return requestIn(params, "state");
+}
+
+/* the app's request as Steam's return address carries it: its state as app_state, beside the
+   site's own */
+export function appReturnParams(a: AppRequest): Record<string, string> {
+  return { redirect_uri: a.redirect, app_state: a.state, code_challenge: a.challenge };
+}
+
+/* the app's request a return from Steam carries, read from the return address Steam signed,
+   or null when that address isn't this site's APP_RETURN_PATH (so nothing else is ever
+   redirected to); `intact` says whether the values beside it are the same, not ones swapped in */
+export function appRequestReturned(url: URL): { asked: AppRequest; intact: boolean } | null {
+  const signed = URL.parse(url.searchParams.get("openid.return_to") ?? "");
+  if (signed?.origin !== url.origin || signed.pathname !== APP_RETURN_PATH) return null;
+  const asked = requestIn(signed.searchParams, "app_state");
+  if (!asked) return null;
+  const intact = Object.entries(appReturnParams(asked)).every(
+    ([k, v]) => url.searchParams.getAll(k).length === 1 && url.searchParams.get(k) === v,
+  );
+  return { asked, intact };
+}
+
+function requestIn(params: URLSearchParams, stateKey: string): AppRequest | null {
   const one = (k: string) => (params.getAll(k).length === 1 ? params.get(k) : null);
   const method = params.getAll("code_challenge_method");
   if (method.length > 1 || (method.length === 1 && method[0] !== "S256")) return null;
