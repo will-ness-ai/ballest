@@ -13,6 +13,9 @@ import {
   type PrefabFile,
 } from "../lib/prefab";
 import { MAX_BYTES, checkPrefab, fileNameOf } from "../lib/prefab-check";
+import { MESHES, PIECE_MESHES } from "../lib/prefab-meshes";
+import { PIECES } from "../lib/prefab-pieces";
+import { PROFILES } from "../lib/prefab-profiles";
 import { DEFAULT_ANGLE, PAN_MAX, ZOOM_RANGE, checkAngle, galleryOf } from "../lib/prefabs";
 
 const sample = (name: string) =>
@@ -295,6 +298,160 @@ describe("the upload check", () => {
     expect(problems(withFile({ items: [one, thumb] }))).toEqual([
       "Pieces the editor doesn't have: RubberBlock.",
     ]);
+  });
+
+  /* a sphere from the Shapes menu as the editor saves it (from a player's prefab, 2026-11-02),
+     one of the pieces the 2026-11-01 game update added */
+  const SPHERE = {
+    class:
+      "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/GlossyRed/BP_GlossyRed_WholeSphere.BP_GlossyRed_WholeSphere_C",
+    transform: { location: [-326.5, 0, -621.69], rotation: [0, 0, 0], scale: [1.2, 1.2, 1.2] },
+    properties: { bMirror: false, bMirrorX: false, SurfaceAssignment: 0 },
+    meshes: [
+      {
+        tag: "SKGMapEditor",
+        mesh: "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/GlossyRed/Meshes/SM_GlossyRed_WholeSphere.SM_GlossyRed_WholeSphere",
+        materials: [
+          "/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Glossy_Red.MI_Env_Glossy_Red",
+        ],
+      },
+    ],
+    paint: { categories: [null], colors: [1] },
+  };
+
+  test("the 2026-11-01 update's sphere passes, and is drawn as a red sphere 12 m across", () => {
+    const one = (JSON.parse(sample("bench")) as PrefabFile).items[0];
+    expect(checkPrefab(withFile({ items: [one, SPHERE, SPHERE] }))).toEqual({
+      ok: true,
+      pieces: 3,
+    });
+    const [shape] = shapesOf({ ...cubes(), items: [SPHERE] as unknown as PrefabFile["items"] });
+    expect(shape.kind).toBe("sphere");
+    expect(shape.colour).toBe("#d8433a");
+    near(footprintOf([shape]), [12, 12, 12]);
+  });
+
+  /* every solid piece the editor's menus gained in the 2026-10-31 and 2026-11-01 updates, by the
+     class it saves (scripts/prefab-pieces.ts) */
+  const ADDED = [
+    "BP_Elevator",
+    "BP_GlossyRed_Capsule",
+    "BP_GlossyRed_Capsule_FlatBottom",
+    "BP_GlossyRed_EighthSphere",
+    "BP_GlossyRed_HalfCapsule",
+    "BP_GlossyRed_HalfCapsule_FlatBottom",
+    "BP_GlossyRed_HalfSphere",
+    "BP_GlossyRed_Half_TubeLong_Bend_45",
+    "BP_GlossyRed_Half_TubeLong_Bend_90",
+    "BP_GlossyRed_Half_TubeLong_Curve_25",
+    "BP_GlossyRed_Half_TubeLong_Curve_45",
+    "BP_GlossyRed_Half_TubeLong_Curve_90",
+    "BP_GlossyRed_Half_TubeLong_Straight",
+    "BP_GlossyRed_Half_TubeLong_Straight_Bend_25",
+    "BP_GlossyRed_QuarterCapsule",
+    "BP_GlossyRed_QuarterCapsule_FlatBottom",
+    "BP_GlossyRed_QuarterSphere",
+    "BP_GlossyRed_TubeLong_Bend_25",
+    "BP_GlossyRed_TubeLong_Bend_45",
+    "BP_GlossyRed_TubeLong_Bend_90",
+    "BP_GlossyRed_TubeLong_Curve_25",
+    "BP_GlossyRed_TubeLong_Curve_90",
+    "BP_GlossyRed_TubeLong_Straight",
+    "BP_GlossyRed_TubeLong_Straight_Curve_45",
+    "BP_GlossyRed_Tube_Bend_25",
+    "BP_GlossyRed_Tube_Bend_45",
+    "BP_GlossyRed_Tube_Bend_90",
+    "BP_GlossyRed_Tube_Funnel",
+    "BP_GlossyRed_Tube_Straight",
+    "BP_GlossyRed_WholeSphere",
+    "BP_PhysicsPaddle",
+    "BP_SpinningCylinder",
+    "MP_ActualCheckpoint_Disc",
+    "MP_LaserTerminal",
+  ];
+  /* and the lights and the decal they gained, which a player never sees as a solid */
+  const UNDRAWN = [
+    "BP_UGCCircuitDecal",
+    "MP_LightCard_01",
+    "MP_LightCard_02",
+    "MP_LightCard_03",
+    "MP_LightCard_04",
+    "MP_RawPointLight",
+    "MP_RawRectLight",
+    "MP_RawSpotLight",
+  ];
+
+  test("every piece the updates added passes, each drawn as its own mesh's stand-in", () => {
+    const items = ADDED.map((piece) => ({
+      ...SPHERE,
+      class: `/Game/LevelEditor/${piece}.${piece}_C`,
+      meshes: [{ ...SPHERE.meshes[0], mesh: `/Game/Meshes/X.${String(PIECE_MESHES[piece])}` }],
+    }));
+    expect(checkPrefab(withFile({ items }))).toEqual({ ok: true, pieces: ADDED.length });
+    for (const piece of ADDED) expect(MESHES[PIECE_MESHES[piece] ?? ""], piece).toBeDefined();
+    const shapes = shapesOf({ ...cubes(), items: items as unknown as PrefabFile["items"] });
+    expect(shapes.every((s) => s.size.every((v) => v > 0))).toBe(true);
+  });
+
+  test("the lights and the decal pass, and aren't drawn, whatever mesh their file names", () => {
+    /* a raw light's file names the editor's bulb, a light card its beam: neither is drawn */
+    const items = UNDRAWN.flatMap((piece) => [
+      { ...SPHERE, class: `/Game/LevelEditor/${piece}.${piece}_C`, meshes: [] },
+      {
+        ...SPHERE,
+        class: `/Game/LevelEditor/${piece}.${piece}_C`,
+        meshes: [{ ...SPHERE.meshes[0], mesh: "/Engine/BasicShapes/Sphere.Sphere" }],
+      },
+    ]);
+    expect(checkPrefab(withFile({ items }))).toEqual({ ok: true, pieces: items.length });
+    const file = { ...cubes(), items: items as unknown as PrefabFile["items"] };
+    expect(shapesOf(file)).toEqual([]);
+    expect(footprintOf(shapesOf(file))).toEqual({ w: 0, d: 0, h: 0 });
+    /* beside a solid one, only the solid one is drawn */
+    const withSphere = {
+      ...file,
+      items: [...file.items, SPHERE] as unknown as PrefabFile["items"],
+    };
+    expect(shapesOf(withSphere).map((s) => s.piece)).toEqual(["BP_GlossyRed_WholeSphere"]);
+  });
+
+  test("a piece whose file names no mesh the table knows is drawn from its own (PIECE_MESHES)", () => {
+    /* Pipe Half1 and Ramp Curve1 are drawn from their own meshes since 2026-11-02, not SM_1000's */
+    for (const [piece, mesh] of [
+      ["BP_Pipe_Half1", "SM_1000_180"],
+      ["BP_Ramp_Curve1", "SM_1000_45"],
+    ] as const) {
+      expect(PIECE_MESHES[piece]).toBe(mesh);
+      const [shape] = shapesOf({
+        ...cubes(),
+        items: [
+          {
+            ...SPHERE,
+            class: `/Game/X/${piece}.${piece}_C`,
+            transform: { ...SPHERE.transform, scale: [1, 1, 1] },
+            meshes: [],
+          },
+        ] as unknown as PrefabFile["items"],
+      });
+      const bounds = MESHES[mesh];
+      expect(shape.profile, piece).toBe(PROFILES[mesh]);
+      near({ w: shape.size[0], d: shape.size[2], h: shape.size[1] }, [
+        ((bounds?.max[0] ?? 0) - (bounds?.min[0] ?? 0)) / 100,
+        ((bounds?.max[1] ?? 0) - (bounds?.min[1] ?? 0)) / 100,
+        ((bounds?.max[2] ?? 0) - (bounds?.min[2] ?? 0)) / 100,
+      ]);
+    }
+  });
+
+  test("every piece's mesh has a stand-in, and every drawn piece is one the editor offers", () => {
+    const missing = Object.entries(PIECE_MESHES).filter(([, mesh]) => !MESHES[mesh ?? ""]);
+    expect(missing).toEqual([]);
+    expect(Object.keys(PIECE_MESHES).filter((piece) => !PIECES.includes(piece))).toEqual([]);
+    for (const piece of UNDRAWN) expect(PIECES, piece).toContain(piece);
+  });
+
+  test("a piece that left the menus still passes, so an older Prefab does", () => {
+    expect(PIECES).toContain("BP_Prim_Sphere");
   });
 
   test("a file over 4 MB is refused before it is read", () => {
