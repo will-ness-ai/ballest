@@ -7,3 +7,6 @@ export const SESSION_COOKIE = "ballest-session";
 export const HINT_COOKIE = "ballest-in";
 /* httpOnly, for ten minutes: ties Steam's answer to the browser that went to sign in */
 export const STATE_COOKIE = "ballest-signin";
+/* the same for a desktop app's sign-in through the browser (ADR 0017), apart so that one
+   started in another tab doesn't spend the other's */
+export const APP_STATE_COOKIE = "ballest-signin-app";

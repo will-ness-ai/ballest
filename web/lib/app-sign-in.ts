@@ -74,15 +74,35 @@ export function codeFor(id: string, challenge: string, secret: string, now: numb
   return `${body}.${mac(body, secret)}`;
 }
 
-/* the Steam ID a code was made for, or null when it is altered, run out, from the future, or
-   `verifier` isn't the secret behind its challenge */
-export function idOfCode(code: unknown, verifier: unknown, secret: string, now: number) {
+/* a trade the app sent, when it is shaped like one: a code's four parts and an RFC 7636
+   verifier. Only then is it counted against the sign-in limit and checked */
+export interface Trade {
+  id: string;
+  issued: string;
+  challenge: string;
+  sig: string;
+  verifier: string;
+}
+export function tradeOf(sent: unknown): Trade | null {
+  if (typeof sent !== "object" || sent === null) return null;
+  const { code, code_verifier: verifier } = sent as { code?: unknown; code_verifier?: unknown };
   if (typeof code !== "string" || typeof verifier !== "string" || !VERIFIER.test(verifier))
     return null;
   const parts = code.split(".");
   if (parts.length !== 4) return null;
   const [id, issued, challenge, sig] = parts;
-  if (!isSteamId(id) || !/^\d{1,12}$/.test(issued) || !CHALLENGE.test(challenge)) return null;
+  if (!isSteamId(id) || !/^\d{1,12}$/.test(issued) || !CHALLENGE.test(challenge) || !sig)
+    return null;
+  return { id, issued, challenge, sig, verifier };
+}
+
+/* the Steam ID a trade's code was made for, or null when it is altered, run out, from the
+   future, or its verifier isn't the secret behind its challenge */
+export function idOfTrade(
+  { id, issued, challenge, sig, verifier }: Trade,
+  secret: string,
+  now: number,
+): string | null {
   const want = Buffer.from(mac(`${id}.${issued}.${challenge}`, secret));
   const got = Buffer.from(sig);
   if (want.length !== got.length || !timingSafeEqual(want, got)) return null;

@@ -12,8 +12,8 @@ with PKCE, RFC 7636). It opens `GET /api/auth/app?redirect_uri=&state=&code_chal
 the player's browser, with a `redirect_uri` on the loopback address (`http://127.0.0.1` or
 `http://[::1]`, any port and path), a `state` of its own and the SHA-256 of a secret it keeps
 (`code_challenge_method=S256`, the only method). The site sends the browser through Steam's
-login as it does for the site itself (ADR 0008), coming back to `/api/auth/app/return`, and
-from there to the app's `redirect_uri` with `code` and the app's `state`, or with
+login as it does for the site itself (ADR 0008), with a state cookie of its own, coming back
+to `/api/auth/app/return`, and from there to the app's `redirect_uri` with `code` and the app's `state`, or with
 `error=access_denied` when the login didn't go through. The app posts the code and its secret
 to `POST /api/auth/app/token` and gets `{ id, token, expiresIn }`: an app token, which the
 Prefab API's player routes take as `Authorization: Bearer` exactly like the game's token
@@ -30,8 +30,14 @@ Prefab API's player routes take as `Authorization: Bearer` exactly like the game
 - **The app token is its own kind** (`id.issued.app`), never passed as the game's or the
   browser's, and lives 30 days: the game signs in again silently each start, but an app's
   sign-in is a trip through the browser.
+- **S256 is the default method.** RFC 7636 reads a missing `code_challenge_method` as `plain`,
+  but nothing else is taken, so a request without one is read as S256: a plain challenge
+  could never match a verifier's hash anyway.
+- **Its own state cookie** (`ballest-signin-app`), so a sign-in to the site in another tab
+  doesn't spend the app's, and the other way round.
 - **The trade counts against the game's sign-in limit** (30 an hour per address, 2,000 in all,
-  `db/game-sign-in.ts`), so a loop of codes can't spend more than tickets can.
+  `db/game-sign-in.ts`), so a loop of codes can't spend more than tickets can. As with tickets,
+  only a trade shaped like one is counted, and the count comes before the code is checked.
 
 ## Considered Options
 

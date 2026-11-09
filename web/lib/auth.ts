@@ -24,10 +24,11 @@ import {
   appRequestOf,
   callbackOf,
   codeFor,
-  idOfCode,
+  idOfTrade,
+  tradeOf,
   type AppRequest,
 } from "./app-sign-in";
-import { HINT_COOKIE, SESSION_COOKIE, STATE_COOKIE } from "./cookies";
+import { APP_STATE_COOKIE, HINT_COOKIE, SESSION_COOKIE, STATE_COOKIE } from "./cookies";
 import { isSteamId } from "./rules";
 import { loginUrl, loginUrlBack, safeNext, verifyReturn } from "./steam-openid";
 import { isTicket, verifyTicket } from "./steam-ticket";
@@ -40,6 +41,10 @@ export const GAME_SESSION_SECONDS = DAY_SECONDS;
 /* an app's sign-in is a trip through the browser, so it lasts a month (ADR 0017) */
 export const APP_SESSION_SECONDS = 30 * DAY_SECONDS;
 const STATE_SECONDS = 600;
+/* every sign-in answer is the reader's alone */
+const NO_STORE = { "cache-control": "private, no-store" };
+const refuse = (error: string, status: number, headers: Record<string, string> = {}) =>
+  Response.json({ error }, { status, headers: { ...NO_STORE, ...headers } });
 
 /* a browser's cookie, the game's bearer token (ADR 0016), or an app's (ADR 0017) */
 type SessionKind = "browser" | "game" | "app";
@@ -104,50 +109,46 @@ export function signOut(request: Request): Response {
    isn't a ticket, past the address's hourly limit (before Steam is asked), or for a ticket
    Steam doesn't accept */
 export async function signInFromGame(request: Request, env: AuthEnv = {}): Promise<Response> {
-  const no = (error: string, status: number) =>
-    Response.json({ error }, { status, headers: { "cache-control": "private, no-store" } });
-  if (isCrossSite(request)) return no("cross-site", 403);
+  if (isCrossSite(request)) return refuse("cross-site", 403);
   const { secret, now, steam, steamKey } = envOf(env);
-  if (!usable(secret) || !steamKey?.trim()) return no("sign-in from the game isn't set up", 503);
+  if (!usable(secret) || !steamKey?.trim())
+    return refuse("sign-in from the game isn't set up", 503);
   const sent: unknown = await request.json().catch(() => null);
   const ticket =
     typeof sent === "object" && sent !== null ? (sent as { ticket?: unknown }).ticket : null;
-  if (!isTicket(ticket)) return no("that isn't a Steam ticket", 400);
+  if (!isTicket(ticket)) return refuse("that isn't a Steam ticket", 400);
   if (env.allowGameSignIn && !(await env.allowGameSignIn(request)))
-    return no("too many sign-ins from here; try again later", 429);
+    return refuse("too many sign-ins from here; try again later", 429);
   const checked = await verifyTicket(ticket, steamKey.trim(), steam);
-  if (!checked.ok) return no(checked.error, checked.status);
+  if (!checked.ok) return refuse(checked.error, checked.status);
   return Response.json(
     {
       id: checked.id,
       token: sign(checked.id, secret, now, "game"),
       expiresIn: GAME_SESSION_SECONDS,
     },
-    { headers: { "cache-control": "private, no-store" } },
+    { headers: NO_STORE },
   );
 }
 
 /* GET /api/auth/app?redirect_uri=&state=&code_challenge=: a desktop app's player off to
    Steam's login, coming back through /api/auth/app/return with the app's request, and the
-   same ten-minute state cookie as the site's sign-in for this browser. A request that doesn't
+   a ten-minute state cookie of its own for this browser. A request that doesn't
    check (lib/app-sign-in.ts appRequestOf) answers 400 and never sends the browser anywhere */
 export function startAppSignIn(request: Request): Response {
   const url = new URL(request.url);
   const asked = appRequestOf(url.searchParams);
   if (!asked)
-    return Response.json(
-      {
-        error:
-          "redirect_uri is http://127.0.0.1 or http://[::1], state 1-200 URL-safe characters, " +
-          "code_challenge a SHA-256 in base64url (S256)",
-      },
-      { status: 400, headers: { "cache-control": "private, no-store" } },
+    return refuse(
+      "redirect_uri is http://127.0.0.1 or http://[::1], state 1-200 URL-safe characters, " +
+        "code_challenge a SHA-256 in base64url (S256)",
+      400,
     );
   const state = randomBytes(18).toString("base64url");
   const to = loginUrlBack(url.origin, APP_RETURN_PATH, { ...appParams(asked), state });
   return new Response(null, {
     status: 302,
-    headers: { location: to, "set-cookie": cookie(STATE_COOKIE, state, STATE_SECONDS) },
+    headers: { location: to, "set-cookie": cookie(APP_STATE_COOKIE, state, STATE_SECONDS) },
   });
 }
 
@@ -160,14 +161,13 @@ export async function finishAppSignIn(request: Request, env: AuthEnv = {}): Prom
   const { secret, now, steam } = envOf(env);
   const url = new URL(request.url);
   const signed = URL.parse(url.searchParams.get("openid.return_to") ?? "");
-  const asked = signed && appRequestOf(signed.searchParams, "app_state");
-  const clear = cookie(STATE_COOKIE, "", 0);
-  if (!asked)
-    return Response.json(
-      { error: "not an app's sign-in" },
-      { status: 400, headers: { "set-cookie": clear, "cache-control": "private, no-store" } },
-    );
-  const id = await verifyReturn(url, cookieOf(request, STATE_COOKIE), steam, now, APP_RETURN_PATH);
+  /* only a return to here carries an app's request: anything else is sent nowhere */
+  const here = signed?.origin === url.origin && signed.pathname === APP_RETURN_PATH;
+  const asked = here && appRequestOf(signed.searchParams, "app_state");
+  const clear = cookie(APP_STATE_COOKIE, "", 0);
+  if (!asked) return refuse("not an app's sign-in", 400, { "set-cookie": clear });
+  const state = cookieOf(request, APP_STATE_COOKIE);
+  const id = await verifyReturn(url, state, steam, now, APP_RETURN_PATH);
   /* the app's values must be the ones Steam signed, not ones added beside them */
   const same = Object.entries(appParams(asked)).every(([k, v]) => url.searchParams.get(k) === v);
   const answer: Record<string, string> =
@@ -177,9 +177,9 @@ export async function finishAppSignIn(request: Request, env: AuthEnv = {}): Prom
   return new Response(null, {
     status: 303,
     headers: {
+      ...NO_STORE,
       location: callbackOf(asked.redirect, answer),
       "set-cookie": clear,
-      "cache-control": "private, no-store",
     },
   });
 }
@@ -187,25 +187,22 @@ export async function finishAppSignIn(request: Request, env: AuthEnv = {}): Prom
 /* POST /api/auth/app/token with { code, code_verifier }: the app trades the code its browser
    brought back, with the secret behind its challenge, for { id, token, expiresIn }: an app
    token to send as `Authorization: Bearer`, good for `expiresIn` seconds. No cookie is set.
-   Refused from another site, with no secret configured, for a body that isn't JSON, past the
-   address's hourly sign-in limit (the game's), or for a code that is altered, run out or not
-   this verifier's */
+   Refused from another site, with no secret configured, for a body not shaped like a trade
+   (counting nothing), past the address's hourly sign-in limit (the game's), or for a code that
+   is altered, run out or not this verifier's */
 export async function signInFromApp(request: Request, env: AuthEnv = {}): Promise<Response> {
-  const no = (error: string, status: number) =>
-    Response.json({ error }, { status, headers: { "cache-control": "private, no-store" } });
-  if (isCrossSite(request)) return no("cross-site", 403);
+  if (isCrossSite(request)) return refuse("cross-site", 403);
   const { secret, now } = envOf(env);
-  if (!usable(secret)) return no("sign-in from an app isn't set up", 503);
-  const sent: unknown = await request.json().catch(() => null);
-  if (typeof sent !== "object" || sent === null) return no("send { code, code_verifier }", 400);
+  if (!usable(secret)) return refuse("sign-in from an app isn't set up", 503);
+  const trade = tradeOf(await request.json().catch(() => null));
+  if (!trade) return refuse("send { code, code_verifier } as the sign-in gave them", 400);
   if (env.allowGameSignIn && !(await env.allowGameSignIn(request)))
-    return no("too many sign-ins from here; try again later", 429);
-  const { code, code_verifier } = sent as { code?: unknown; code_verifier?: unknown };
-  const id = idOfCode(code, code_verifier, secret, now);
-  if (!id) return no("invalid_grant", 400);
+    return refuse("too many sign-ins from here; try again later", 429);
+  const id = idOfTrade(trade, secret, now);
+  if (!id) return refuse("invalid_grant", 400);
   return Response.json(
     { id, token: sign(id, secret, now, "app"), expiresIn: APP_SESSION_SECONDS },
-    { headers: { "cache-control": "private, no-store" } },
+    { headers: NO_STORE },
   );
 }
 
@@ -258,7 +255,7 @@ export function whoIs(request: Request, env: AuthEnv = {}): Response {
   const { secret, now } = envOf(env);
   const token = cookieOf(request, SESSION_COOKIE);
   const id = verify(token, secret, now, "browser");
-  const headers = new Headers({ "cache-control": "private, no-store" });
+  const headers = new Headers(NO_STORE);
   if (token && !id && usable(secret))
     for (const c of sessionCookies(null)) headers.append("set-cookie", c);
   return Response.json({ id }, { headers });

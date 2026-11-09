@@ -44,7 +44,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
     `steam-openid.ts` (Steam's login and its check), `app-sign-in.ts` (a desktop app's
     request and code, ADR 0017) and `cookies.ts` (the cookie names the
-    browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
+    browser also reads). Not pure like the rest: it and `app-sign-in.ts` sign with
+    `node:crypto`, and it asks Steam.
 - `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), a
   read made once per page and shared (`read.ts`), who is signed in (`me.ts`, reading
   `/api/me`), and You on one board (`you.ts`).

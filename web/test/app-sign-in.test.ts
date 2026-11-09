@@ -39,9 +39,9 @@ const STARTED = { redirect_uri: CALLBACK, state: "abc123", code_challenge: CHALL
 /* the browser's round trip: start, Steam's login as `id`, and back to the app's callback */
 async function browserTrip(params = STARTED, env: AuthEnv = ENV, id = ID) {
   const started = startAppSignIn(asking(startUrl(params)));
-  const state = valueOf(setCookies(started)["ballest-signin"]);
+  const state = valueOf(setCookies(started)["ballest-signin-app"]);
   const back = await finishAppSignIn(
-    asking(steamReturns(started, id), { "ballest-signin": state }),
+    asking(steamReturns(started, id), { "ballest-signin-app": state }),
     env,
   );
   return { started, back, to: new URL(back.headers.get("location") ?? "") };
@@ -66,7 +66,7 @@ test("a login Steam confirms comes back to the app with a code it trades for an 
   const code = to.searchParams.get("code") ?? "";
   expect(code).not.toBe("");
   // the browser isn't signed in to the site by it
-  expect(Object.keys(setCookies(back))).toEqual(["ballest-signin"]);
+  expect(Object.keys(setCookies(back))).toEqual(["ballest-signin-app"]);
 
   const r = await signInFromApp(tradeIn({ code, code_verifier: VERIFIER }), ENV);
   expect(r.status).toBe(200);
@@ -131,7 +131,7 @@ test("a login Steam doesn't confirm, or another browser's, comes back to the app
 
   const started = startAppSignIn(asking(startUrl(STARTED)));
   const other = await finishAppSignIn(
-    asking(steamReturns(started), { "ballest-signin": "another-browser" }),
+    asking(steamReturns(started), { "ballest-signin-app": "another-browser" }),
     ENV,
   );
   expect(new URL(other.headers.get("location") ?? "").searchParams.get("error")).toBe(
@@ -141,12 +141,12 @@ test("a login Steam doesn't confirm, or another browser's, comes back to the app
 
 test("a return whose app request Steam didn't sign never redirects", async () => {
   const started = startAppSignIn(asking(startUrl(STARTED)));
-  const state = valueOf(setCookies(started)["ballest-signin"]);
+  const state = valueOf(setCookies(started)["ballest-signin-app"]);
   // the callback swapped beside Steam's signed return address
   const swapped = new URL(SITE + steamReturns(started));
   swapped.searchParams.set("redirect_uri", "http://127.0.0.1:9/elsewhere");
   const r = await finishAppSignIn(
-    asking(swapped.pathname + swapped.search, { "ballest-signin": state }),
+    asking(swapped.pathname + swapped.search, { "ballest-signin-app": state }),
     ENV,
   );
   expect(new URL(r.headers.get("location") ?? "").searchParams.get("error")).toBe("access_denied");
@@ -168,15 +168,15 @@ test("a code is worth nothing without the app's secret, altered, or after two mi
   const wrong = "x".repeat(43);
   for (const body of [
     { code, code_verifier: wrong },
-    { code },
     { code: code.replace(/^7/, "8"), code_verifier: VERIFIER },
     { code: code.slice(0, -2) + "AA", code_verifier: VERIFIER },
-    { code: "", code_verifier: VERIFIER },
   ]) {
     const r = await trade(body);
     expect(r.status).toBe(400);
     expect(await r.json()).toEqual({ error: "invalid_grant" });
   }
+  for (const body of [{ code }, { code: "", code_verifier: VERIFIER }])
+    expect((await trade(body)).status).toBe(400);
   expect((await trade("not json")).status).toBe(400);
   expect(
     (await trade({ code, code_verifier: VERIFIER }, { ...ENV, now: NOW + 119_000 })).status,
@@ -226,4 +226,53 @@ test("an app token lasts 30 days on the Prefab API and never passes as the game'
   ).toBeNull();
   // nor is a code a token
   expect(prefabSessionOf(withBearer(code), ENV)).toBeNull();
+});
+
+test("the limit is spent only by a trade shaped like one, and answers before the code is checked", async () => {
+  const code = await codeOf();
+  let counted = 0;
+  const refusing: AuthEnv = {
+    ...ENV,
+    allowGameSignIn: () => (counted++, Promise.resolve(false)),
+  };
+  // not shaped like a trade: a plain 400, nothing counted
+  for (const body of [
+    {},
+    { code },
+    { code: "a.b", code_verifier: VERIFIER },
+    { code, code_verifier: "x" },
+  ]) {
+    const r = await signInFromApp(tradeIn(body), refusing);
+    expect(r.status).toBe(400);
+    expect(await r.json()).not.toEqual({ error: "invalid_grant" });
+  }
+  expect(counted).toBe(0);
+  // shaped, with the wrong secret: the limit answers first
+  const r = await signInFromApp(tradeIn({ code, code_verifier: "y".repeat(43) }), refusing);
+  expect(r.status).toBe(429);
+  expect(counted).toBe(1);
+});
+
+test("a return Steam was never told to come back to sends the browser nowhere", async () => {
+  // a return address for another path or site, carrying an app request
+  const started = startAppSignIn(asking(startUrl(STARTED)));
+  const state = valueOf(setCookies(started)["ballest-signin-app"]);
+  for (const from of ["https://evil.example", SITE + "/api/auth/steam/return"]) {
+    const back = new URL(SITE + steamReturns(started));
+    const forged = new URL(back.searchParams.get("openid.return_to") ?? "");
+    const other = new URL(from.startsWith("https://evil") ? from + forged.pathname : from);
+    other.search = forged.search;
+    back.searchParams.set("openid.return_to", other.toString());
+    const r = await finishAppSignIn(
+      asking(back.pathname + back.search, { "ballest-signin-app": state }),
+      ENV,
+    );
+    expect(r.status, from).toBe(400);
+    expect(r.headers.get("location")).toBeNull();
+  }
+});
+
+test("an app's sign-in keeps its own state, so the site's own sign-in in another tab doesn't spoil it", () => {
+  const started = startAppSignIn(asking(startUrl(STARTED)));
+  expect(Object.keys(setCookies(started))).toEqual(["ballest-signin-app"]);
 });
