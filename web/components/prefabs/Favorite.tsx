@@ -1,16 +1,16 @@
 "use client";
 // The heart on a Prefab's page: how many players favorited it, and for the signed-in
 // reader whether they have, toggled with one press. Signed out, a press says to sign in.
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Heart } from "./Heart";
 import { useSession } from "../../hooks/me";
 import { prefabFavoriteHref, signInHref } from "../../lib/routes";
+import { usePagePath } from "../../hooks/client";
 
 export function Favorite({ slug, favorites }: { slug: string; favorites: number }) {
   const me = useSession();
-  const path = usePathname();
+  const path = usePagePath();
   const [state, setState] = useState({ on: false, favorites });
   const [busy, setBusy] = useState(false);
   const [askSignIn, setAskSignIn] = useState(false);

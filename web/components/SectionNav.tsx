@@ -4,14 +4,14 @@
 // model's (lib/nav.ts), read from the path, so every page's frame can share them. Following
 // one forgets where the breadcrumbs lead back to (Trail.tsx).
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { forgetTrails } from "./Trail";
 import { navOf, type Nav, type NavFacts, type SectionKey } from "../lib/nav";
+import { usePagePath } from "../hooks/client";
 
 export function SectionNav({ facts }: { facts: NavFacts }) {
-  return <SectionRows nav={navOf(usePathname(), facts)} />;
+  return <SectionRows nav={navOf(usePagePath(), facts)} />;
 }
 
 /* the Sections with none lit, while the path is not known yet: the sub-tabs' row keeps

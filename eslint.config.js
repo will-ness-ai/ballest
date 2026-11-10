@@ -123,6 +123,25 @@ export default defineConfig(
     },
   },
   {
+    // the server reads the homepage as /index on Vercel, so the path comes through
+    // usePagePath (hooks/client.ts), the same on the server as in the browser
+    files: ["web/app/**", "web/components/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/navigation",
+              importNames: ["usePathname"],
+              message: "Use usePagePath from hooks/client.ts: the server sees / as /index.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // a test renders client code in the browser (happy-dom), never as a server component
     files: ["web/test/**"],
     rules: { "site/no-client-values": "off" },
