@@ -40,7 +40,7 @@ export const homeHref = () => "/";
    server as /index, so a server render reading usePathname() would draw another page's
    header, and the browser's / would not hydrate onto it (React #418). usePagePath
    (hooks/client.ts) reads it through this */
-export const pagePath = (path: string) => (path === "/index" ? homeHref() : path);
+export const pagePath = (path: string) => (/^\/index\/?$/.test(path) ? homeHref() : path);
 
 export const playerHref = (id: string, tab?: string | null) =>
   isSteamId(id) ? "/player/" + id + (tab ? "/" + tab : "") : "/";

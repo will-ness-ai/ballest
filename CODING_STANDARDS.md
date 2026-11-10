@@ -18,6 +18,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
   `web/test/`. A component is a client component only where it needs state, an effect, a
   browser API or an event handler; a server component imports no value from a client
   module.
+- A client component reads its path through `usePagePath` (`hooks/client.ts`), never
+  `usePathname`: the server sees the homepage as `/index` on Vercel, and a header drawn
+  from that fails hydration.
 - Anything that can be told from the path alone (a board name, a tab, a Steam ID's shape)
   answers 404 or redirects in `proxy.ts`: a `notFound()` inside a streamed page is a 200.
   What only the database knows stays a soft 404 from the page (`docs/site.md`, "Caching").

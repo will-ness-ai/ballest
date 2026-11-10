@@ -9,10 +9,10 @@ import Link from "next/link";
 
 import { Marble } from "./Marble";
 import { SteamMark } from "./SteamMark";
+import { usePagePath } from "../hooks/client";
 import { useYou } from "../hooks/me";
 import { playerHref, signInHref, signOutHref } from "../lib/routes";
 import { ord, personaOf, plural } from "../lib/rules";
-import { usePagePath } from "../hooks/client";
 
 export function YouCard() {
   const you = useYou();

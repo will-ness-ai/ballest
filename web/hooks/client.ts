@@ -7,8 +7,7 @@ import { isLive } from "../lib/daily";
 import type { Freshness } from "../lib/rows";
 import { pagePath } from "../lib/routes";
 
-/* the path the page is at: usePathname, but the same on the server as in the browser
-   (pagePath). Every client component reads the path through this */
+/* the path the page is at, the same on the server as in the browser (pagePath) */
 export const usePagePath = () => pagePath(usePathname());
 
 /* a useSyncExternalStore subscription for a value that never changes once the page runs:

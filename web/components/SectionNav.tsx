@@ -7,8 +7,8 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 import { forgetTrails } from "./Trail";
-import { navOf, type Nav, type NavFacts, type SectionKey } from "../lib/nav";
 import { usePagePath } from "../hooks/client";
+import { navOf, type Nav, type NavFacts, type SectionKey } from "../lib/nav";
 
 export function SectionNav({ facts }: { facts: NavFacts }) {
   return <SectionRows nav={navOf(usePagePath(), facts)} />;

@@ -1,6 +1,4 @@
-// The path a page is at, as the browser has it: on Vercel the homepage reaches the server
-// as /index, so the server render must read that as / or it draws another page's header
-// and hydration fails (React #418 on production's home).
+// The path a page is at, as the browser has it (pagePath in lib/routes.ts).
 import { describe, expect, test } from "vitest";
 
 import { navOf, type NavFacts } from "../lib/nav";
@@ -11,6 +9,7 @@ const FACTS: NavFacts = { workshop: true, daily: true, seasons: [], campaigns: [
 describe("the path a page is at", () => {
   test("the homepage's /index is /", () => {
     expect(pagePath("/index")).toBe("/");
+    expect(pagePath("/index/")).toBe("/");
   });
   test("the homepage's header lights Featured either way", () => {
     expect(navOf(pagePath("/index"), FACTS).subs).toEqual([

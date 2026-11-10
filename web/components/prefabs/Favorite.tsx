@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 
 import { Heart } from "./Heart";
+import { usePagePath } from "../../hooks/client";
 import { useSession } from "../../hooks/me";
 import { prefabFavoriteHref, signInHref } from "../../lib/routes";
-import { usePagePath } from "../../hooks/client";
 
 export function Favorite({ slug, favorites }: { slug: string; favorites: number }) {
   const me = useSession();

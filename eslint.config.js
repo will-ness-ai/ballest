@@ -123,9 +123,10 @@ export default defineConfig(
     },
   },
   {
-    // the server reads the homepage as /index on Vercel, so the path comes through
-    // usePagePath (hooks/client.ts), the same on the server as in the browser
-    files: ["web/app/**", "web/components/**"],
+    // the path comes through usePagePath (pagePath in lib/routes.ts says why;
+    // CODING_STANDARDS.md, "Site")
+    files: ["web/app/**", "web/components/**", "web/hooks/**"],
+    ignores: ["web/hooks/client.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

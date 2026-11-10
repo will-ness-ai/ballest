@@ -7,6 +7,7 @@
 import Link from "next/link";
 
 import { Marble } from "../Marble";
+import { usePagePath } from "../../hooks/client";
 import { useYouOnBoard } from "../../hooks/you";
 import { boardHref, signInHref } from "../../lib/routes";
 import {
@@ -20,7 +21,6 @@ import {
   type TargetMedal,
 } from "../../lib/rules";
 import { medalsOn, standingOn, type BoardFacts } from "../../lib/standing";
-import { usePagePath } from "../../hooks/client";
 
 function MedalWord({ medal }: { medal: TargetMedal }) {
   return <b style={{ color: MEDAL_COLOR[medal] }}>{MEDAL_LABEL[medal]}</b>;
