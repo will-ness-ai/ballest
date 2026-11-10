@@ -544,7 +544,9 @@ React's `cache()`, so the page head reuses the header's read); it also gives the
 page and its breadcrumb trail (the Section, the lit sub-tab, then a Campaign Map's Campaign,
 without the page itself), which the page head draws (below). Both rows are links marked
 `aria-current="page"` inside labelled `nav` landmarks, drawn by `components/SectionNav.tsx`
-from `usePathname`; until the path is known the Sections show unlit and the sub-tabs' row
+from the path (`usePagePath`, `hooks/client.ts`: Vercel hands the homepage to the server
+as `/index`, which a server render reading `usePathname` would draw as no page and the
+browser's `/` would not hydrate onto, React #418); until the path is known the Sections show unlit and the sub-tabs' row
 keeps its height. On a phone each row scrolls sideways rather than wrap, fading out on the
 side with more links and keeping the lit one in view; on a desktop every link fits.
 

@@ -1,10 +1,14 @@
 "use client";
 // Small hooks the client components share.
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { isLive } from "../lib/daily";
 import type { Freshness } from "../lib/rows";
+import { pagePath } from "../lib/routes";
+
+/* the path the page is at, the same on the server as in the browser (pagePath) */
+export const usePagePath = () => pagePath(usePathname());
 
 /* a useSyncExternalStore subscription for a value that never changes once the page runs:
    its server snapshot shows until hydration is done, then the browser's */

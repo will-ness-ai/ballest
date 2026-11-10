@@ -5,9 +5,9 @@
 // session is known it holds the banner's place while the row is read, so the plates don't
 // jump down when it lands.
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { Marble } from "../Marble";
+import { usePagePath } from "../../hooks/client";
 import { useYouOnBoard } from "../../hooks/you";
 import { boardHref, signInHref } from "../../lib/routes";
 import {
@@ -60,7 +60,7 @@ function Holder({ bar }: { bar: boolean }) {
 
 export function YouBanner(board: BoardFacts) {
   const you = useYouOnBoard(board.name);
-  const path = usePathname();
+  const path = usePagePath();
   if (you.kind === "loading") return you.claimed ? <Holder bar={medalsOn(board) != null} /> : null;
   if (you.kind === "none")
     return (

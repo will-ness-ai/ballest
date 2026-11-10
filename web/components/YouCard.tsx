@@ -6,17 +6,17 @@
 // signed-in visitor never sees Sign in flash first; while your record is read, a blank card
 // holds its place, so on a phone the Refreshed line it replaces doesn't flash back in.
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { Marble } from "./Marble";
 import { SteamMark } from "./SteamMark";
+import { usePagePath } from "../hooks/client";
 import { useYou } from "../hooks/me";
 import { playerHref, signInHref, signOutHref } from "../lib/routes";
 import { ord, personaOf, plural } from "../lib/rules";
 
 export function YouCard() {
   const you = useYou();
-  const path = usePathname();
+  const path = usePagePath();
   if (you.state === "loading")
     return you.claimed ? (
       <span className="youcard yc-wait" aria-hidden="true">

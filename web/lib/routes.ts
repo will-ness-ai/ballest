@@ -36,6 +36,12 @@ export const isPlSort = oneOf(PL_SORTS);
 
 export const homeHref = () => "/";
 
+/* the path a page is at, as the browser has it: Vercel hands the homepage's request to the
+   server as /index, so a server render reading usePathname() would draw another page's
+   header, and the browser's / would not hydrate onto it (React #418). usePagePath
+   (hooks/client.ts) reads it through this */
+export const pagePath = (path: string) => (/^\/index\/?$/.test(path) ? homeHref() : path);
+
 export const playerHref = (id: string, tab?: string | null) =>
   isSteamId(id) ? "/player/" + id + (tab ? "/" + tab : "") : "/";
 
