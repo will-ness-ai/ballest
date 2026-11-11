@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { whyReport } from "../scripts/pr/why.mjs";
+import { stepErrors, whyReport } from "../scripts/pr/why.mjs";
 
 // `pnpm --silent pr why <n>` (scripts/pr.mjs): why a PR's head is red, from the check runs
 // and their jobs and annotations that the REST API gives a cloud session.
@@ -120,5 +120,48 @@ describe("pr why", () => {
         .split("\n")
         .at(-1),
     ).toBe("still running: smoke");
+  });
+
+  it("prints the failed step's error lines from its job log under the step", () => {
+    const at = (line: string) => `2026-11-11T16:52:18.5267191Z ${line}`;
+    const log = [
+      "##[group]Run pnpm install --frozen-lockfile",
+      "Done in 2s",
+      "##[endgroup]",
+      "##[group]Run pnpm exec playwright-core install --with-deps chromium",
+      "Get:1 http://archive.ubuntu.com/ubuntu resolute/main fonts-liberation",
+      "Err:7 https://security.ubuntu.com/ubuntu resolute/main xfonts-encodings",
+      "  Temporary failure resolving 'security.ubuntu.com'",
+      ...Array.from({ length: 13 }, (_, i) => `E: Failed to fetch https://x/${String(i)}.deb`),
+      "Failed to install browsers",
+      "Error: Installation process exited with code: 100",
+      "##[error]Process completed with exit code 1.",
+      "Post job cleanup.",
+      "error: a later step's line",
+    ].map(at);
+    const errors = stepErrors(log.join("\n"));
+    expect(errors).toHaveLength(15);
+    expect(errors.slice(-3)).toEqual([
+      "E: Failed to fetch https://x/12.deb",
+      "Failed to install browsers",
+      "Error: Installation process exited with code: 100",
+    ]);
+    const red = { ...build(7), annotations: [EXIT], log: log.join("\n") };
+    const out = whyReport(HEAD, [red]).split("\n");
+    expect(out.slice(2, 4)).toEqual([
+      "  step: Smoke-test the build and check its layout",
+      "    E: Failed to fetch https://x/0.deb",
+    ]);
+  });
+
+  it("prints the step's last lines when none of them says error", () => {
+    const log = [
+      "##[group]Run ./check.sh",
+      "one",
+      "two",
+      "##[error]Process completed with exit code 2.",
+    ];
+    expect(stepErrors(log.join("\n"))).toEqual(["one", "two"]);
+    expect(stepErrors("no error marker here")).toEqual([]);
   });
 });

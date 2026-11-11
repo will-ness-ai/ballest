@@ -1055,7 +1055,8 @@ only visible ones.
   screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
   page file or layouts import a changed file, through relative imports. A site file no page
   imports (the proxy, an API route, a migration, a picture) or one every page does (the root
-  layout, the CSS, `lib/rules.ts`) draws every page; a code file whose change is only to its
+  layout, the CSS, `lib/rules.ts`) draws every page, except an API route whose address no site
+  code names (the game's and an app's sign-in), which draws none; a code file whose change is only to its
   comments (or types) draws none, and neither do docs, tests, scripts or the other
   packages. It names any page a change reaches that the catalogue lacks. The
   whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only

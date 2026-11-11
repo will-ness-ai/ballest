@@ -64,7 +64,10 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       # before the tests: qa's own (qa-render) draw a page
-      - run: pnpm exec playwright-core install --with-deps chromium
+      # no --with-deps: the runner's own Chrome brought the libraries, and its apt fonts
+      # hung on Ubuntu's mirrors (as daily-spin.yml found)
+      - run: pnpm exec playwright-core install chromium
+        timeout-minutes: 5
       - run: pnpm test
       - run: node scripts/migrate.mjs && pnpm db:seed stress
         env:

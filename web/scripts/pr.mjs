@@ -1,7 +1,8 @@
 // `pnpm --silent pr`: a pull request's CI, for agents; follows the agent-tools skill. `why <n>`
-// answers why a PR's head is red in one call, from the REST API alone (GraphQL and the job
-// log download are blocked in cloud sessions): each red check, its failed steps, and its
-// failure and notice annotations (qa's report is one), formatted by pr/why.mjs. `wait` holds
+// answers why a PR's head is red in one call, from the REST API alone (GraphQL is blocked in
+// cloud sessions): each red check, its failed steps with the failed step's error lines from
+// the job log, and its failure and notice annotations (qa's report is one), formatted by
+// pr/why.mjs. `wait` holds
 // until a PR's head CI and preview finish; `land` brings main in, waits, marks ready and
 // squash-merges, deciding each move by pr/land.mjs. The review gate reads `pr land <n>` as a
 // merge (.claude/hooks/review-gate-rules.mjs).
@@ -10,7 +11,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { originSlug } from "./github.mjs";
-import { ciState, landStep } from "./pr/land.mjs";
+import { ciState, landStep, waitUntil } from "./pr/land.mjs";
 import { notGreen, whyReport } from "./pr/why.mjs";
 
 const HELP = {
@@ -22,8 +23,8 @@ const HELP = {
 run \`pnpm --silent pr <command> --help\` for a command's flags`,
   why: `usage: pnpm --silent pr why <n> [--full]
   prints the PR's head SHA, then each finished check run on it that didn't pass (any
-  conclusion but success or skipped) with its failed steps and its failure and notice
-  annotations; "all green" or "still running: ..." otherwise
+  conclusion but success or skipped) with its failed steps (the first with its last error
+  lines from the job log) and its failure and notice annotations; "all green" or "still running: ..." otherwise
   --full  annotations uncut (default: each cut at 1500 characters)
 examples:
   pnpm --silent pr why 346
@@ -41,7 +42,7 @@ examples:
   update-branch, a merge commit on the PR), waits for CI on that head, marks a draft ready,
   then squash-merges it. Stops on red CI or a conflict; a merged PR is a no-op. The review
   gate checks it like any merge.
-  --timeout  seconds to wait for CI in all (default 540)
+  --timeout  seconds to wait for CI, again after bringing main in (default 540)
 examples:
   pnpm --silent pr land 287
   pnpm --silent pr land 287 --timeout 300`,
@@ -82,6 +83,13 @@ async function api(path, { all = false } = {}) {
   }
 }
 
+/* gh api's raw text for a REST path (a job's log), or undefined when it can't be read */
+const text = (path) =>
+  run("gh", ["api", path], { maxBuffer: 64 * 1024 * 1024 }).then(
+    ({ stdout }) => stdout,
+    () => undefined,
+  );
+
 /* gh api's JSON for a write to a REST path, with `fields` as -f key=value */
 async function write(method, path, fields = {}) {
   const f = Object.entries(fields).flatMap(([k, v]) => ["-f", `${k}=${v}`]);
@@ -112,22 +120,24 @@ export async function checks(sha, slug = repo()) {
   return Promise.all(
     runs.map(async (r) => {
       const actions = r.app?.slug === "github-actions";
-      const [job, annotations] = notGreen(r)
+      const [job, log, annotations] = notGreen(r)
         ? await Promise.all([
             actions ? api(`repos/${slug}/actions/jobs/${String(r.id)}`) : null,
+            actions ? text(`repos/${slug}/actions/jobs/${String(r.id)}/logs`) : undefined,
             r.output?.annotations_count
               ? api(`repos/${slug}/check-runs/${String(r.id)}/annotations?per_page=100`, {
                   all: true,
                 }).then((p) => p.flat())
               : [],
           ])
-        : [null, []];
+        : [null, undefined, []];
       return {
         name: r.name,
         status: r.status,
         conclusion: r.conclusion,
         detailsUrl: r.details_url,
         steps: job?.steps,
+        log,
         annotations,
       };
     }),
@@ -284,7 +294,7 @@ async function land(args) {
   const { n, timeout } = parse("land", args);
   if (n === undefined) usage("land", "land needs a PR number");
   const slug = repo();
-  const deadline = Date.now() + timeout * 1000;
+  let deadline = Date.now() + timeout * 1000;
   const did = [];
   const asked = {};
   /* what landing did and why it stopped, then the commands that come next; exits 1 */
@@ -311,6 +321,7 @@ async function land(args) {
       ? [{ behind_by: 0 }, { ci: { state: "green" } }]
       : await Promise.all([api(`repos/${slug}/compare/${base}...${sha}`), headCi(slug, sha)]);
     const next = landStep(pr, behind, ci, asked);
+    deadline = waitUntil(next, deadline, Date.now(), timeout * 1000);
     if (next.do === "done") {
       say(`pr: #${n} merged${did.length ? "" : " (no-op)"}`);
       return;

@@ -29,6 +29,19 @@ describe("reach", () => {
     });
   });
 
+  it("draws nothing for an API route no site code asks for: the game's and an app's", () => {
+    expect(
+      of(["web/app/api/auth/app/token/route.ts", "web/app/api/auth/steam/ticket/route.ts"]),
+    ).toEqual({ all: null, pages: [], routes: [] });
+  });
+
+  it("draws everything for an API route a page asks for, as its answer shows there", () => {
+    expect(of(["web/app/api/search/route.ts"]).all).toBe("web/app/api/search/route.ts");
+    expect(of(["web/app/api/prefabs/[slug]/file/route.ts"]).all).toBe(
+      "web/app/api/prefabs/[slug]/file/route.ts",
+    );
+  });
+
   it("draws everything for qa's own catalogue, which decides what is drawn", () => {
     expect(of(["web/scripts/qa/catalogue.mjs"]).all).toBe("web/scripts/qa/catalogue.mjs");
   });

@@ -1,7 +1,8 @@
 // Which catalogue pages a branch's changes can reach, so `qa check` draws those and not all
 // 176 views (13 minutes from a cloud session). A page reaches what its page file and the
 // layouts above it import, file by file. A changed site file no page imports (an API
-// route, the proxy, the database, a picture) can show anywhere, so it draws everything;
+// route, the proxy, the database, a picture) can show anywhere, so it draws everything,
+// except an API route no site code names, which only the game or an app asks for;
 // docs, tests, tooling and the other packages draw nothing. Paths are the repo's, with `/`
 // on every system, as git prints them.
 import { execFileSync } from "node:child_process";
@@ -121,6 +122,39 @@ function walk(root, dir, found = []) {
   return found;
 }
 
+/* an API route's address up to its first dynamic segment: web/app/api/prefabs/[slug]/file/
+   route.ts is /api/prefabs/ */
+const apiPrefixOf = (file) => {
+  const m = /^web\/app(\/api\/.*)\/route\.(ts|tsx|js|mjs)$/.exec(file);
+  if (!m) return null;
+  const path = m[1].replace(/\/\([^/]+\)/g, "");
+  const dynamic = path.indexOf("/[");
+  return dynamic < 0 ? path : path.slice(0, dynamic + 1);
+};
+/* the site's own code a page could ask an API route from, read once per root */
+const SITE_CODE = /^web\/(app|components|hooks|lib)\/.*\.(ts|tsx|mjs|js)$/;
+const siteCode = new Map();
+const siteCodeOf = (root) => {
+  if (!siteCode.has(root))
+    siteCode.set(
+      root,
+      ["app", "components", "hooks", "lib"]
+        .flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
+        .filter((f) => SITE_CODE.test(f) && !f.startsWith("web/app/api/"))
+        .map((f) => readFileSync(join(root, f), "utf8"))
+        .join("\n"),
+    );
+  return siteCode.get(root);
+};
+/* an API route no site code names (the game's ticket, an app's sign-in): no page asks it
+   for anything, so changing it changes no drawn page */
+const unasked = (file, root) => {
+  const prefix = apiPrefixOf(file);
+  if (!prefix) return false;
+  const exact = prefix.endsWith("/") ? prefix : `${prefix}(?:["'\`?/#]|$)`;
+  return !new RegExp(exact.replace(/[.]/g, "\\.")).test(siteCodeOf(root));
+};
+
 /**
  * The catalogue pages `changed` (paths from the repo's root) can reach: `all` names the
  * first file that draws everything, `pages` each reached page with a file that reaches it,
@@ -203,7 +237,7 @@ export function reach(changed, root, catalogue = PAGES) {
   const pages = [];
   const reached = new Set();
   for (const file of changed) {
-    if (UNDRAWN.some((re) => re.test(file))) continue;
+    if (UNDRAWN.some((re) => re.test(file)) || unasked(file, root)) continue;
     const by = drawn.filter((d) => d.files.has(file));
     const others = uncatalogued.filter((u) => u.files.has(file));
     if (by.length === drawn.length || (!by.length && !others.length))
