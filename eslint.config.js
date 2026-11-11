@@ -123,6 +123,26 @@ export default defineConfig(
     },
   },
   {
+    // the path comes through usePagePath (pagePath in lib/routes.ts says why;
+    // CODING_STANDARDS.md, "Site")
+    files: ["web/app/**", "web/components/**", "web/hooks/**"],
+    ignores: ["web/hooks/client.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/navigation",
+              importNames: ["usePathname"],
+              message: "Use usePagePath from hooks/client.ts: the server sees / as /index.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // a test renders client code in the browser (happy-dom), never as a server component
     files: ["web/test/**"],
     rules: { "site/no-client-values": "off" },

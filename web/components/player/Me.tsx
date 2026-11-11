@@ -3,11 +3,11 @@
 // once you're signed in, the score card against them (it reads your record with useYou). The
 // page is drawn first and the card lands when your record does.
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { Score } from "./Score";
 import { ChangeBall } from "./SkinPicker";
 import { Marble } from "../Marble";
+import { usePagePath } from "../../hooks/client";
 import { useYou } from "../../hooks/me";
 import { matchup, type PlayerRecord } from "../../lib/player";
 import { signOutHref, vsHref } from "../../lib/routes";
@@ -16,7 +16,7 @@ import { personaOf, plural } from "../../lib/rules";
 /* "This is you", Change your ball and Sign out on your own page, nothing on anyone else's */
 export function SignOut({ id }: { id: string }) {
   const you = useYou();
-  const path = usePathname();
+  const path = usePagePath();
   if (you.state !== "ready" || you.id !== id) return null;
   return (
     <form className="pme" method="post" action={signOutHref(path)}>

@@ -5,14 +5,14 @@
 // /api/search, scored and grouped by lib/search.ts. "/" or Ctrl/Cmd K reaches it from anywhere,
 // ↑/↓ move through the hits, Enter opens one, Esc or a click outside closes it.
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
 
 import { Marble } from "../Marble";
 import { useDialog } from "../Modal";
 import { SectionIcon } from "../SectionNav";
 import { forgetTrails } from "../Trail";
-import { useDebouncedFetch } from "../../hooks/client";
+import { useDebouncedFetch, usePagePath } from "../../hooks/client";
 import type { SectionKey } from "../../lib/nav";
 import { searchApiHref } from "../../lib/routes";
 import { safeImg } from "../../lib/rules";
@@ -168,7 +168,7 @@ function Search({
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const path = usePathname();
+  const path = usePagePath();
   const [text, setText] = useState("");
   const term = searchTerm(text);
   const found = useDebouncedFetch(term, readSearch);
