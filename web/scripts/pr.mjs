@@ -83,8 +83,8 @@ async function api(path, { all = false } = {}) {
   }
 }
 
-/* gh api's raw text for a REST path (a job's log), or undefined when it can't be read */
-const text = (path) =>
+/* an Actions job's log as gh api gives it, or undefined when it can't be read */
+const jobLog = (path) =>
   run("gh", ["api", path], { maxBuffer: 64 * 1024 * 1024 }).then(
     ({ stdout }) => stdout,
     () => undefined,
@@ -123,7 +123,7 @@ export async function checks(sha, slug = repo()) {
       const [job, log, annotations] = notGreen(r)
         ? await Promise.all([
             actions ? api(`repos/${slug}/actions/jobs/${String(r.id)}`) : null,
-            actions ? text(`repos/${slug}/actions/jobs/${String(r.id)}/logs`) : undefined,
+            actions ? jobLog(`repos/${slug}/actions/jobs/${String(r.id)}/logs`) : undefined,
             r.output?.annotations_count
               ? api(`repos/${slug}/check-runs/${String(r.id)}/annotations?per_page=100`, {
                   all: true,

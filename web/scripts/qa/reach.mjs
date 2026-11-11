@@ -2,7 +2,7 @@
 // 176 views (13 minutes from a cloud session). A page reaches what its page file and the
 // layouts above it import, file by file. A changed site file no page imports (an API
 // route, the proxy, the database, a picture) can show anywhere, so it draws everything,
-// except an API route no site code names, which only the game or an app asks for;
+// except an API route no page asks for in the browser, as only the game or an app does;
 // docs, tests, tooling and the other packages draw nothing. Paths are the repo's, with `/`
 // on every system, as git prints them.
 import { execFileSync } from "node:child_process";
@@ -131,28 +131,32 @@ const apiPrefixOf = (file) => {
   const dynamic = path.indexOf("/[");
   return dynamic < 0 ? path : path.slice(0, dynamic + 1);
 };
-/* the site's own code a page could ask an API route from, read once per root */
-const SITE_CODE = /^web\/(app|components|hooks|lib)\/.*\.(ts|tsx|mjs|js)$/;
-const siteCode = new Map();
-const siteCodeOf = (root) => {
-  if (!siteCode.has(root))
-    siteCode.set(
+/* the code a page runs in the browser, where it asks API routes for what it draws: its
+   client files ("use client") and lib/routes.ts, the URLs they ask through; comments out */
+const SITE_DIRS = ["app", "components", "hooks", "lib"];
+const ROUTES = "web/lib/routes.ts";
+const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
+const browserCode = new Map();
+const browserCodeOf = (root) => {
+  if (!browserCode.has(root))
+    browserCode.set(
       root,
-      ["app", "components", "hooks", "lib"]
-        .flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
-        .filter((f) => SITE_CODE.test(f) && !f.startsWith("web/app/api/"))
-        .map((f) => readFileSync(join(root, f), "utf8"))
+      SITE_DIRS.flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
+        .filter((f) => /\.(ts|tsx|mjs|js)$/.test(f) && !f.startsWith("web/app/api/"))
+        .map((f) => [f, readFileSync(join(root, f), "utf8")])
+        .filter(([f, code]) => f === ROUTES || /^\s*["']use client["']/.test(code))
+        .map(([, code]) => code.replace(COMMENT, ""))
         .join("\n"),
     );
-  return siteCode.get(root);
+  return browserCode.get(root);
 };
-/* an API route no site code names (the game's ticket, an app's sign-in): no page asks it
-   for anything, so changing it changes no drawn page */
+/* an API route no page asks for in the browser (the game's ticket, an app's sign-in, a
+   redirect a link starts): its answer is never drawn on a page, so changing it draws none */
 const unasked = (file, root) => {
   const prefix = apiPrefixOf(file);
   if (!prefix) return false;
   const exact = prefix.endsWith("/") ? prefix : `${prefix}(?:["'\`?/#]|$)`;
-  return !new RegExp(exact.replace(/[.]/g, "\\.")).test(siteCodeOf(root));
+  return !new RegExp(exact.replace(/[.]/g, "\\.")).test(browserCodeOf(root));
 };
 
 /**

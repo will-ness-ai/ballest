@@ -26,6 +26,8 @@ const cut = (text, full) =>
 
 /* a job log line: a timestamp, then the text */
 const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/;
+// eslint-disable-next-line no-control-regex -- the runner's colour codes are what it strips
+const ANSI = /\u001b\[[\d;]*m/g;
 const ERRORISH = /^(E:|Err:|Error|ERR!|FAIL\b|Failed)|\b(error|failed)\b/i;
 /* the runner's own close of a failed step, which the step line already says */
 const EXIT_LINE = /^##\[error\]Process completed with exit code/;
@@ -34,16 +36,19 @@ const LOG_CUT = 300;
 
 /**
  * The lines worth reading from a failed Actions job's log: the step that ended in the log's
- * first `##[error]`, from its `##[group]Run` line, its last 15 lines that say error or failed
+ * first `##[error]`, after its `##[group]Run` echo, its last 15 lines that say error or failed
  * (E:, Err:, Error, ...), or its last 15 lines when none do. [] when the log has no error.
  * @param {string} log
  * @returns {string[]}
  */
 export function stepErrors(log) {
-  const lines = log.split(/\r?\n/).map((l) => l.replace(STAMP, ""));
+  const lines = log.split(/\r?\n/).map((l) => l.replace(STAMP, "").replace(ANSI, ""));
   const end = lines.findIndex((l) => l.startsWith("##[error]"));
   if (end < 0) return [];
-  const start = lines.findLastIndex((l, i) => i < end && l.startsWith("##[group]Run"));
+  const run = lines.findLastIndex((l, i) => i < end && l.startsWith("##[group]Run"));
+  /* the runner echoes the step's script and shell inside the group: its output starts after */
+  const echoed = lines.findIndex((l, i) => i > run && l.startsWith("##[endgroup]"));
+  const start = run >= 0 && echoed >= 0 && echoed < end ? echoed : run;
   const step = lines
     .slice(start + 1, end + 1)
     .filter((l) => l.trim() && !l.startsWith("##[") && !EXIT_LINE.test(l))
@@ -51,7 +56,7 @@ export function stepErrors(log) {
   const errors = step.filter((l) => ERRORISH.test(l));
   return (errors.length ? errors : step)
     .slice(-LOG_LINES)
-    .map((l) => (l.length > LOG_CUT ? `${l.slice(0, LOG_CUT)}…` : l));
+    .map((l) => (l.length > LOG_CUT ? `${l.slice(0, LOG_CUT)}… (${String(l.length)} chars)` : l));
 }
 
 const failedSteps = (run) => (run.steps ?? []).filter((s) => RED.has(s.conclusion));

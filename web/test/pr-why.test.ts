@@ -164,4 +164,20 @@ describe("pr why", () => {
     expect(stepErrors(log.join("\n"))).toEqual(["one", "two"]);
     expect(stepErrors("no error marker here")).toEqual([]);
   });
+
+  it("leaves out the step's own script, which the runner echoes before running it", () => {
+    const log = [
+      "##[group]Run commits=$(git log)",
+      '\u001b[36;1m  echo "::error::these commits aren\'t authored"\u001b[0m',
+      "shell: /usr/bin/bash -e {0}",
+      "##[endgroup]",
+      "c1f6c36 someone@example.com",
+      "##[error]these commits aren't authored",
+      "##[error]Process completed with exit code 1.",
+    ];
+    expect(stepErrors(log.join("\n"))).toEqual([
+      "c1f6c36 someone@example.com",
+      "these commits aren't authored",
+    ]);
+  });
 });

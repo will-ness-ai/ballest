@@ -29,9 +29,14 @@ describe("reach", () => {
     });
   });
 
-  it("draws nothing for an API route no site code asks for: the game's and an app's", () => {
+  it("draws nothing for an API route no page asks for in the browser: the game's and an app's", () => {
     expect(
-      of(["web/app/api/auth/app/token/route.ts", "web/app/api/auth/steam/ticket/route.ts"]),
+      of([
+        "web/app/api/auth/app/route.ts",
+        "web/app/api/auth/app/return/route.ts",
+        "web/app/api/auth/app/token/route.ts",
+        "web/app/api/auth/steam/ticket/route.ts",
+      ]),
     ).toEqual({ all: null, pages: [], routes: [] });
   });
 
