@@ -42,8 +42,10 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
     "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
-    `steam-openid.ts` (Steam's login and its check) and `cookies.ts` (the cookie names the
-    browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
+    `steam-openid.ts` (Steam's login and its check), `app-sign-in.ts` (a desktop app's
+    request and code, ADR 0017) and `cookies.ts` (the cookie names the
+    browser also reads). Not pure like the rest: it and `app-sign-in.ts` sign with
+    `node:crypto`, and it asks Steam.
 - `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), a
   read made once per page and shared (`read.ts`), who is signed in (`me.ts`, reading
   `/api/me`), and You on one board (`you.ts`).
@@ -882,6 +884,18 @@ branch `claude/prototype-prefabs` (spec #213).
   reads (`PREFAB_FILE_TAG`), each reading its file fresh, since a cached read inside another
   passes its tags out. Nothing revalidates `PREFAB_FILE_TAG`: a file never changes after upload
   and a thumbnail's link carries its edit time, so the tag is only a handle for a purge by hand.
+- **From a desktop app** (ADR 0017; Ballest Editor): it reads the same way, and signs its player
+  in through their browser, as native apps do OAuth (RFC 8252 with PKCE). It opens
+  `GET /api/auth/app?redirect_uri=&state=&code_challenge=` (`startAppSignIn`; the callback is
+  plain http on `127.0.0.1` or `[::1]`, any port and path, the challenge an S256 one, anything
+  else a 400 that redirects nowhere, `lib/app-sign-in.ts`), which goes through Steam's login back
+  to `/api/auth/app/return` (`finishAppSignIn`, the site's own check with its return path) and
+  on to the callback with `code` and the app's `state`, or `error=access_denied`. No cookie but
+  the spent state is set. The code is signed, holds no table and lasts two minutes, and only
+  the secret behind its challenge trades it: `POST /api/auth/app/token` with
+  `{ code, code_verifier }` (`signInFromApp`, counted with the game's sign-ins) answers
+  `{ id, token, expiresIn }`, an app token good for 30 days that `prefabSessionOf` takes as a
+  bearer exactly like the game's, and nothing else does.
 
 ## Generators
 
