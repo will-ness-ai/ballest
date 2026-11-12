@@ -1,7 +1,8 @@
 // Which catalogue pages a branch's changes can reach, so `qa check` draws those and not all
 // 176 views (13 minutes from a cloud session). A page reaches what its page file and the
 // layouts above it import, file by file. A changed site file no page imports (an API
-// route, the proxy, the database, a picture) can show anywhere, so it draws everything;
+// route, the proxy, the database, a picture) can show anywhere, so it draws everything,
+// except an API route no page asks for in the browser, as only the game or an app does;
 // docs, tests, tooling and the other packages draw nothing. Paths are the repo's, with `/`
 // on every system, as git prints them.
 import { execFileSync } from "node:child_process";
@@ -121,6 +122,36 @@ function walk(root, dir, found = []) {
   return found;
 }
 
+/* an API route's address up to its first dynamic segment: web/app/api/prefabs/[slug]/file/
+   route.ts is /api/prefabs/ */
+const apiPrefixOf = (file) => {
+  const m = /^web\/app(\/api\/.*)\/route\.(ts|tsx|js|mjs)$/.exec(file);
+  if (!m) return null;
+  const path = m[1].replace(/\/\([^/]+\)/g, "");
+  const dynamic = path.indexOf("/[");
+  return dynamic < 0 ? path : path.slice(0, dynamic + 1);
+};
+/* the code a page runs in the browser, where it asks API routes for what it draws: its
+   client files ("use client") and lib/routes.ts, the URLs they ask through; comments out */
+const SITE_DIRS = ["app", "components", "hooks", "lib"];
+const ROUTES = "web/lib/routes.ts";
+const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
+const browserCodeOf = (root) =>
+  SITE_DIRS.flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
+    .filter((f) => /\.(ts|tsx|mjs|js)$/.test(f) && !f.startsWith("web/app/api/"))
+    .map((f) => [f, readFileSync(join(root, f), "utf8")])
+    .filter(([f, code]) => f === ROUTES || /^\s*["']use client["']/.test(code))
+    .map(([, code]) => code.replace(COMMENT, ""))
+    .join("\n");
+/* an API route no page asks for in the browser (the game's ticket, an app's sign-in, a
+   redirect a link starts): its answer is never drawn on a page, so changing it draws none */
+const unasked = (file, browserCode) => {
+  const prefix = apiPrefixOf(file);
+  if (!prefix) return false;
+  const named = prefix.endsWith("/") ? prefix : `${prefix}(?:["'\`?/#]|$)`;
+  return !new RegExp(named.replace(/[.]/g, "\\.")).test(browserCode());
+};
+
 /**
  * The catalogue pages `changed` (paths from the repo's root) can reach: `all` names the
  * first file that draws everything, `pages` each reached page with a file that reaches it,
@@ -131,6 +162,9 @@ function walk(root, dir, found = []) {
  *   catalogue's, or a fixed list a test pins
  */
 export function reach(changed, root, catalogue = PAGES) {
+  /* read once a changed API route asks, and only then */
+  let code;
+  const browserCode = () => (code ??= browserCodeOf(root));
   const pageFiles = walk(root, "web/app").filter((f) => /\/page\.(tsx|ts|jsx|js)$/.test(f));
   const isFile = (p) => existsSync(join(root, p)) && statSync(join(root, p)).isFile();
   const layoutsOf = (file) => {
@@ -203,7 +237,7 @@ export function reach(changed, root, catalogue = PAGES) {
   const pages = [];
   const reached = new Set();
   for (const file of changed) {
-    if (UNDRAWN.some((re) => re.test(file))) continue;
+    if (UNDRAWN.some((re) => re.test(file)) || unasked(file, browserCode)) continue;
     const by = drawn.filter((d) => d.files.has(file));
     const others = uncatalogued.filter((u) => u.files.has(file));
     if (by.length === drawn.length || (!by.length && !others.length))

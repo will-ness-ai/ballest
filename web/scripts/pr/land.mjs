@@ -46,3 +46,11 @@ export function landStep(pr, behind, ci, asked = {}) {
   if (pr.draft) return { do: asked.readied ? "wait" : "ready" };
   return { do: "merge" };
 }
+
+/**
+ * When landing stops waiting, given the step it takes now: bringing the base in makes a new head
+ * whose CI starts from nothing, so the wait starts again from `now` for `timeoutMs`; any other
+ * step keeps `deadline`.
+ */
+export const deadlineAfter = (step, deadline, now, timeoutMs) =>
+  step.do === "update" ? now + timeoutMs : deadline;

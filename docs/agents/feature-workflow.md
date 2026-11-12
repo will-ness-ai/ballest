@@ -124,8 +124,8 @@ PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` 
 To wait for a PR's CI, run `pnpm --silent pr wait <n>` at the root: it returns when the head's
 checks and preview have finished, with green and the preview's URL, or the checks that went red.
 A red check: run `pnpm --silent pr why <n>` first. It prints each failed
-check's failed step and its annotations, qa's report among them, in one call, where a cloud
-session can't download the job log.
+check's failed step with that step's last error lines from the job log, and its annotations,
+qa's report among them, in one call.
 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production

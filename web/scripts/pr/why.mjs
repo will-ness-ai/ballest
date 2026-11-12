@@ -1,6 +1,7 @@
 // `pnpm --silent pr why`'s report, from check runs already fetched (scripts/pr.mjs fetches
-// them): each failed check of a PR's head, with its failed steps and its failure and notice
-// annotations, and nothing else. For agents; follows the agent-tools skill.
+// them): each failed check of a PR's head, with its failed steps, the failed step's error lines
+// from the job log, and its failure and notice annotations, and nothing else. For agents;
+// follows the agent-tools skill.
 
 /* the conclusions that make a step red */
 const RED = new Set(["failure", "cancelled", "timed_out", "startup_failure"]);
@@ -18,16 +19,54 @@ const CUT = 1500;
 export const kept = (a) =>
   LEVELS.has(a.annotation_level) && !NOISE.some((re) => re.test(a.message));
 
-const cut = (text, full) =>
-  full || text.length <= CUT
+const cut = (text, full, at = CUT) =>
+  full || text.length <= at
     ? text
-    : `${text.slice(0, CUT)}… (truncated, ${String(text.length)} chars total; use --full)`;
+    : `${text.slice(0, at)}… (truncated, ${String(text.length)} chars total; use --full)`;
+
+/* a job log line: a timestamp, then the text */
+const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/;
+// eslint-disable-next-line no-control-regex -- the runner's colour codes are what it strips
+const ANSI = /\u001b\[[\d;]*m/g;
+const ERRORISH = /^(E:|Err:|Error|ERR!|FAIL\b|Failed)|\b(error|failed)\b/i;
+/* the runner's own close of a failed step, which the step line already says */
+const EXIT_LINE = /^##\[error\]Process completed with exit code/;
+const LOG_LINES = 15;
+const LOG_CUT = 300;
+
+/**
+ * The lines worth reading from a failed Actions job's log: the step that ended in the log's
+ * first `##[error]`, after its `##[group]Run` echo, its last 15 lines that say error or failed
+ * (E:, Err:, Error, ...), or its last 15 lines when none do. [] when the log has no error.
+ * @param {string} log
+ * @param {{ full?: boolean }} [options] full: lines uncut (default: each cut at 300 characters)
+ * @returns {string[]}
+ */
+export function stepErrors(log, { full = false } = {}) {
+  const lines = log.split(/\r?\n/).map((l) => l.replace(STAMP, "").replace(ANSI, ""));
+  const end = lines.findIndex((l) => l.startsWith("##[error]"));
+  if (end < 0) return [];
+  const run = lines.findLastIndex((l, i) => i < end && l.startsWith("##[group]Run"));
+  /* the runner echoes the step's script and shell inside the group: its output starts after */
+  const echoed = lines.findIndex((l, i) => i > run && l.startsWith("##[endgroup]"));
+  const start = run >= 0 && echoed >= 0 && echoed < end ? echoed : run;
+  const step = lines
+    .slice(start + 1, end + 1)
+    .filter((l) => l.trim() && !l.startsWith("##[") && !EXIT_LINE.test(l))
+    .concat(EXIT_LINE.test(lines[end]) ? [] : [lines[end].replace("##[error]", "")]);
+  const errors = step.filter((l) => ERRORISH.test(l));
+  return (errors.length ? errors : step).slice(-LOG_LINES).map((l) => cut(l, full, LOG_CUT));
+}
 
 const failedSteps = (run) => (run.steps ?? []).filter((s) => RED.has(s.conclusion));
 
 /* one check's block under its name: its failed steps, then its annotations */
 function block(run, full) {
-  const lines = failedSteps(run).map((s) => `step: ${s.name}`);
+  const lines = failedSteps(run).flatMap((s, i) => [
+    `step: ${s.name}`,
+    /* the log says only why its first failed step failed */
+    ...(i === 0 && run.log ? stepErrors(run.log, { full }).map((l) => `  ${l}`) : []),
+  ]);
   if (!run.steps) lines.push(`details: ${run.detailsUrl}`);
   for (const a of (run.annotations ?? []).filter(kept)) {
     const label = a.title ? `${a.annotation_level} (${a.title})` : a.annotation_level;
@@ -39,7 +78,8 @@ function block(run, full) {
 
 /**
  * The report for head `sha` from its check runs ({ name, status, conclusion, detailsUrl,
- * steps: the Actions job's steps, or undefined for another app's check, annotations }).
+ * steps: the Actions job's steps, or undefined for another app's check, log: the job's log
+ * when it could be read, annotations }).
  * A check red at the same steps on both the push and the pull_request event prints once,
  * with both runs' annotations, each once.
  */

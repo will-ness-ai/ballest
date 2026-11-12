@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { ciState, landStep } from "../scripts/pr/land.mjs";
+import { ciState, landStep, deadlineAfter } from "../scripts/pr/land.mjs";
 
 // `pnpm --silent pr wait` and `pr land` (scripts/pr.mjs): what a PR's head CI says, and what
 // landing the PR does next, from what the REST API gives a cloud session.
@@ -86,5 +86,18 @@ describe("landing a PR", () => {
 
   test("is a no-op once merged", () => {
     expect(step({ state: "closed", merged: true }, 0, green).do).toBe("done");
+  });
+});
+
+describe("landing's wait", () => {
+  const minute = 60_000;
+
+  test("starts again once main is brought in, as the new head's CI starts from nothing", () => {
+    expect(deadlineAfter({ do: "update" }, 5 * minute, 9 * minute, 9 * minute)).toBe(18 * minute);
+  });
+
+  test("keeps its end for any other step", () => {
+    for (const d of ["wait", "ready", "merge"])
+      expect(deadlineAfter({ do: d }, 5 * minute, 9 * minute, 9 * minute)).toBe(5 * minute);
   });
 });
