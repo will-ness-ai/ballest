@@ -136,27 +136,20 @@ const apiPrefixOf = (file) => {
 const SITE_DIRS = ["app", "components", "hooks", "lib"];
 const ROUTES = "web/lib/routes.ts";
 const COMMENT = /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm;
-const browserCode = new Map();
-const browserCodeOf = (root) => {
-  if (!browserCode.has(root))
-    browserCode.set(
-      root,
-      SITE_DIRS.flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
-        .filter((f) => /\.(ts|tsx|mjs|js)$/.test(f) && !f.startsWith("web/app/api/"))
-        .map((f) => [f, readFileSync(join(root, f), "utf8")])
-        .filter(([f, code]) => f === ROUTES || /^\s*["']use client["']/.test(code))
-        .map(([, code]) => code.replace(COMMENT, ""))
-        .join("\n"),
-    );
-  return browserCode.get(root);
-};
+const browserCodeOf = (root) =>
+  SITE_DIRS.flatMap((d) => (existsSync(join(root, "web", d)) ? walk(root, `web/${d}`) : []))
+    .filter((f) => /\.(ts|tsx|mjs|js)$/.test(f) && !f.startsWith("web/app/api/"))
+    .map((f) => [f, readFileSync(join(root, f), "utf8")])
+    .filter(([f, code]) => f === ROUTES || /^\s*["']use client["']/.test(code))
+    .map(([, code]) => code.replace(COMMENT, ""))
+    .join("\n");
 /* an API route no page asks for in the browser (the game's ticket, an app's sign-in, a
    redirect a link starts): its answer is never drawn on a page, so changing it draws none */
-const unasked = (file, root) => {
+const unasked = (file, browserCode) => {
   const prefix = apiPrefixOf(file);
   if (!prefix) return false;
-  const exact = prefix.endsWith("/") ? prefix : `${prefix}(?:["'\`?/#]|$)`;
-  return !new RegExp(exact.replace(/[.]/g, "\\.")).test(browserCodeOf(root));
+  const named = prefix.endsWith("/") ? prefix : `${prefix}(?:["'\`?/#]|$)`;
+  return !new RegExp(named.replace(/[.]/g, "\\.")).test(browserCode());
 };
 
 /**
@@ -169,6 +162,9 @@ const unasked = (file, root) => {
  *   catalogue's, or a fixed list a test pins
  */
 export function reach(changed, root, catalogue = PAGES) {
+  /* read once a changed API route asks, and only then */
+  let code;
+  const browserCode = () => (code ??= browserCodeOf(root));
   const pageFiles = walk(root, "web/app").filter((f) => /\/page\.(tsx|ts|jsx|js)$/.test(f));
   const isFile = (p) => existsSync(join(root, p)) && statSync(join(root, p)).isFile();
   const layoutsOf = (file) => {
@@ -241,7 +237,7 @@ export function reach(changed, root, catalogue = PAGES) {
   const pages = [];
   const reached = new Set();
   for (const file of changed) {
-    if (UNDRAWN.some((re) => re.test(file)) || unasked(file, root)) continue;
+    if (UNDRAWN.some((re) => re.test(file)) || unasked(file, browserCode)) continue;
     const by = drawn.filter((d) => d.files.has(file));
     const others = uncatalogued.filter((u) => u.files.has(file));
     if (by.length === drawn.length || (!by.length && !others.length))

@@ -19,10 +19,10 @@ const CUT = 1500;
 export const kept = (a) =>
   LEVELS.has(a.annotation_level) && !NOISE.some((re) => re.test(a.message));
 
-const cut = (text, full) =>
-  full || text.length <= CUT
+const cut = (text, full, at = CUT) =>
+  full || text.length <= at
     ? text
-    : `${text.slice(0, CUT)}… (truncated, ${String(text.length)} chars total; use --full)`;
+    : `${text.slice(0, at)}… (truncated, ${String(text.length)} chars total; use --full)`;
 
 /* a job log line: a timestamp, then the text */
 const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/;
@@ -39,9 +39,10 @@ const LOG_CUT = 300;
  * first `##[error]`, after its `##[group]Run` echo, its last 15 lines that say error or failed
  * (E:, Err:, Error, ...), or its last 15 lines when none do. [] when the log has no error.
  * @param {string} log
+ * @param {{ full?: boolean }} [options] full: lines uncut (default: each cut at 300 characters)
  * @returns {string[]}
  */
-export function stepErrors(log) {
+export function stepErrors(log, { full = false } = {}) {
   const lines = log.split(/\r?\n/).map((l) => l.replace(STAMP, "").replace(ANSI, ""));
   const end = lines.findIndex((l) => l.startsWith("##[error]"));
   if (end < 0) return [];
@@ -54,9 +55,7 @@ export function stepErrors(log) {
     .filter((l) => l.trim() && !l.startsWith("##[") && !EXIT_LINE.test(l))
     .concat(EXIT_LINE.test(lines[end]) ? [] : [lines[end].replace("##[error]", "")]);
   const errors = step.filter((l) => ERRORISH.test(l));
-  return (errors.length ? errors : step)
-    .slice(-LOG_LINES)
-    .map((l) => (l.length > LOG_CUT ? `${l.slice(0, LOG_CUT)}… (${String(l.length)} chars)` : l));
+  return (errors.length ? errors : step).slice(-LOG_LINES).map((l) => cut(l, full, LOG_CUT));
 }
 
 const failedSteps = (run) => (run.steps ?? []).filter((s) => RED.has(s.conclusion));
@@ -66,7 +65,7 @@ function block(run, full) {
   const lines = failedSteps(run).flatMap((s, i) => [
     `step: ${s.name}`,
     /* the log says only why its first failed step failed */
-    ...(i === 0 && run.log ? stepErrors(run.log).map((l) => `  ${l}`) : []),
+    ...(i === 0 && run.log ? stepErrors(run.log, { full }).map((l) => `  ${l}`) : []),
   ]);
   if (!run.steps) lines.push(`details: ${run.detailsUrl}`);
   for (const a of (run.annotations ?? []).filter(kept)) {

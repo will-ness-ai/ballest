@@ -52,5 +52,5 @@ export function landStep(pr, behind, ci, asked = {}) {
  * whose CI starts from nothing, so the wait starts again from `now` for `timeoutMs`; any other
  * step keeps `deadline`.
  */
-export const waitUntil = (step, deadline, now, timeoutMs) =>
+export const deadlineAfter = (step, deadline, now, timeoutMs) =>
   step.do === "update" ? now + timeoutMs : deadline;

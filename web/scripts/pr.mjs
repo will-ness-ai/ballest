@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { originSlug } from "./github.mjs";
-import { ciState, landStep, waitUntil } from "./pr/land.mjs";
+import { ciState, landStep, deadlineAfter } from "./pr/land.mjs";
 import { notGreen, whyReport } from "./pr/why.mjs";
 
 const HELP = {
@@ -321,7 +321,7 @@ async function land(args) {
       ? [{ behind_by: 0 }, { ci: { state: "green" } }]
       : await Promise.all([api(`repos/${slug}/compare/${base}...${sha}`), headCi(slug, sha)]);
     const next = landStep(pr, behind, ci, asked);
-    deadline = waitUntil(next, deadline, Date.now(), timeout * 1000);
+    deadline = deadlineAfter(next, deadline, Date.now(), timeout * 1000);
     if (next.do === "done") {
       say(`pr: #${n} merged${did.length ? "" : " (no-op)"}`);
       return;
