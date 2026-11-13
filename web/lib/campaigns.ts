@@ -309,6 +309,26 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     creatorId: "76561198841036162",
     maps: ["3833648606", "3835679449", "3838047967"],
   },
+  {
+    slug: "ball-town",
+    title: "Ball Town",
+    creator: "salamanderslander",
+    creatorId: "76561197998401445",
+    maps: [
+      "3839132075",
+      "3839133296",
+      "3839134316",
+      "3839136670",
+      "3839138284",
+      "3839139536",
+      "3839140852",
+      "3839142633",
+      "3839145159",
+      "3839147032",
+      "3839148612",
+      "3839150609",
+    ],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
@@ -420,6 +440,9 @@ export function mapName(c: Campaign, pfid: string, title: string): string | null
   const lead = /^\d+/.exec(name);
   if (lead === null) return name;
   if (Number(lead[0]) !== mapNumber(c, pfid)) return title;
+  /* "01 - Sunrise Garden": its place, a dash or colon, then the name */
+  const named = /^\d+\s*[-–—:]\s*(\S.*)$/u.exec(name);
+  if (named) return named[1];
   return lead[0] === name ? null : name;
 }
 

@@ -178,5 +178,14 @@ describe("the lookups", () => {
     expect(mapLabel(limbo, "3821808619", "Limbo campaign A08 of 8")).toBe("08");
     // its place, then more of a name
     expect(mapName(make("a", ["5"]), "5", "a 1 Remix")).toBe("1 Remix");
+    // its place, a dash, then its name reads as the place and the name
+    const town = curated("ball-town");
+    expect(mapLabel(town, "3839132075", "Ball Town 01 - Sunrise Garden")).toBe("01 Sunrise Garden");
+    expect(mapLabel(town, "3839150609", "Ball Town 12 - Observatory")).toBe("12 Observatory");
+    expect(mapName(make("a", ["5"]), "5", "a 1: Remix")).toBe("Remix");
+    // a dash after another place's number keeps the whole title
+    expect(mapLabel(town, "3839132075", "Ball Town 02 - Sunrise Garden")).toBe(
+      "01 Ball Town 02 - Sunrise Garden",
+    );
   });
 });
