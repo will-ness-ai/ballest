@@ -97,6 +97,49 @@ describe("the Renderer", () => {
   );
 
   it.effect(
+    "draws a full Daily Report's standings in little memory",
+    () =>
+      Effect.gen(function* () {
+        const renderer = yield* Renderer;
+        const row = (i: number) => ({
+          steamId: `7656119800000000${i}`,
+          skin: null,
+          name: `Player ${i}`,
+          place: i + 1,
+          move: 0,
+        });
+        const ten = Array.from({ length: 10 }, (_, i) => i);
+        const board = (title: string) => ({
+          title,
+          rows: ten.map((i) => ({ ...row(i), n: 100 - i, gain: 1 })),
+          out: ["Gone"],
+        });
+        const before = resident();
+        // The tallest report: yesterday's Daily, Overall and the four boards, ten rows each.
+        // Its backdrop's glows once took resvg about 500 MB and 6 s, which ran production out
+        // of memory and over the draw's timeout (2026-11-12).
+        yield* renderer.standings({
+          title: "Thursday 12 November",
+          subtitle: "Standings",
+          daily: {
+            heading: "Yesterday's Daily",
+            title: "Ember Run",
+            meta: "Daily · Wed 11 Nov · 291 players",
+            preview: null,
+            rows: ten.map((i) => ({ ...row(i), gap: i === 0 ? null : "+0.123", time: "11.604" })),
+          },
+          boards: ["World records", "Author medals", "Gold medals", "Maps finished"].map(board),
+          overall: {
+            rows: ten.map((i) => ({ ...row(i), points: 40 - i, places: [1, null, 3, 4] })),
+            out: [],
+          },
+        });
+        expect(resident() - before).toBeLessThan(150);
+      }).pipe(Effect.provide(Renderer.Default)),
+    60_000,
+  );
+
+  it.effect(
     "lets go of every image it draws",
     () =>
       Effect.gen(function* () {

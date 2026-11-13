@@ -16,6 +16,8 @@ import { joinedLead, type Lead } from "../dailyPost/lead.js";
 import type { CardView, ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
 import {
+  GLOW_DEPTH,
+  glowSvg,
   hueFor,
   MEDAL_BAR,
   marbleSvg,
@@ -108,7 +110,8 @@ const F = { medal: "Nunito", hud: "Chakra Petch", body: "Archivo", marquee: "Bun
 /** The game's black outline on white lettering. */
 const OUTLINE = "-1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 0 2px 0 #111";
 
-const backdrop = (style: Style, ...children: ReadonlyArray<Child>) =>
+/** Every image's ground, `width` wide: the site's dark blue, rounded, glowing at the top. */
+const backdrop = (width: number, style: Style, ...children: ReadonlyArray<Child>) =>
   box(
     {
       flexDirection: "column",
@@ -116,12 +119,16 @@ const backdrop = (style: Style, ...children: ReadonlyArray<Child>) =>
       fontFamily: F.body,
       fontSize: 14,
       backgroundColor: C.bg,
-      backgroundImage:
-        "radial-gradient(circle at 85% -20%, rgba(88,168,255,0.18), transparent 45%), radial-gradient(circle at 0% 0%, rgba(139,224,60,0.10), transparent 40%)",
       borderRadius: 8,
       overflow: "hidden",
       ...style,
+      width,
     },
+    img(svgUri(glowSvg(width)), width, Math.ceil(width * GLOW_DEPTH), {
+      position: "absolute",
+      left: 0,
+      top: 0,
+    }),
     ...children,
   );
 
@@ -388,7 +395,8 @@ export const cardScene = (card: CardImage, pictures: SkinPictureUris): El => {
   const title = mapTitle(view);
   const meta = matchDetails(view);
   return backdrop(
-    { width: CARD_WIDTH },
+    CARD_WIDTH,
+    {},
     box(
       { position: "relative", width: CARD_WIDTH, height },
       picture(card, height),
@@ -518,8 +526,8 @@ export const improvementScene = (
       ? null
       : `-${formatGap(improvement.previousTicks - improvement.ticks)}`;
   return backdrop(
+    ROW_WIDTH,
     {
-      width: ROW_WIDTH,
       flexDirection: "row",
       alignItems: "center",
       minHeight: 44,
@@ -576,7 +584,8 @@ const STEPS = [
 
 export const footerScene = (): El =>
   backdrop(
-    { width: FOOTER_WIDTH, padding: "14px 16px" },
+    FOOTER_WIDTH,
+    { padding: "14px 16px" },
     box({ alignItems: "center", justifyContent: "space-between" }, logo(true), chip("5–60 min")),
     box(
       { gap: 8, marginTop: 10 },
@@ -621,8 +630,8 @@ export const linkScene = (
   pictures: SkinPictureUris,
 ): El =>
   backdrop(
+    LINK_WIDTH,
     {
-      width: LINK_WIDTH,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
@@ -878,7 +887,8 @@ export const progressionScene = (
   const untimed = view.standings.filter((s) => s.ticks === null && !lineEnds.has(s.player.steamId));
 
   return backdrop(
-    { width: W, height: H, position: "relative" },
+    W,
+    { height: H, position: "relative" },
     img(svgUri(chart), W, H, { position: "absolute", left: 0, top: 0 }),
     ...overlays,
     box(
@@ -1473,6 +1483,7 @@ export const standingsScene = (
   const keyed = boards.map((board, i) => column(board, i));
   const pairs = [keyed.slice(0, 2), keyed.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
+    STANDINGS_WIDTH,
     { padding: STANDINGS_PADDING, gap: 20 },
     box(
       { flexDirection: "column", gap: 4 },
@@ -1718,7 +1729,8 @@ export const cupStandingsScene = ({ title, subtitle, maps, rows }: CupStandingsI
       String(rank),
     );
   return backdrop(
-    { padding: 24, gap: 14, width: CUP_STANDINGS_WIDTH },
+    CUP_STANDINGS_WIDTH,
+    { padding: 24, gap: 14 },
     box(
       { justifyContent: "space-between", alignItems: "flex-end" },
       box(

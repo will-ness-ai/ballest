@@ -76,3 +76,25 @@ export const MEDAL_BAR: Record<MedalKind, string> = {
 
 export const svgUri = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+
+/**
+ * The backdrop's two glows over the top corners of an image `width` wide, as a standalone SVG:
+ * the site's blue from the top right, its lime from the top left. Drawn as one picture, since
+ * Satori turns a CSS radial-gradient into a masked circle as big as the image's farthest corner,
+ * and resvg took about 6 s and 500 MB over that on the Daily Report's tall standings (2026-11-12).
+ */
+export const glowSvg = (width: number): string => {
+  const height = Math.ceil(width * GLOW_DEPTH);
+  const glow = (id: string, cx: number, cy: number, r: number, colour: string, alpha: number) =>
+    `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${cx}" cy="${cy}" r="${r}">` +
+    `<stop offset="0" stop-color="${colour}" stop-opacity="${alpha}"/><stop offset="1" stop-color="${colour}" stop-opacity="0"/></radialGradient>`;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>` +
+    glow("b", width * 0.85, -width * 0.15, width * 0.55, "rgb(88,168,255)", 0.18) +
+    glow("l", 0, 0, width * GLOW_DEPTH, "rgb(139,224,60)", 0.1) +
+    `</defs><rect width="${width}" height="${height}" fill="url(#l)"/><rect width="${width}" height="${height}" fill="url(#b)"/></svg>`
+  );
+};
+
+/** How far down the glows reach, as a share of the image's width. */
+export const GLOW_DEPTH = 0.5;
