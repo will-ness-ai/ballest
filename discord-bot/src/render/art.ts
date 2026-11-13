@@ -78,23 +78,25 @@ export const svgUri = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 
 /**
- * The backdrop's two glows over the top corners of an image `width` wide, as a standalone SVG:
- * the site's blue from the top right, its lime from the top left. Drawn as one picture, since
- * Satori turns a CSS radial-gradient into a masked circle as big as the image's farthest corner,
- * and resvg took about 6 s and 500 MB over that on the Daily Report's tall standings (2026-11-12).
+ * The backdrop's two glows over the top corners of an image `width` wide: the site's blue from
+ * the top right, its lime from the top left, as one picture `height` tall to lay at the top. They
+ * were CSS radial-gradients, which Satori draws as masked circles as big as the image's farthest
+ * corner, and resvg took about 6 s and 500 MB over them on the Daily Report's tall standings
+ * (2026-11-12). So they are sized by the width alone, the Card's as before; a tall image's glows
+ * no longer reach as far down, by at most 15 of 255 in any channel.
  */
-export const glowSvg = (width: number): string => {
-  const height = Math.ceil(width * GLOW_DEPTH);
-  const glow = (id: string, cx: number, cy: number, r: number, colour: string, alpha: number) =>
+export const backdropGlow = (width: number): { readonly svg: string; readonly height: number } => {
+  const height = Math.ceil(width / 2);
+  const gradient = (id: string, cx: number, cy: number, r: number, rgb: string, alpha: number) =>
     `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${cx}" cy="${cy}" r="${r}">` +
-    `<stop offset="0" stop-color="${colour}" stop-opacity="${alpha}"/><stop offset="1" stop-color="${colour}" stop-opacity="0"/></radialGradient>`;
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>` +
-    glow("b", width * 0.85, -width * 0.15, width * 0.55, "rgb(88,168,255)", 0.18) +
-    glow("l", 0, 0, width * GLOW_DEPTH, "rgb(139,224,60)", 0.1) +
-    `</defs><rect width="${width}" height="${height}" fill="url(#l)"/><rect width="${width}" height="${height}" fill="url(#b)"/></svg>`
-  );
+    `<stop offset="0" stop-color="${rgb}" stop-opacity="${alpha}"/><stop offset="1" stop-color="${rgb}" stop-opacity="0"/></radialGradient>`;
+  const rect = (id: string) => `<rect width="${width}" height="${height}" fill="url(#${id})"/>`;
+  return {
+    svg:
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>` +
+      gradient("blue", width * 0.85, -width * 0.15, width * 0.55, "rgb(88,168,255)", 0.18) +
+      gradient("lime", 0, 0, height, "rgb(139,224,60)", 0.1) +
+      `</defs>${rect("lime")}${rect("blue")}</svg>`,
+    height,
+  };
 };
-
-/** How far down the glows reach, as a share of the image's width. */
-export const GLOW_DEPTH = 0.5;

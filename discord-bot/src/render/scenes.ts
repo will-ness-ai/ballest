@@ -16,8 +16,7 @@ import { joinedLead, type Lead } from "../dailyPost/lead.js";
 import type { CardView, ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
 import {
-  GLOW_DEPTH,
-  glowSvg,
+  backdropGlow,
   hueFor,
   MEDAL_BAR,
   marbleSvg,
@@ -111,8 +110,13 @@ const F = { medal: "Nunito", hud: "Chakra Petch", body: "Archivo", marquee: "Bun
 const OUTLINE = "-1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 0 2px 0 #111";
 
 /** Every image's ground, `width` wide: the site's dark blue, rounded, glowing at the top. */
-const backdrop = (width: number, style: Style, ...children: ReadonlyArray<Child>) =>
-  box(
+const backdrop = (
+  width: number,
+  style: Omit<Style, "width">,
+  ...children: ReadonlyArray<Child>
+) => {
+  const glows = backdropGlow(width);
+  return box(
     {
       flexDirection: "column",
       color: C.text,
@@ -124,13 +128,10 @@ const backdrop = (width: number, style: Style, ...children: ReadonlyArray<Child>
       ...style,
       width,
     },
-    img(svgUri(glowSvg(width)), width, Math.ceil(width * GLOW_DEPTH), {
-      position: "absolute",
-      left: 0,
-      top: 0,
-    }),
+    img(svgUri(glows.svg), width, glows.height, { position: "absolute", left: 0, top: 0 }),
     ...children,
   );
+};
 
 const label = (text: string, style: Style = {}) =>
   box(

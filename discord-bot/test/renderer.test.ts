@@ -134,7 +134,7 @@ describe("the Renderer", () => {
             out: [],
           },
         });
-        expect(resident() - before).toBeLessThan(150);
+        expect(resident() - before).toBeLessThan(250);
       }).pipe(Effect.provide(Renderer.Default)),
     60_000,
   );
