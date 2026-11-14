@@ -133,6 +133,12 @@ export type CupNotice =
       readonly entrants: ReadonlyArray<string>;
     }
   | {
+      /** The Shortlist drawn again, its time moved past the vote's first close (MOVED_TIMES). */
+      readonly _tag: "Redrawn";
+      readonly week: CupWeek;
+      readonly entrants: ReadonlyArray<string>;
+    }
+  | {
       readonly _tag: "CupMaps";
       readonly week: CupWeek;
       readonly entrants: ReadonlyArray<string>;

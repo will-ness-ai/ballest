@@ -49,7 +49,7 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
 
   /**
    * The week a press was for, if it is still this week (or still racing past it, its end moved
-   * by MOVED_ENDS), with its Cup.
+   * by MOVED_TIMES), with its Cup.
    */
   const pressedFor = Effect.fn("WeeklyCup.pressedFor")(function* (pressed: string) {
     const now = yield* Clock.currentTimeMillis;
