@@ -186,13 +186,19 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>BALLESTRECORDS: Ballest of Them All "],
+  [
+    "/",
+    200,
+    null,
+    "<title>Ballest of Them All Leaderboards &amp; Records · BALLESTRECORDS</title>",
+  ],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
   // the Generators: Make your own, a Generator, and one that isn't (a key no Generator will
   // ever take: a real word fails here the day a Generator is named it)
+  ["/", 200, null, '<h1 class="ph-title">Ballest of Them All leaderboards</h1>'],
   ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/guide", 200, null, "ballest.editor.saveprefab my_prefab"],
   ["/prefabs/guide", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs/guide"'],

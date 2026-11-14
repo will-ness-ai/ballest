@@ -171,6 +171,8 @@ function subsOf(
 function kindOf(section: SectionKey | null, path: string): string | null {
   switch (section) {
     case "maps":
+      /* the homepage's title is the search phrase (app/page.tsx), so this line names the page */
+      if (path === "/") return "Featured Maps";
       return path.startsWith("/map/") ? "Workshop Map" : "Workshop";
     case "campaigns": {
       const at = campaignPath(path);
