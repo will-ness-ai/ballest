@@ -10,11 +10,12 @@
 //             on them are read and the standings shown (race.ts)
 //   final     Sunday 20:00: sign-up closes, and after a final read (waiting up to 30 minutes for
 //             Steam) the results are posted
-//             A week whose Shortlist MOVED_TIMES moves past its vote's close is drawn again
-//             then, and votes again (vote.ts)
 //   cancelled Thursday 12:00 with fewer than 2 Entrants, or no Map to draw: the post and a
 //             notice say so
 //   skipped   a server admin skipped the week while it was open: its Entrants are told
+//
+// A racing week whose Shortlist MOVED_TIMES moves past its vote's close is drawn again then, and
+// votes again (week.ts, `drawAgain` in vote.ts).
 //
 // Sign-up stays open from Monday 00:00 to Sunday 20:00, so a late Entrant can still race
 // (presses.ts). Each week is recorded in the bot's SQLite (record.ts), and the schedule works only

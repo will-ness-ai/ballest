@@ -1277,6 +1277,8 @@ describe("the Weekly Cup's racing and results", () => {
           drawn.slice(0, 3).map((b) => `pf${b}`),
         ),
       ).toContain("Your vote");
+      // alice practises on the new Shortlist during the vote: her bar, not a counted time.
+      for (const b of drawn) yield* t.steam.setTime(b, steamIdOf("alice"), 20);
       yield* TestClock.setTime(voteClosesAt - MINUTE);
       yield* TestClock.adjust(2 * MINUTE);
       const announced = (yield* Ref.get(t.notices)).filter((n) => n.notice._tag === "CupMaps");
@@ -1284,6 +1286,9 @@ describe("the Weekly Cup's racing and results", () => {
       const cupMaps = announced[1]?.notice;
       expect(cupMaps?._tag === "CupMaps" && cupMaps.maps[0]?.votes).toBe(1);
       expect((yield* t.lastView)?.state).toBe("racing");
+      yield* TestClock.adjust(MINUTE);
+      const live = (yield* Ref.get(t.standings)).at(-1)?.view.standings.maps[0]?.rows ?? [];
+      expect(live.find((r) => r.discordId === "alice")).toMatchObject({ ticks: null });
       // Racing runs past Monday 00:00, the next week's post going up, to Tuesday 20:00.
       yield* third.stop;
       yield* TestClock.setTime(endsAt - 2 * MINUTE);
