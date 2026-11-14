@@ -21,7 +21,7 @@ import {
 } from "../src/weeklyCup/model.js";
 import { CupLogLive } from "../src/weeklyCup/record.js";
 import { makeWeeklyCup } from "../src/weeklyCup/schedule.js";
-import { MOVED_ENDS } from "../src/weeklyCup/week.js";
+import { MOVED_TIMES } from "../src/weeklyCup/week.js";
 import { makeFakeSteam, makeMap } from "./harness.js";
 
 const MINUTE = 60_000;
@@ -1216,8 +1216,8 @@ describe("the Weekly Cup's racing and results", () => {
   it.scoped("races a week whose end was moved past the next Monday 00:00, then finishes it", () =>
     Effect.gen(function* () {
       // As Will moved the week of 2 November's end to midnight Pacific: 02:00 Monday Central.
-      MOVED_ENDS.set(WEEK, [26, 0]);
-      yield* Effect.addFinalizer(() => Effect.sync(() => MOVED_ENDS.delete(WEEK)));
+      MOVED_TIMES.set(WEEK, { endsAt: [170, 0] });
+      yield* Effect.addFinalizer(() => Effect.sync(() => MOVED_TIMES.delete(WEEK)));
       const { t, bot, boards } = yield* racing();
       yield* bot.stop;
       yield* TestClock.setTime(NEXT_MONDAY - MINUTE);
@@ -1236,6 +1236,62 @@ describe("the Weekly Cup's racing and results", () => {
       expect(results[0]?.view.standings.maps[0]?.rows[0]).toMatchObject({ discordId: "bob" });
       expect(yield* again.signUp("dave")).not.toContain("You're signed up");
       yield* again.stop;
+    }),
+  );
+
+  it.scoped("draws the Shortlist again when its time is moved past the vote, then races on", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      // carol signs up late, having Played two of the Cup Maps.
+      yield* TestClock.adjust(HOUR);
+      yield* t.steam.setTime(boards[0], steamIdOf("carol"), 20);
+      yield* t.steam.setTime(boards[1], steamIdOf("carol"), 20);
+      expect(yield* bot.signUp("carol")).toContain("You're signed up");
+      yield* TestClock.adjust(HOUR);
+      yield* bot.stop;
+      // As Will had the week of 9 November drawn again: Friday 23:00, the vote to Saturday 14:00
+      // Central and racing to Tuesday 20:00 (CST from Sunday 1 November).
+      MOVED_TIMES.set(WEEK, { shortlistAt: [119, 0], voteClosesAt: [134, 0], endsAt: [212, 0] });
+      yield* Effect.addFinalizer(() => Effect.sync(() => MOVED_TIMES.delete(WEEK)));
+      const redrawAt = Date.parse("2026-10-31T04:00:00Z");
+      const voteClosesAt = Date.parse("2026-10-31T19:00:00Z");
+      const endsAt = Date.parse("2026-11-04T02:00:00Z");
+      yield* TestClock.setTime(redrawAt + 10 * MINUTE);
+      const again = yield* t.start;
+      const notices = (yield* Ref.get(t.notices)).filter((n) => n.notice._tag === "Redrawn");
+      expect(notices.map((n) => n.notice.entrants)).toEqual([["alice", "bob", "carol"]]);
+      const shortlists = yield* Ref.get(t.shortlists);
+      expect(shortlists).toHaveLength(2);
+      const drawn = shortlists[1]?.view.maps.map((m) => m.map.boardId) ?? [];
+      expect(drawn).not.toContain(boards[0]);
+      expect(drawn).not.toContain(boards[1]);
+      expect(shortlists[1]?.view).toMatchObject({ closed: false, week: { voteClosesAt, endsAt } });
+      expect((yield* t.lastView)?.state).toBe("voting");
+      // A restart draws nothing again; carol, now checked, can vote.
+      yield* again.stop;
+      const third = yield* t.start;
+      expect(yield* Ref.get(t.shortlists)).toHaveLength(2);
+      expect(
+        yield* third.vote(
+          "carol",
+          drawn.slice(0, 3).map((b) => `pf${b}`),
+        ),
+      ).toContain("Your vote");
+      yield* TestClock.setTime(voteClosesAt - MINUTE);
+      yield* TestClock.adjust(2 * MINUTE);
+      const announced = (yield* Ref.get(t.notices)).filter((n) => n.notice._tag === "CupMaps");
+      expect(announced.map((n) => n.at)).toEqual([FRIDAY_NINE, voteClosesAt]);
+      const cupMaps = announced[1]?.notice;
+      expect(cupMaps?._tag === "CupMaps" && cupMaps.maps[0]?.votes).toBe(1);
+      expect((yield* t.lastView)?.state).toBe("racing");
+      // Racing runs past Monday 00:00, the next week's post going up, to Tuesday 20:00.
+      yield* third.stop;
+      yield* TestClock.setTime(endsAt - 2 * MINUTE);
+      const last = yield* t.start;
+      expect(yield* Ref.get(t.results)).toEqual([]);
+      yield* TestClock.adjust(3 * MINUTE);
+      expect((yield* Ref.get(t.results)).map((r) => r.view.week.week)).toEqual([WEEK]);
+      yield* last.stop;
     }),
   );
 

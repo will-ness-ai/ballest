@@ -10,6 +10,8 @@
 //             on them are read and the standings shown (race.ts)
 //   final     Sunday 20:00: sign-up closes, and after a final read (waiting up to 30 minutes for
 //             Steam) the results are posted
+//             A week whose Shortlist MOVED_TIMES moves past its vote's close is drawn again
+//             then, and votes again (vote.ts)
 //   cancelled Thursday 12:00 with fewer than 2 Entrants, or no Map to draw: the post and a
 //             notice say so
 //   skipped   a server admin skipped the week while it was open: its Entrants are told
@@ -72,6 +74,9 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       case "voting":
         return now < week.voteClosesAt ? week.voteClosesAt : yield* vote.closeVote(now, week, cup);
       case "racing":
+        // Its bars were taken before its Shortlist time: MOVED_TIMES moved the draw past the vote.
+        if (cup.barsAt !== null && cup.barsAt < week.shortlistAt && now >= week.shortlistAt)
+          return yield* vote.drawAgain(now, week, cup);
         return now < week.endsAt
           ? yield* race.live(now, week, cup)
           : yield* race.finish(now, week, cup);
@@ -91,7 +96,7 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       const was = weekOf(earlier);
       const cup = yield* log.get(guildId, earlier);
       if (Option.isNone(cup)) continue;
-      // A week whose end was moved past the next Monday 00:00 (MOVED_ENDS) still races.
+      // A week whose end was moved past the next Monday 00:00 (MOVED_TIMES) still races.
       const next = yield* now < was.endsAt
         ? race.live(now, was, cup.value)
         : race.finish(now, was, cup.value);

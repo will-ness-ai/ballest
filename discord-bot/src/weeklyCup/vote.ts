@@ -190,5 +190,36 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
     return now;
   });
 
-  return { openVote, closeVote };
+  /**
+   * The week's Shortlist moved past when its vote closed (MOVED_TIMES: a late Entrant had Played a
+   * Cup Map): forget the draw, its votes, bars and times, and the messages showing them, tell the
+   * Entrants, and open the vote again on a Shortlist drawn afresh. The record is open again before
+   * the notice, so a restart in between draws without telling twice.
+   */
+  const drawAgain = Effect.fn("WeeklyCup.drawAgain")(function* (
+    now: number,
+    week: CupWeek,
+    cup: CupRecord,
+  ) {
+    yield* log.clearDraw(guildId, week.week);
+    const fresh: CupRecord = {
+      ...cup,
+      state: "open",
+      barsAt: null,
+      finalReads: {},
+      shown: { ...cup.shown, shortlist: [], standings: [] },
+    };
+    yield* log.put(guildId, week.week, fresh);
+    yield* Effect.logInfo(`weekly cup: drawing ${week.week}'s Shortlist again in ${guildId}`);
+    yield* kit.attempt(
+      "drawAgain",
+      "tell the Weekly Cup's Entrants the Shortlist is drawn again",
+      week.week,
+      kit.channel.say({ _tag: "Redrawn", week, entrants: yield* kit.entrantIds(week.week) }),
+      "always",
+    );
+    return yield* openVote(now, week, fresh);
+  });
+
+  return { openVote, closeVote, drawAgain };
 };

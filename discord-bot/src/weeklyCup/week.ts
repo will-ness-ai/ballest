@@ -4,7 +4,8 @@
 // Monday 00:00     the Cup's post goes up; sign-up opens
 // Thursday 12:00   the Shortlist is drawn, or a week with fewer than 2 Entrants is cancelled
 // Friday 09:00     the vote closes; racing starts
-// Sunday 20:00     racing and sign-up end; the results (MOVED_ENDS moves it for one week)
+// Sunday 20:00     racing and sign-up end; the results
+// MOVED_TIMES moves any of the last three for one week.
 export const CUP_TIME_ZONE = "America/Chicago";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -49,13 +50,28 @@ const central = (dayUtc: number, hours: number) => {
   return wall - offsetAt(guess);
 };
 
+/** A boundary moved for one week: [hour, minute] after that week's Monday 00:00 Central. */
+type MovedTime = readonly [number, number];
+
 /**
- * Weeks whose racing ends at another time than Sunday 20:00, by week key: [hour, minute] after
- * its Sunday's 00:00 in Central, so 26 is 02:00 on the Monday. 2026-11-02: Will moved that week's
- * end to midnight Pacific (02:00 Monday Central), after the next week's post goes up at 00:00;
- * the schedule races both weeks until then. Tests add to it (test/weeklyCup.test.ts).
+ * Weeks whose Shortlist, vote close or end come at other times than the usual, by week key, each
+ * time as [hour, minute] after its Monday 00:00 in Central, so 170 is 02:00 on the next Monday.
+ * Moving a week's Shortlist past when its vote already closed draws it again (schedule.ts).
+ * Tests add to it (test/weeklyCup.test.ts).
+ *
+ * - 2026-11-02: Will moved that week's end to midnight Pacific (02:00 Monday Central), after the
+ *   next week's post goes up at 00:00; the schedule races both weeks until then.
+ * - 2026-11-09: a late Entrant had already Played two of the Cup Maps, so Will had the vote done
+ *   again: the Shortlist drawn afresh at Friday 23:00, the vote closing at Saturday 14:00 (noon
+ *   Pacific), and racing until Tuesday 20:00.
  */
-export const MOVED_ENDS = new Map<string, readonly [number, number]>([["2026-11-02", [26, 0]]]);
+export const MOVED_TIMES = new Map<
+  string,
+  Partial<Record<"shortlistAt" | "voteClosesAt" | "endsAt", MovedTime>>
+>([
+  ["2026-11-02", { endsAt: [170, 0] }],
+  ["2026-11-09", { shortlistAt: [119, 0], voteClosesAt: [134, 0], endsAt: [212, 0] }],
+]);
 
 const isoDate = (dayUtc: number) => new Date(dayUtc).toISOString().slice(0, 10);
 
@@ -65,13 +81,15 @@ export const weekAt = (ms: number): CupWeek => {
   const today = wall - (wall % DAY);
   // getUTCDay: 0 is Sunday; the week starts on Monday.
   const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY;
-  const [endHour, endMinute] = MOVED_ENDS.get(isoDate(monday)) ?? [20, 0];
+  const moved = MOVED_TIMES.get(isoDate(monday)) ?? {};
+  /** The moment `hour`:`minute` after the week's Monday 00:00 Central. */
+  const after = ([hour, minute]: MovedTime) => central(monday, hour) + minute * 60_000;
   return {
     week: isoDate(monday),
     opensAt: central(monday, 0),
-    shortlistAt: central(monday + 3 * DAY, 12),
-    voteClosesAt: central(monday + 4 * DAY, 9),
-    endsAt: central(monday + 6 * DAY, endHour) + endMinute * 60_000,
+    shortlistAt: after(moved.shortlistAt ?? [3 * 24 + 12, 0]),
+    voteClosesAt: after(moved.voteClosesAt ?? [4 * 24 + 9, 0]),
+    endsAt: after(moved.endsAt ?? [6 * 24 + 20, 0]),
     nextOpensAt: central(monday + 7 * DAY, 0),
   };
 };

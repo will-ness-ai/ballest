@@ -526,7 +526,10 @@ is part of it. Each message is kept as one of four slots of the week's record (p
 standings, results: `weekly_cups.messages`): `CupChannel.show` posts a slot with no messages yet,
 edits only the parts that change, posts or drops parts when a view takes more or fewer, and
 reposts a slot whose message someone deleted (Unknown Message), handing back the ids it now has.
-Sign up and Withdraw close at Sunday 20:00.
+Sign up and Withdraw close at Sunday 20:00. `MOVED_TIMES` in `week.ts` moves one week's Shortlist, vote close or end
+(hours after its Monday 00:00); a Shortlist moved past a vote that already closed is drawn again
+then (`drawAgain` in `vote.ts`): its draw, votes, bars and times are forgotten, the Entrants told,
+and the vote opens on a fresh Shortlist checked against everyone signed up by the new time.
 
 The Shortlist (Thursday 12:00) is the engine's Eligible Map search (`src/eligibleMaps.ts`, shared
 with a Match's draw) with an author limit of 3:00, drawing until 10 Maps none of the Entrants
