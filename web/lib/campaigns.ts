@@ -60,6 +60,7 @@ export const campaignMapBoard = (id: string) => eventOf(id)?.board ?? mapBoard(i
 
 /* makers of more than one Campaign, each written once */
 const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
+const RAINCAKE = { creator: "Raincake", creatorId: "76561198324121617" };
 const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };
 
 export const CAMPAIGNS: ReadonlyArray<Campaign> = [
@@ -97,8 +98,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "miniblack",
     title: "Miniblack",
-    creator: "Raincake",
-    creatorId: "76561198324121617",
+    ...RAINCAKE,
     maps: [
       "3811078255",
       "3811099010",
@@ -327,6 +327,22 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
       "3839147032",
       "3839148612",
       "3839150609",
+    ],
+  },
+  {
+    slug: "bigblue",
+    title: "Bigblue",
+    ...RAINCAKE,
+    collection: "3828884310",
+    maps: [
+      "3823875925",
+      "3823913624",
+      "3824440878",
+      "3824526057",
+      "3825257580",
+      "3827613535",
+      "3828291958",
+      "3828880527",
     ],
   },
 ];
