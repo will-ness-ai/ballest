@@ -50,18 +50,19 @@ fi
 # the review gate (.claude/hooks/review-gate.mjs): a project thread starts outside the repo, so
 # it never reads .claude/settings.json; give it the same hooks as user settings
 node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
-# and its Skill tool can't see the repo's skills, so the gate's /codebase-design (and tdd...) were
-# "Unknown skill" there (PR #331, #336, #363). Links in ~/.claude/skills (#338) never reached a
-# thread's Skill tool, which sees the skills synced from the account there. The thread's project is
-# the main checkout's parent (/home/user), so link them into its .claude/skills, replacing a link
-# left dangling and never one of the same name. Every start does it, as the setup script can't
-# tell whether the next session starts in the repo or above it.
+# and its Skill tool reads skills from ~/.claude/skills, never the project's: links in
+# /home/user/.claude/skills (#364) were never offered, while one in ~/.claude/skills loads and the
+# repo's code-review then replaces the built-in one (checked in a thread, 2026-11-05). The project
+# links stay for a `claude -p` started in /home/user, which does read them. Replace a link left
+# dangling and never one of the same name (the image's session-start-hook, the account's synced
+# skills). Every start does it, as the setup script can't tell where the next session starts.
 main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-skills="$(dirname "$main")/.claude/skills"
-mkdir -p "$skills"
-for skill in "$main"/.claude/skills/*/; do
-  [ -d "$skill" ] || continue
-  link="$skills/$(basename "$skill")"
-  [ -L "$link" ] && [ ! -e "$link" ] && rm "$link"
-  [ -e "$link" ] || ln -s "${skill%/}" "$link"
+for skills in "$HOME/.claude/skills" "$(dirname "$main")/.claude/skills"; do
+  mkdir -p "$skills"
+  for skill in "$main"/.claude/skills/*/; do
+    [ -d "$skill" ] || continue
+    link="$skills/$(basename "$skill")"
+    [ -L "$link" ] && [ ! -e "$link" ] && rm "$link"
+    [ -e "$link" ] || ln -s "${skill%/}" "$link"
+  done
 done
