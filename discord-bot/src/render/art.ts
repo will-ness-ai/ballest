@@ -76,3 +76,27 @@ export const MEDAL_BAR: Record<MedalKind, string> = {
 
 export const svgUri = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+
+/**
+ * The backdrop's two glows over the top corners of an image `width` wide: the site's blue from
+ * the top right, its lime from the top left, as one picture `height` tall to lay at the top. They
+ * were CSS radial-gradients, which Satori draws as masked circles as big as the image's farthest
+ * corner, and resvg took about 6 s and 500 MB over them on the Daily Report's tall standings
+ * (2026-11-12). So they are sized by the width alone, the Card's as before; a tall image's glows
+ * no longer reach as far down, by at most 15 of 255 in any channel.
+ */
+export const backdropGlow = (width: number): { readonly svg: string; readonly height: number } => {
+  const height = Math.ceil(width / 2);
+  const gradient = (id: string, cx: number, cy: number, r: number, rgb: string, alpha: number) =>
+    `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${cx}" cy="${cy}" r="${r}">` +
+    `<stop offset="0" stop-color="${rgb}" stop-opacity="${alpha}"/><stop offset="1" stop-color="${rgb}" stop-opacity="0"/></radialGradient>`;
+  const rect = (id: string) => `<rect width="${width}" height="${height}" fill="url(#${id})"/>`;
+  return {
+    svg:
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>` +
+      gradient("blue", width * 0.85, -width * 0.15, width * 0.55, "rgb(88,168,255)", 0.18) +
+      gradient("lime", 0, 0, height, "rgb(139,224,60)", 0.1) +
+      `</defs>${rect("lime")}${rect("blue")}</svg>`,
+    height,
+  };
+};
