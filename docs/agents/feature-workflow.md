@@ -144,20 +144,19 @@ dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch c
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
 
+A ready PR that waits only on Will's "merge" is stalled. When you ask Will to merge it from a
+project thread, set yourself a `send_later` reminder a day on, and another three days after
+that. When either fires and the PR is still open, ask again, opening with what the wait has
+cost since the last ask, by date (each Daily Report missed, Refresh failed, or player still
+seeing the bug); after the second, stop. #422 sat 12 days after its thread's first-day asks
+while the Daily Report kept failing.
+
 When Will says "merge", run `pnpm --silent pr land <n>` at the root. Other threads merge
 often, so it brings `main` in when the head is behind (GitHub's update-branch), waits for that
 head's CI and preview, marks a draft ready and squash-merges, stopping on red CI or a conflict
 with the next command to run. The review gate checks it like any merge. A conflict is yours to
 merge locally, and a later push needs `git pull` first, since update-branch adds a commit. The session's permission check can refuse to merge a PR with no approving review;
 then say so in one line and try again on Will's next word, naming the PR.
-
-A PR that is ready and waits only on Will's typed "merge" is stalled, and the thread keeps
-it in front of him. When you ask for the OK, set yourself a `send_later` reminder for a day
-later. When it fires and the PR is still open, ask again, opening with what the wait has
-cost since the last ask (each Daily Report missed, Refresh failed, or player still seeing
-the bug, by date) and the next deadline it threatens, then set one more reminder three days
-on. After that second reminder, leave it to the coordinator's summary. #422 sat 12 days
-after the thread's two asks on its first day, while the Daily Report kept failing.
 
 Will's "merge" can land on GitHub long before its merged event reaches the session (#237 took
 47 minutes), so commits pushed in between never reach `main`. The pre-push hook
