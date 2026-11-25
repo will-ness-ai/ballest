@@ -115,7 +115,7 @@ const backdrop = (
   style: Omit<Style, "width">,
   ...children: ReadonlyArray<Child>
 ) => {
-  const glows = backdropGlow(width);
+  const glows = backdropGlow(width, { blue: C.fresh, lime: C.accent });
   return box(
     {
       flexDirection: "column",

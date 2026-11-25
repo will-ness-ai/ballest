@@ -115,6 +115,7 @@ describe("the Renderer", () => {
           out: ["Gone"],
         });
         const before = resident();
+        const started = performance.now();
         // The tallest report: yesterday's Daily, Overall and the four boards, ten rows each.
         // Its backdrop's glows once took resvg about 500 MB and 6 s, which ran production out
         // of memory and over the draw's timeout (2026-11-12).
@@ -135,6 +136,8 @@ describe("the Renderer", () => {
           },
         });
         expect(resident() - before).toBeLessThan(250);
+        // Well inside the draw's 30 s timeout, with room for a slow CI runner.
+        expect(performance.now() - started).toBeLessThan(10_000);
       }).pipe(Effect.provide(Renderer.Default)),
     60_000,
   );
