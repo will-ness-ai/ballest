@@ -136,6 +136,8 @@ export class CupLog extends Context.Tag("multiballs/CupLog")<
       week: string,
       ranked: ReadonlyArray<{ readonly pfid: string; readonly votes: number }>,
     ) => Effect.Effect<void>;
+    /** Forget the week's Shortlist, votes, bars and counted times, for the Shortlist drawn again. */
+    readonly clearDraw: (guildId: string, week: string) => Effect.Effect<void>;
     readonly votes: (guildId: string, week: string) => Effect.Effect<ReadonlyArray<Vote>>;
     /** An Entrant's vote, replacing the one before. */
     readonly putVote: (guildId: string, week: string, vote: Vote) => Effect.Effect<void>;
@@ -255,6 +257,14 @@ export const CupLogLive = Layer.effect(
           ({ pfid, votes }, i) =>
             sql`UPDATE weekly_cup_maps SET cup_rank = ${i + 1}, votes = ${votes} WHERE guild_id = ${guildId} AND week = ${week} AND pfid = ${pfid}`,
         ).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      clearDraw: Effect.fn("CupLog.clearDraw")(function* (guildId: string, week: string) {
+        yield* Effect.gen(function* () {
+          yield* sql`DELETE FROM weekly_cup_maps WHERE guild_id = ${guildId} AND week = ${week}`;
+          yield* sql`DELETE FROM weekly_cup_votes WHERE guild_id = ${guildId} AND week = ${week}`;
+          yield* sql`DELETE FROM weekly_cup_baselines WHERE guild_id = ${guildId} AND week = ${week}`;
+          yield* sql`DELETE FROM weekly_cup_times WHERE guild_id = ${guildId} AND week = ${week}`;
+        }).pipe(sql.withTransaction, Effect.orDie);
       }),
       votes: Effect.fn("CupLog.votes")(function* (guildId: string, week: string) {
         const rows =

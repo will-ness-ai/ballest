@@ -197,6 +197,14 @@ describe("the Weekly Cup's post", () => {
     expect(pinged(told)).toEqual(["1", "2"]);
   });
 
+  it("says the Shortlist is drawn again, with the moved vote and end, pinging the Entrants", () => {
+    const told = cupNoticeMessage({ _tag: "Redrawn", week, entrants: ["1", "2"] });
+    expect(told.content).toContain("vote is open again");
+    expect(told.content).toContain(`<t:${week.voteClosesAt / 1000}:F>`);
+    expect(told.content).toContain(`<t:${week.endsAt / 1000}:F>`);
+    expect(pinged(told)).toEqual(["1", "2"]);
+  });
+
   it("keeps the Shortlist's Maps once the vote closes, with no vote and saying so", () => {
     const closed = shortlistMessage({
       guildId: cup.guildId,

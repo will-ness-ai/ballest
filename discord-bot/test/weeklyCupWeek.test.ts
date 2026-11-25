@@ -42,10 +42,27 @@ describe("the Weekly Cup's week", () => {
     expect(sundayNight).toEqual(monday);
   });
 
-  it("ends the week of 2 November 2026 at midnight Pacific, and the next at 20:00 again", () => {
+  it("ends the week of 2 November 2026 at midnight Pacific", () => {
     // Will moved that week's end to midnight Pacific: 02:00 Monday Central, 08:00 UTC.
     expect(weekAt(at("2026-11-08T17:00:00Z")).endsAt).toBe(at("2026-11-09T08:00:00Z"));
-    expect(weekAt(at("2026-11-12T17:00:00Z")).endsAt).toBe(at("2026-11-16T02:00:00Z"));
+  });
+
+  it("draws the week of 9 November 2026 again, to vote by noon Pacific and race to Tuesday", () => {
+    expect(weekOf("2026-11-09")).toMatchObject({
+      // Friday 23:00 Central
+      shortlistAt: at("2026-11-14T05:00:00Z"),
+      // Saturday 14:00 Central, noon Pacific
+      voteClosesAt: at("2026-11-14T20:00:00Z"),
+      // Tuesday 20:00 Central
+      endsAt: at("2026-11-18T02:00:00Z"),
+      nextOpensAt: at("2026-11-16T06:00:00Z"),
+    });
+    // The week after keeps the usual times.
+    expect(weekOf("2026-11-16")).toMatchObject({
+      shortlistAt: at("2026-11-19T18:00:00Z"),
+      voteClosesAt: at("2026-11-20T15:00:00Z"),
+      endsAt: at("2026-11-23T02:00:00Z"),
+    });
   });
 
   it("finds a week again from its key", () => {

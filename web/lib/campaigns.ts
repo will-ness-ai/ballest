@@ -60,6 +60,7 @@ export const campaignMapBoard = (id: string) => eventOf(id)?.board ?? mapBoard(i
 
 /* makers of more than one Campaign, each written once */
 const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
+const RAINCAKE = { creator: "Raincake", creatorId: "76561198324121617" };
 const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };
 
 export const CAMPAIGNS: ReadonlyArray<Campaign> = [
@@ -97,8 +98,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "miniblack",
     title: "Miniblack",
-    creator: "Raincake",
-    creatorId: "76561198324121617",
+    ...RAINCAKE,
     maps: [
       "3811078255",
       "3811099010",
@@ -309,6 +309,42 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     creatorId: "76561198841036162",
     maps: ["3833648606", "3835679449", "3838047967"],
   },
+  {
+    slug: "ball-town",
+    title: "Ball Town",
+    creator: "salamanderslander",
+    creatorId: "76561197998401445",
+    maps: [
+      "3839132075",
+      "3839133296",
+      "3839134316",
+      "3839136670",
+      "3839138284",
+      "3839139536",
+      "3839140852",
+      "3839142633",
+      "3839145159",
+      "3839147032",
+      "3839148612",
+      "3839150609",
+    ],
+  },
+  {
+    slug: "bigblue",
+    title: "Bigblue",
+    ...RAINCAKE,
+    collection: "3828884310",
+    maps: [
+      "3823875925",
+      "3823913624",
+      "3824440878",
+      "3824526057",
+      "3825257580",
+      "3827613535",
+      "3828291958",
+      "3828880527",
+    ],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
@@ -405,8 +441,9 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
    with it ("Solar Trials Mercury" is Mercury), else the whole title; or null when that is
    only its number ("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8", which counts the Maps,
    even with one letter before the number, as in the maker's "A08 of 8"), which its label
-   already gives. When what is left starts with a number that isn't its place ("Ninja0",
-   "AJ26"), it stays whole, so the label doesn't read "01 0", and so does one where the
+   already gives. A dash or colon after its number leaves the name ("Ball Town 01 - Sunrise
+   Garden" is Sunrise Garden). When what is left starts with a number that isn't its place
+   ("Ninja0", "AJ26"), it stays whole, so the label doesn't read "01 0", and so does one where the
    Campaign's name runs on into a longer word ("Embers Edge", "Ember's Fury") */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
   const prefix = c.title.toLowerCase();
@@ -420,6 +457,8 @@ export function mapName(c: Campaign, pfid: string, title: string): string | null
   const lead = /^\d+/.exec(name);
   if (lead === null) return name;
   if (Number(lead[0]) !== mapNumber(c, pfid)) return title;
+  const named = /^\s*[-–—:]\s*(\S.*)$/u.exec(name.slice(lead[0].length));
+  if (named) return named[1];
   return lead[0] === name ? null : name;
 }
 

@@ -14,6 +14,9 @@
 //             notice say so
 //   skipped   a server admin skipped the week while it was open: its Entrants are told
 //
+// A racing week whose Shortlist MOVED_TIMES moves past its vote's close is drawn again then, and
+// votes again (week.ts, `drawAgain` in vote.ts).
+//
 // Sign-up stays open from Monday 00:00 to Sunday 20:00, so a late Entrant can still race
 // (presses.ts). Each week is recorded in the bot's SQLite (record.ts), and the schedule works only
 // from that record and the clock, so a restart picks the week up where it was without posting,
@@ -72,6 +75,9 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       case "voting":
         return now < week.voteClosesAt ? week.voteClosesAt : yield* vote.closeVote(now, week, cup);
       case "racing":
+        // Its bars were taken before its Shortlist time: MOVED_TIMES moved the draw past the vote.
+        if (cup.barsAt !== null && cup.barsAt < week.shortlistAt && now >= week.shortlistAt)
+          return yield* vote.drawAgain(now, week, cup);
         return now < week.endsAt
           ? yield* race.live(now, week, cup)
           : yield* race.finish(now, week, cup);
@@ -91,7 +97,7 @@ export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: str
       const was = weekOf(earlier);
       const cup = yield* log.get(guildId, earlier);
       if (Option.isNone(cup)) continue;
-      // A week whose end was moved past the next Monday 00:00 (MOVED_ENDS) still races.
+      // A week whose end was moved past the next Monday 00:00 (MOVED_TIMES) still races.
       const next = yield* now < was.endsAt
         ? race.live(now, was, cup.value)
         : race.finish(now, was, cup.value);

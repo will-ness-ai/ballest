@@ -128,6 +128,8 @@ const cupNoticeText = (n: CupNotice, pings: string): string => {
       return n.entrants.length === 0
         ? "A server admin skipped this week's Weekly Cup. The next one opens on Monday."
         : `A server admin skipped this week's Weekly Cup. ${pings}, you were signed up: the next one opens on Monday.`;
+    case "Redrawn":
+      return `**This week's vote is open again.** The Shortlist is drawn afresh below, from Maps none of this week's Entrants has Played, late sign-ups included: the Shortlist, Cup Maps and standings above no longer count. Vote by <t:${unix(n.week.voteClosesAt)}:F>, then racing runs to <t:${unix(n.week.endsAt)}:F>. ${pings}`.trim();
     case "CupMaps":
       return [
         `## This week's Cup Maps`,
@@ -140,7 +142,10 @@ const cupNoticeText = (n: CupNotice, pings: string): string => {
   }
 };
 
-/** A message beside the post: the week cancelled, skipped or its Cup Maps. It pings its Entrants. */
+/**
+ * A message beside the post: the week cancelled, skipped, its Shortlist drawn again or its Cup Maps.
+ * It pings its Entrants.
+ */
 export const cupNoticeMessage = (n: CupNotice): Payload => ({
   content: cupNoticeText(n, n.entrants.map(who).join(" ")),
   allowedMentions: { users: [...n.entrants] },
