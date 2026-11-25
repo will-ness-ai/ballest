@@ -144,6 +144,13 @@ dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch c
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
 
+A ready PR that waits only on Will's "merge" is stalled. When you ask Will to merge it from a
+project thread, set yourself a `send_later` reminder a day on, and another three days after
+that. When either fires and the PR is still open, ask again, opening with what the wait has
+cost since the last ask, by date (each Daily Report missed, Refresh failed, or player still
+seeing the bug); after the second, stop. #422 sat 12 days after its thread's first-day asks
+while the Daily Report kept failing.
+
 When Will says "merge", run `pnpm --silent pr land <n>` at the root. Other threads merge
 often, so it brings `main` in when the head is behind (GitHub's update-branch), waits for that
 head's CI and preview, marks a draft ready and squash-merges, stopping on red CI or a conflict
